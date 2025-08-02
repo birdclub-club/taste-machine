@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏦 Safe Contract Deployment</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .card { background: #f8f9fa; border-radius: 12px; padding: 24px; margin: 16px 0; border: 1px solid #e1e5e9; }
+        .button { background: #0066cc; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .button:hover { background: #0052a3; }
+        .button:disabled { background: #ccc; cursor: not-allowed; }
+        .success { color: #28a745; } .error { color: #dc3545; } .warning { color: #ffc107; }
+        .status { margin: 12px 0; padding: 12px; border-radius: 8px; }
+        .status.success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .status.warning { background: #fff3cd; border: 1px solid #ffeaa7; }
+        pre { background: #f1f3f4; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 14px; }
+        .wallet-info { background: #e7f3ff; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <h1>🏦 Safe GugoVoteManager Deployment</h1>
+    <p>Deploy your 4-wallet revenue system safely using MetaMask - no private key export needed!</p>
+
+    <div class="card">
+        <h2>📋 Pre-Deployment Checklist</h2>
+        <div id="checklist">
+            <p>✅ Contract: GugoVoteManager_updated.sol</p>
+            <p>✅ Network: Abstract Testnet (Chain ID: 11124)</p>
+            <p>✅ Operations Wallet: 0x544f075E54aa90fDB21c19C02e45bD8Faded6A87</p>
+            <p>⏳ MetaMask: <span id="wallet-status">Not connected</span></p>
+            <p>⏳ Network: <span id="network-status">Unknown</span></p>
+            <p>⏳ Balance: <span id="balance-status">Unknown</span></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🔌 Step 1: Connect Wallet</h2>
+        <button id="connectWallet" class="button">Connect MetaMask</button>
+        <div id="walletInfo" class="wallet-info" style="display: none;">
+            <p><strong>Connected Account:</strong> <span id="connectedAccount"></span></p>
+            <p><strong>Network:</strong> <span id="connectedNetwork"></span></p>
+            <p><strong>Balance:</strong> <span id="connectedBalance"></span> ETH</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🚀 Step 2: Deploy Contract</h2>
+        <p>This will deploy GugoVoteManager_updated.sol with the 4-wallet revenue system.</p>
+        <button id="deployContract" class="button" disabled>Deploy GugoVoteManager</button>
+        <div id="deployStatus"></div>
+    </div>
+
+    <div class="card">
+        <h2>⚙️ Step 3: Configure Wallets</h2>
+        <p>Set up your operations wallet and GUGO token after deployment.</p>
+        <button id="configureWallets" class="button" disabled>Configure Wallets</button>
+        <div id="configStatus"></div>
+    </div>
+
+    <div class="card">
+        <h2>🧪 Step 4: Test Revenue System</h2>
+        <p>Test the 4-wallet revenue distribution with a small amount.</p>
+        <button id="testRevenue" class="button" disabled>Test Revenue Distribution</button>
+        <div id="testStatus"></div>
+    </div>
+
+    <script>
+        // Contract ABI for GugoVoteManager_updated (minimal for deployment)
+        const CONTRACT_ABI = [
+            "constructor()",
+            "function setOperationsWallet(address _operationsWallet) external",
+            "function setGugoToken(address _gugoToken) external", 
+            "function getTreasuryInfo() external view returns (uint256, uint256, uint256, uint256, uint256, address, address)",
+            "function distributeRevenue(uint256 totalAmount) external"
+        ];
+
+        // Abstract Testnet configuration
+        const TESTNET_CONFIG = {
+            chainId: '0x2b6c', // 11124 in hex
+            chainName: 'Abstract Testnet',
+            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+            rpcUrls: ['https://api.testnet.abs.xyz'],
+            blockExplorerUrls: ['https://explorer.testnet.abs.xyz']
+        };
+
+        let provider, signer, contractAddress;
+
+        // Connect wallet
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            try {
+                if (!window.ethereum) {
+                    alert('Please install MetaMask!');
+                    return;
+                }
+
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+
+                const address = await signer.getAddress();
+                const network = await provider.getNetwork();
+                const balance = await provider.getBalance(address);
+
+                document.getElementById('connectedAccount').textContent = address;
+                document.getElementById('connectedNetwork').textContent = \`\${network.name} (\${network.chainId})\`;
+                document.getElementById('connectedBalance').textContent = ethers.utils.formatEther(balance);
+                
+                document.getElementById('walletInfo').style.display = 'block';
+                document.getElementById('wallet-status').textContent = '✅ Connected';
+                document.getElementById('network-status').textContent = network.chainId === 11124 ? '✅ Abstract Testnet' : '⚠️ Wrong Network';
+                document.getElementById('balance-status').textContent = \`✅ \${ethers.utils.formatEther(balance)} ETH\`;
+
+                // Enable deploy button if on correct network
+                if (network.chainId === 11124) {
+                    document.getElementById('deployContract').disabled = false;
+                } else {
+                    // Try to switch to Abstract Testnet
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: TESTNET_CONFIG.chainId }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            // Chain not added, add it
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [TESTNET_CONFIG],
+                            });
+                        }
+                    }
+                }
+
+            } catch (error) {
+                document.getElementById('deployStatus').innerHTML = \`<div class="status error">❌ Connection failed: \${error.message}</div>\`;
+            }
+        });
+
+        // Note: Contract deployment would require the compiled bytecode
+        // For now, this is a UI mockup. You would need to:
+        // 1. Compile the contract using Hardhat
+        // 2. Get the bytecode and ABI
+        // 3. Use ethers.ContractFactory to deploy
+        
+        document.getElementById('deployContract').addEventListener('click', async () => {
+            document.getElementById('deployStatus').innerHTML = \`<div class="status warning">⚠️ Contract deployment requires compiled bytecode. Please use Hardhat with a dedicated testnet wallet for actual deployment.</div>\`;
+        });
+
+    </script>
+</body>
+</html>

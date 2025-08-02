@@ -1,0 +1,26 @@
+{
+  "network": {
+    "name": "abstractTestnet",
+    "chainId": "11124"
+  },
+  "deployer": "0xd939383fD8c13A1deCA9A9AbBfbCc53b5034e031",
+  "contracts": {
+    "GugoVoteManager_updated": "0xF714af6b79143b3A412eBe421BFbaC4f7D4e4B13",
+    "GugoToken": "0x3eAd960365697E1809683617af9390ABC9C24E56",
+    "BurnWallet": "0x000000000000000000000000000000000000dEaD",
+    "OperationsWallet": "NOT_SET"
+  },
+  "treasuries": {
+    "prizeBreakTreasury": "0.0",
+    "weeklyRaffleTreasury": "0.0",
+    "legacyTreasury": "0.0",
+    "unlockedTiers": "0"
+  },
+  "revenueDistribution": {
+    "burnPercentage": "33.33%",
+    "prizeBreakPercentage": "23.33%",
+    "weeklyRafflePercentage": "10.00%",
+    "operationsPercentage": "33.33%"
+  },
+  "timestamp": "2025-08-02T00:20:42.502Z"
+}

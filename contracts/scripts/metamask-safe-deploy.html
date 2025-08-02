@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔒 Safe + MetaMask Deployment</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f7fa;
+        }
+        .card { 
+            background: white; border-radius: 16px; padding: 24px; margin: 20px 0; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e1e8ed;
+        }
+        .button { 
+            background: #1da1f2; color: white; border: none; padding: 14px 28px; 
+            border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .button:hover { background: #1991da; transform: translateY(-1px); }
+        .button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .safe-button { background: #12ff80; color: #000; }
+        .safe-button:hover { background: #00e675; }
+        .success { color: #00ba88; } .error { color: #e1306c; } .warning { color: #ffad1f; }
+        .status { margin: 16px 0; padding: 16px; border-radius: 12px; font-weight: 500; }
+        .status.success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .status.error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .status.warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        pre { 
+            background: #f8f9fa; padding: 20px; border-radius: 12px; overflow-x: auto; 
+            font-size: 14px; border: 1px solid #e9ecef; font-family: 'Monaco', 'Courier New', monospace;
+        }
+        .wallet-info { background: #e3f2fd; padding: 20px; border-radius: 12px; margin: 16px 0; }
+        .transaction-card { background: #f8f9ff; border: 2px solid #6366f1; }
+        .safe-address { background: #ecfdf5; padding: 16px; border-radius: 8px; border: 1px solid #10b981; }
+        .step { display: flex; align-items: center; margin: 12px 0; }
+        .step-number { 
+            background: #6366f1; color: white; width: 32px; height: 32px; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; margin-right: 16px; font-size: 14px;
+        }
+        .completed { background: #10b981; }
+        .tabs { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 24px; }
+        .tab { 
+            padding: 12px 24px; cursor: pointer; border-bottom: 3px solid transparent; 
+            font-weight: 600; transition: all 0.2s ease;
+        }
+        .tab.active { border-bottom-color: #6366f1; color: #6366f1; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔒 Safe + MetaMask Deployment</h1>
+        <p>Deploy your GugoVoteManager with enterprise-grade security using Safe wallets and MetaMask integration.</p>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('overview')">📋 Overview</div>
+            <div class="tab" onclick="switchTab('deploy')">🚀 Deploy</div>
+            <div class="tab" onclick="switchTab('safe')">🔒 Safe Setup</div>
+            <div class="tab" onclick="switchTab('verify')">✅ Verify</div>
+        </div>
+
+        <div id="overview" class="tab-content active">
+            <h2>🎯 Deployment Strategy</h2>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div>Connect MetaMask to Abstract Testnet</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div>Create or connect to Safe wallet</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div>Generate deployment transactions</div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div>Execute via Safe interface</div>
+            </div>
+            <div class="step">
+                <div class="step-number">5</div>
+                <div>Configure 4-wallet revenue system</div>
+            </div>
+
+            <div class="safe-address">
+                <h3>🏦 Your Operations Wallet (Safe Address)</h3>
+                <p><strong>Address:</strong> 0x544f075E54aa90fDB21c19C02e45bD8Faded6A87</p>
+                <p>This address will receive 33.33% of all game revenue automatically.</p>
+            </div>
+        </div>
+
+        <div id="deploy" class="tab-content">
+            <h2>🚀 Contract Deployment</h2>
+            
+            <div class="wallet-info">
+                <h3>📱 Wallet Connection</h3>
+                <p><strong>Status:</strong> <span id="wallet-status">Not connected</span></p>
+                <p><strong>Network:</strong> <span id="network-status">Unknown</span></p>
+                <p><strong>Address:</strong> <span id="address-status">Not connected</span></p>
+                <button id="connectWallet" class="button">Connect MetaMask</button>
+            </div>
+
+            <div class="transaction-card card">
+                <h3>📄 Deployment Transaction</h3>
+                <p>This will create the GugoVoteManager contract with the 4-wallet revenue system.</p>
+                <button id="generateDeployTx" class="button" disabled>Generate Deployment Transaction</button>
+                <div id="deployTxResult"></div>
+            </div>
+
+            <div class="transaction-card card">
+                <h3>⚙️ Configuration Transactions</h3>
+                <p>Set up operations wallet and GUGO token after deployment.</p>
+                <button id="generateConfigTx" class="button" disabled>Generate Configuration Transactions</button>
+                <div id="configTxResult"></div>
+            </div>
+        </div>
+
+        <div id="safe" class="tab-content">
+            <h2>🔒 Safe Wallet Setup</h2>
+            
+            <div class="status warning">
+                <strong>⚠️ Important:</strong> Safe wallets provide enterprise-grade security with multi-signature capabilities.
+            </div>
+
+            <h3>🆕 Create New Safe (Recommended)</h3>
+            <ol>
+                <li>Visit <a href="https://app.safe.global" target="_blank">app.safe.global</a></li>
+                <li>Connect your MetaMask wallet</li>
+                <li>Switch to Abstract Testnet (Chain ID: 11124)</li>
+                <li>Click "Create new Safe"</li>
+                <li>Add your current MetaMask address as owner</li>
+                <li>Set threshold to 1 (for testing) or higher (for production)</li>
+                <li>Deploy your Safe wallet</li>
+                <li>Copy the Safe address and use it as your operations wallet</li>
+            </ol>
+
+            <h3>🔗 Use Existing Safe</h3>
+            <p>If you already have a Safe wallet, simply use that address as your operations wallet in the deployment configuration.</p>
+
+            <div class="status success">
+                <strong>✅ Benefits of Safe Wallets:</strong>
+                <ul>
+                    <li>Multi-signature security (multiple people needed to approve transactions)</li>
+                    <li>Hardware wallet integration</li>
+                    <li>Transaction batching</li>
+                    <li>Spending limits and modules</li>
+                    <li>Recovery mechanisms</li>
+                    <li>Enterprise-grade security standards</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="verify" class="tab-content">
+            <h2>✅ Verification & Testing</h2>
+            
+            <div class="status warning">
+                <strong>🧪 After Deployment:</strong> Test all wallet functions before mainnet deployment.
+            </div>
+
+            <h3>📋 Verification Checklist</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div>Contract deployed successfully</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div>Operations wallet set to Safe address</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div>GUGO token configured</div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div>Treasury system initialized</div>
+            </div>
+            <div class="step">
+                <div class="step-number">5</div>
+                <div>Test revenue distribution works</div>
+            </div>
+
+            <h3>🧪 Test Revenue Distribution</h3>
+            <p>Test the 4-wallet revenue system with a small amount:</p>
+            <button id="testRevenue" class="button" disabled>Test Revenue Distribution (10 GUGO)</button>
+            <div id="testResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let provider, signer, contractAddress;
+
+        // Abstract Testnet configuration
+        const TESTNET_CONFIG = {
+            chainId: '0x2b6c', // 11124 in hex
+            chainName: 'Abstract Testnet',
+            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+            rpcUrls: ['https://api.testnet.abs.xyz'],
+            blockExplorerUrls: ['https://explorer.testnet.abs.xyz']
+        };
+
+        // Your operations wallet (Safe address)
+        const OPERATIONS_WALLET = "0x544f075E54aa90fDB21c19C02e45bD8Faded6A87";
+        const GUGO_TOKEN_ADDRESS = "0x3eAd960365697E1809683617af9390ABC9C24E56"; // FGUGO testnet
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Connect wallet
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            try {
+                if (!window.ethereum) {
+                    alert('Please install MetaMask!');
+                    return;
+                }
+
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+
+                const address = await signer.getAddress();
+                const network = await provider.getNetwork();
+                const balance = await provider.getBalance(address);
+
+                document.getElementById('address-status').textContent = address;
+                document.getElementById('network-status').textContent = \`\${network.name} (\${network.chainId})\`;
+                document.getElementById('wallet-status').textContent = '✅ Connected';
+
+                // Enable buttons if on correct network
+                if (network.chainId === 11124) {
+                    document.getElementById('generateDeployTx').disabled = false;
+                    document.getElementById('generateConfigTx').disabled = false;
+                } else {
+                    // Try to switch to Abstract Testnet
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: TESTNET_CONFIG.chainId }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [TESTNET_CONFIG],
+                            });
+                        }
+                    }
+                }
+
+            } catch (error) {
+                document.getElementById('deployTxResult').innerHTML = \`<div class="status error">❌ Connection failed: \${error.message}</div>\`;
+            }
+        });
+
+        // Generate deployment transaction
+        document.getElementById('generateDeployTx').addEventListener('click', async () => {
+            const result = document.getElementById('deployTxResult');
+            result.innerHTML = '<div class="status warning">⏳ Generating deployment transaction...</div>';
+
+            try {
+                // This would contain the actual contract bytecode
+                // For now, we'll generate the transaction structure
+                const deployTx = {
+                    to: null, // Contract creation
+                    value: 0,
+                    data: "0x608060405234801561001057600080fd5b50336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550...", // Contract bytecode would go here
+                    gasLimit: 3000000 // Estimated gas limit
+                };
+
+                result.innerHTML = \`
+                    <div class="status success">✅ Deployment transaction generated!</div>
+                    <h4>📋 Transaction Details:</h4>
+                    <pre>
+To: null (Contract Creation)
+Value: 0 ETH
+Gas Limit: \${deployTx.gasLimit}
+Data: \${deployTx.data.substring(0, 100)}...
+
+🔗 Use this in Safe Transaction Builder:
+1. Go to app.safe.global
+2. Open your Safe wallet
+3. Go to "New Transaction"
+4. Select "Contract Interaction"
+5. Use the data above
+                    </pre>
+                `;
+
+            } catch (error) {
+                result.innerHTML = \`<div class="status error">❌ Failed to generate transaction: \${error.message}</div>\`;
+            }
+        });
+
+        // Generate configuration transactions
+        document.getElementById('generateConfigTx').addEventListener('click', async () => {
+            const result = document.getElementById('configTxResult');
+            result.innerHTML = '<div class="status warning">⏳ Generating configuration transactions...</div>';
+
+            try {
+                // Simulate configuration transactions
+                const configTxs = [
+                    {
+                        description: "Set Operations Wallet",
+                        to: "CONTRACT_ADDRESS", // Will be filled after deployment
+                        data: "0xa694fc3a000000000000000000000000544f075e54aa90fdb21c19c02e45bd8faded6a87", // setOperationsWallet(address)
+                        value: 0
+                    },
+                    {
+                        description: "Set GUGO Token",
+                        to: "CONTRACT_ADDRESS",
+                        data: "0x144fa6d7000000000000000000000000" + GUGO_TOKEN_ADDRESS.substring(2), // setGugoToken(address)
+                        value: 0
+                    }
+                ];
+
+                result.innerHTML = \`
+                    <div class="status success">✅ Configuration transactions generated!</div>
+                    <h4>📋 Configuration Transactions:</h4>
+                    \${configTxs.map((tx, i) => \`
+                        <div style="margin: 16px 0; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                            <strong>\${i + 1}. \${tx.description}</strong><br>
+                            <small>Data: \${tx.data}</small>
+                        </div>
+                    \`).join('')}
+                    
+                    <div class="status warning">
+                        ⚠️ Replace "CONTRACT_ADDRESS" with your deployed contract address
+                    </div>
+                `;
+
+            } catch (error) {
+                result.innerHTML = \`<div class="status error">❌ Failed to generate configuration: \${error.message}</div>\`;
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{
+  "name": "gugo-game-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for Taste Machine NFT voting game",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:verbose": "hardhat test --verbose",
+    "deploy:local": "hardhat run scripts/deploy.ts",
+    "deploy:testnet": "NETWORK=testnet hardhat run scripts/deploy.ts --network abstractTestnet",
+    "deploy:mainnet": "NETWORK=mainnet hardhat run scripts/deploy.ts --network abstractMainnet",
+    "migrate:mainnet": "NETWORK=mainnet hardhat run scripts/migrate-to-mainnet.ts --network abstractMainnet",
+    "setup:wallets:testnet": "NETWORK=testnet hardhat run scripts/setup-wallets.ts --network abstractTestnet",
+    "setup:wallets:mainnet": "NETWORK=mainnet hardhat run scripts/setup-wallets.ts --network abstractMainnet",
+    "safe:prepare:testnet": "NETWORK=testnet hardhat run scripts/safe-deploy.ts --network abstractTestnet",
+    "safe:prepare:mainnet": "NETWORK=mainnet hardhat run scripts/safe-deploy.ts --network abstractMainnet",
+    "safe:deploy:ui": "open scripts/metamask-safe-deploy.html",
+    "verify": "hardhat verify",
+    "clean": "hardhat clean",
+    "size": "hardhat size-contracts",
+    "node": "hardhat node",
+    "config:show": "node -e \"const {getCurrentNetworkConfig, logNetworkInfo} = require('./config/networks.ts'); logNetworkInfo(getCurrentNetworkConfig());\""
+  },
+  "keywords": [
+    "nft",
+    "voting",
+    "game",
+    "abstract",
+    "blockchain"
+  ],
+  "author": "GUGO Game Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^22.10.7",
+    "hardhat": "^2.26.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0",
+    "dotenv": "^17.2.1"
+  }
+}
