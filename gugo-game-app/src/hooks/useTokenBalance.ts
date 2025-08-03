@@ -43,7 +43,7 @@ export const useTokenBalance = (): UseTokenBalanceReturn => {
   };
 
   const refreshBalance = async () => {
-    if (address && isConnected) {
+    if (address) {
       await fetchGameEligibility(address);
     }
   };
@@ -53,16 +53,18 @@ export const useTokenBalance = (): UseTokenBalanceReturn => {
     console.log('  - isConnected:', isConnected);
     console.log('  - address:', address);
     
-    if (isConnected && address) {
-      console.log('✅ Wallet connected, checking game eligibility with dynamic pricing...');
+    // If we have an address, proceed with eligibility check
+    // Connection state can be unreliable during initial wallet connection
+    if (address) {
+      console.log('✅ Wallet address available, checking game eligibility with dynamic pricing...');
       fetchGameEligibility(address);
     } else {
-      console.log('❌ Wallet not connected, clearing eligibility state');
+      console.log('❌ No wallet address, clearing eligibility state');
       setEligibility(null);
       setLoading(false);
       setError(null);
     }
-  }, [isConnected, address]);
+  }, [address]);
 
   return {
     eligibility,

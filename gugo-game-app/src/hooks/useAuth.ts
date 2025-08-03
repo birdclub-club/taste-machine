@@ -53,8 +53,13 @@ export const useAuth = (): UseAuthReturn => {
     console.log('  - address:', address);
     console.log('  - connector:', connector?.name);
     
-    if (isConnected && address) {
-      console.log('✅ Wallet connected, fetching user...');
+    // If we have an address AND a connector, treat as connected
+    // This handles timing issues where isConnected might be false initially
+    if (address && connector) {
+      console.log('✅ Wallet connected (address + connector), fetching user...');
+      fetchUser(address);
+    } else if (isConnected && address) {
+      console.log('✅ Wallet connected (isConnected + address), fetching user...');
       fetchUser(address);
     } else {
       console.log('❌ Wallet not connected, clearing user state');
@@ -62,7 +67,7 @@ export const useAuth = (): UseAuthReturn => {
       setLoading(false);
       setError(null);
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, connector]);
 
   return {
     user,
