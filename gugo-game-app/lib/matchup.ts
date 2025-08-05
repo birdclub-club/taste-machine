@@ -61,7 +61,7 @@ async function getInstantMatchupFromQueue(userWallet?: string, collectionFilter?
     if (matchup.vote_type === 'slider') {
       const { data: nft, error: nftError } = await supabase
         .from('nfts')
-        .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+        .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
         .eq('id', matchup.slider_nft_id)
     .single();
         
@@ -86,12 +86,12 @@ async function getInstantMatchupFromQueue(userWallet?: string, collectionFilter?
       const [nft1Result, nft2Result] = await Promise.all([
         supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
           .eq('id', matchup.nft_a_id)
           .single(),
         supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
           .eq('id', matchup.nft_b_id)
           .single()
       ]);
@@ -175,7 +175,7 @@ async function fetchSliderVote(collectionFilter?: string): Promise<SliderVote> {
     // Fallback to random NFT with lowest slider count, excluding videos and unrevealed
     let query = supabase
       .from('nfts')
-      .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+      .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
       .not('image', 'ilike', '%.mp4%')
       .not('image', 'ilike', '%.mov%')
       .not('image', 'ilike', '%.avi%')
@@ -223,7 +223,7 @@ async function fetchSliderVote(collectionFilter?: string): Promise<SliderVote> {
   // Fetch the full NFT data
   const { data: fullNFT, error: nftError } = await supabase
     .from('nfts')
-    .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+    .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
     .eq('id', nftData[0].nft_id)
     .single();
     
@@ -261,12 +261,12 @@ async function fetchMatchupVote(voteType: 'same_coll' | 'cross_coll', collection
   const [nft1Result, nft2Result] = await Promise.all([
     supabase
       .from('nfts')
-      .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+      .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
       .eq('id', matchup.nft_a_id)
       .single(),
     supabase
       .from('nfts')
-      .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+      .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
       .eq('id', matchup.nft_b_id)
       .single()
   ]);
@@ -306,7 +306,7 @@ async function fallbackRandomMatchup(voteType: 'same_coll' | 'cross_coll', colle
     
   let query = supabase
     .from('nfts')
-    .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
+    .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count')
     .not('image', 'ilike', '%.mp4%')
     .not('image', 'ilike', '%.mov%')
     .not('image', 'ilike', '%.avi%')

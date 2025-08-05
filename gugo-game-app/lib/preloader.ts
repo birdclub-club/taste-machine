@@ -124,7 +124,7 @@ class VotingPreloader {
       // Try to get NFTs with low slider count first, excluding already seen, video files, and unrevealed NFTs
       let { data: nfts, error } = await supabase
         .from('nfts')
-        .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
+        .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count, traits')
         .lt('slider_count', 5)
         .not('image', 'ilike', '%.mp4%')
         .not('image', 'ilike', '%.mov%')
@@ -191,7 +191,7 @@ class VotingPreloader {
         if (error) console.log('❌ Slider query error:', error);
         const result = await supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
+          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count, traits')
           .not('image', 'ilike', '%.mp4%')
           .not('image', 'ilike', '%.mov%')
           .not('image', 'ilike', '%.avi%')
@@ -283,7 +283,7 @@ class VotingPreloader {
         // Simplified same collection logic - get NFTs from a random collection, excluding videos and unrevealed
         const { data: allNfts } = await supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address, collection_name, current_elo, traits')
+          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, traits')
           .not('collection_name', 'is', null)
           .not('image', 'ilike', '%.mp4%')
           .not('image', 'ilike', '%.mov%')
@@ -361,7 +361,7 @@ class VotingPreloader {
         // Cross collection - random NFTs, excluding videos and unrevealed
         const { data: randomNfts, error } = await supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address, collection_name, current_elo, traits')
+          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, traits')
           .not('image', 'ilike', '%.mp4%')
           .not('image', 'ilike', '%.mov%')
           .not('image', 'ilike', '%.avi%')
