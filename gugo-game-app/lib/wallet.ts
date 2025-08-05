@@ -174,9 +174,4 @@ export const getWalletBalance = async (address: string, provider?: BrowserProvid
   }
 };
 
-// Type declaration for window.ethereum
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-} 
+ 

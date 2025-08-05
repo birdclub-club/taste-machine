@@ -445,8 +445,3 @@ export function hasValidSession(action: SessionAction): boolean {
   return session.actionsAllowed.includes(action) && Date.now() < session.expiresAt;
 }
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
