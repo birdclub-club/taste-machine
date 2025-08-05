@@ -124,7 +124,7 @@ class VotingPreloader {
       // Try to get NFTs with low slider count first, excluding already seen, video files, and unrevealed NFTs
       let { data: nfts, error } = await supabase
         .from('nfts')
-        .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count, traits')
+        .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
         .lt('slider_count', 5)
         .not('image', 'ilike', '%.mp4%')
         .not('image', 'ilike', '%.mov%')
@@ -191,7 +191,7 @@ class VotingPreloader {
         if (error) console.log('❌ Slider query error:', error);
         const result = await supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, slider_average, slider_count, traits')
+          .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
           .not('image', 'ilike', '%.mp4%')
           .not('image', 'ilike', '%.mov%')
           .not('image', 'ilike', '%.avi%')
@@ -243,7 +243,14 @@ class VotingPreloader {
         }
       }
 
-      const nft = nfts[0];
+      const rawNft = nfts[0];
+      
+      // Map database result to NFT type
+      const nft = {
+        ...rawNft,
+        collection_address: rawNft.contract_address,
+        token_address: rawNft.contract_address
+      };
       
       // Debug: Alert if selected NFT is unrevealed
       if (nft.collection_name === 'Kabu' || nft.collection_name === 'Beeish') {
@@ -283,7 +290,7 @@ class VotingPreloader {
         // Simplified same collection logic - get NFTs from a random collection, excluding videos and unrevealed
         const { data: allNfts } = await supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, traits')
+          .select('id, name, image, token_id, contract_address, collection_name, current_elo, traits')
           .not('collection_name', 'is', null)
           .not('image', 'ilike', '%.mp4%')
           .not('image', 'ilike', '%.mov%')
@@ -361,7 +368,7 @@ class VotingPreloader {
         // Cross collection - random NFTs, excluding videos and unrevealed
         const { data: randomNfts, error } = await supabase
           .from('nfts')
-          .select('id, name, image, token_id, contract_address as collection_address, contract_address as token_address, collection_name, current_elo, traits')
+          .select('id, name, image, token_id, contract_address, collection_name, current_elo, traits')
           .not('image', 'ilike', '%.mp4%')
           .not('image', 'ilike', '%.mov%')
           .not('image', 'ilike', '%.avi%')
@@ -446,9 +453,22 @@ class VotingPreloader {
         return await this.generateMatchupSession(voteType);
       }
 
+      // Map database results to NFT type
+      const nft1 = {
+        ...nfts[0],
+        collection_address: nfts[0].contract_address,
+        token_address: nfts[0].contract_address
+      };
+      
+      const nft2 = {
+        ...nfts[1],
+        collection_address: nfts[1].contract_address,
+        token_address: nfts[1].contract_address
+      };
+      
       return {
-        nft1: nfts[0],
-        nft2: nfts[1],
+        nft1: nft1,
+        nft2: nft2,
         vote_type: voteType
       };
     } catch (error) {
