@@ -5,6 +5,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAuth } from '../hooks/useAuth';
 import { useTokenBalance } from '../hooks/useTokenBalance';
 import { useSessionKey } from '../hooks/useSessionKey';
+import { useCollectionPreference } from '../hooks/useCollectionPreference';
 import { SessionAction } from '../../lib/session-keys';
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { canClaimFreeVotes, claimFreeVotes } from '../../lib/auth';
@@ -36,6 +37,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
     needsRenewal,
     isSessionActive 
   } = useSessionKey();
+  
+  const { preference, setCollectionPreference } = useCollectionPreference();
 
   // Function to trigger XP animation
   const triggerXpAnimation = (xpAmount: number) => {
@@ -130,6 +133,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
   const [showAboutPopup, setShowAboutPopup] = useState(false);
   const [showHowPopup, setShowHowPopup] = useState(false);
   const [showWhyPopup, setShowWhyPopup] = useState(false);
+  const [showCollectionsPopup, setShowCollectionsPopup] = useState(false);
   const [claimingVotes, setClaimingVotes] = useState(false);
   const [showLickPopup, setShowLickPopup] = useState(false);
   const [popupStage, setPopupStage] = useState<'initial' | 'animating' | 'result'>('initial');
@@ -601,40 +605,59 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
               fontWeight: '800', 
               color: 'var(--color-white)',
               marginBottom: 'var(--space-1)',
-              textTransform: 'uppercase'
+              textTransform: 'none'
             }}>
-              About
-            </h2>
-            <p style={{ color: '#e5e5e5', fontSize: 'var(--font-size-lg)', margin: 0 }}>
               Proof of Aesthetic<sup style={{ fontSize: '0.7em' }}>™</sup>
-            </p>
+            </h2>
           </div>
         </div>
 
         <div style={{ textAlign: 'left', lineHeight: '1.6' }}>
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            If you're like us, you could scroll NFT art all day — and you've probably got opinions. So we built a way to make them count.
-          </p>
-          
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5', fontSize: 'var(--font-size-lg)', fontWeight: '600' }}>
-            Rarity is overrated. Taste is everything.
+            If you're like us, you could scroll NFT art all day — and you've got thoughts. So we built a way to make them count.
           </p>
           
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            We're an on-chain aesthetic engine exploring whether visual appeal can stand apart from rarity. Every vote helps build a new kind of signal — one based on how things look, not what metadata says.
+            Taste Machine is an experiment in whether visual appeal can shape value — alongside rarity, not beneath it.
           </p>
           
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            You'll need a wallet to participate — and some GUGO or ETH if you want to go deeper, earn more, and unlock bigger rewards. That small stake keeps votes meaningful and filters out bots and noise.
+            You'll get free Licks every day — enough to play and start shaping the signal.
           </p>
           
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            Just want to vibe? That's cool too — you can still play, with lighter rewards.
+            But if you want to earn more, vote more, and unlock bigger rewards, you'll need GUGO or ETH to buy additional Licks.
           </p>
           
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            Soon, you'll be able to look up an NFT's Taste Rating — a public signal shaped entirely by people, not traits.
+          <p style={{ marginBottom: 'var(--space-5)', color: '#e5e5e5' }}>
+            That small stake helps keep the system clean by filtering out spam, bots, and low-effort voting.
           </p>
+
+          {/* Whitepaper Link */}
+          <a
+            href="https://docs.google.com/document/d/1Lp6qZ02UjyVDDDGf16GuBdUECcop87ciVP061IcJA3U/edit?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              color: '#e5e5e5',
+              textDecoration: 'none',
+              fontSize: 'var(--font-size-base)',
+              fontWeight: '400',
+              transition: 'color 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--color-white)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#e5e5e5';
+            }}
+          >
+            <span>White Paper Overview</span>
+            <span>↗</span>
+          </a>
         </div>
       </div>
     </div>
@@ -687,21 +710,21 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
             fontWeight: '800', 
             color: 'var(--color-white)',
             marginBottom: 'var(--space-2)',
-            textTransform: 'uppercase'
+            textTransform: 'none'
           }}>
-            How
+            See two. Choose one. Earn GUGO.
           </h2>
         </div>
 
         <div style={{ textAlign: 'left', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5', fontSize: 'var(--font-size-lg)', fontWeight: '600' }}>
-            See two. Choose one. Earn.
+          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5', fontSize: 'var(--font-size-base)', fontWeight: '500' }}>
+            We call our votes Licks.
           </p>
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            You're shown two NFTs. Pick the one you like more.
+            You'll be shown two NFTs — just lick the one that looks better.
           </p>
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            But some pieces just hit harder--so you can smash that fire button when you find those grails or PFPs
+            If something really hits, smash the fire button. That's the highest compliment.
           </p>
         </div>
       </div>
@@ -772,6 +795,152 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
       </div>
     </div>
   );
+
+  // Collections popup component
+  const CollectionsPopup = () => {
+    const handleCollectionChange = async (newPreference: 'bearish' | 'mix') => {
+      console.log(`🎯 Switching collection preference to: ${newPreference}`);
+      setCollectionPreference(newPreference);
+      setShowCollectionsPopup(false);
+      
+      // Trigger a page reload to restart with new preference
+      window.location.reload();
+    };
+    
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: 'var(--space-4)'
+      }} onClick={() => setShowCollectionsPopup(false)}>
+        <div style={{
+          background: '#2a2a2a',
+          borderRadius: 'var(--border-radius-lg)',
+          padding: 'var(--space-6)',
+          maxWidth: '320px',
+          width: '100%',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          position: 'relative',
+          border: '1px solid #444444'
+        }} onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setShowCollectionsPopup(false)}
+            style={{
+              position: 'absolute',
+              top: 'var(--space-4)',
+              right: 'var(--space-4)',
+              background: 'none',
+              border: 'none',
+              fontSize: 'var(--font-size-xl)',
+              cursor: 'pointer',
+              color: 'var(--color-white)'
+            }}
+          >
+            ×
+          </button>
+          
+          <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
+            <h2 style={{ 
+              fontSize: 'var(--font-size-lg)', 
+              fontWeight: '600', 
+              color: 'var(--color-white)',
+              marginBottom: 'var(--space-1)',
+              textTransform: 'none'
+            }}>
+              Collections
+            </h2>
+          </div>
+
+          <div style={{ textAlign: 'center', lineHeight: '1.6' }}>
+            <p style={{ 
+              marginBottom: 'var(--space-4)', 
+              color: '#cccccc', 
+              fontSize: 'var(--font-size-sm)',
+            }}>
+              Focus on:
+            </p>
+            
+            {/* Toggle Switch */}
+            <div style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'var(--space-3)',
+              marginBottom: 'var(--space-4)'
+            }}>
+              <span style={{ 
+                fontSize: 'var(--font-size-sm)',
+                color: preference === 'bearish' ? 'var(--accent-color)' : '#e5e5e5',
+                fontWeight: preference === 'bearish' ? '600' : '400',
+                transition: 'all 0.3s ease'
+              }}>
+                Bearish
+              </span>
+              
+              {/* Toggle Switch */}
+              <div 
+                onClick={() => handleCollectionChange(preference === 'bearish' ? 'mix' : 'bearish')}
+                style={{
+                  position: 'relative',
+                  width: '48px',
+                  height: '24px',
+                  background: preference === 'bearish' ? 'var(--accent-color)' : '#666666',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid #333333'
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '2px',
+                  left: preference === 'bearish' ? '2px' : '24px',
+                  width: '18px',
+                  height: '18px',
+                  background: '#ffffff',
+                  borderRadius: '50%',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }} />
+              </div>
+              
+              <span style={{ 
+                fontSize: 'var(--font-size-sm)',
+                color: preference === 'mix' ? 'var(--accent-color)' : '#e5e5e5',
+                fontWeight: preference === 'mix' ? '600' : '400',
+                transition: 'all 0.3s ease'
+              }}>
+                Mix it Up
+              </span>
+            </div>
+            
+            <div style={{ 
+              fontSize: 'var(--font-size-xs)',
+              color: '#999999',
+              fontStyle: 'italic',
+              padding: 'var(--space-2)',
+              background: '#1a1a1a',
+              borderRadius: 'var(--border-radius)',
+              border: '1px solid #333333'
+            }}>
+              {preference === 'bearish' 
+                ? 'Currently showing only Bearish NFTs'
+                : 'Currently showing NFTs from all collections'
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -919,6 +1088,29 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
               >
                 Why
               </span>
+              
+              {/* Collections */}
+              <span
+                onClick={() => setShowCollectionsPopup(true)}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-xs)',
+                  fontWeight: '500',
+                  color: 'var(--color-grey-300)',
+                  transition: 'all var(--transition-base)',
+                  textDecoration: 'none'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--color-white)';
+                  e.currentTarget.style.textDecoration = 'underline';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-grey-300)';
+                  e.currentTarget.style.textDecoration = 'none';
+                }}
+              >
+                Collections
+              </span>
             </div>
           </div>
 
@@ -1055,22 +1247,31 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
 
                   {/* Add Licks Button - Properly positioned */}
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('🛒 [FINAL] Add Licks button clicked! Version 5.0');
-                      console.log('🛒 [FINAL] Current showPurchaseModal state:', showPurchaseModal);
+                      console.log('🛒 [FINAL] Add Licks button clicked! Version 6.0');
                       
-                      // Use functional form and force immediate update
-                      setShowPurchaseModal(prev => {
-                        console.log('🛒 [FINAL] State update - prev:', prev, 'new: true');
-                        return true;
-                      });
+                      // Check if user has active session
+                      const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
                       
-                      // Force immediate re-render check
-                      setTimeout(() => {
-                        console.log('🛒 [FINAL] Checking state after timeout:', showPurchaseModal);
-                      }, 50);
+                      if (!hasSession) {
+                        console.log('🛒 No active session - creating session first via wallet');
+                        try {
+                          const success = await createSession();
+                          if (success) {
+                            console.log('✅ Session created successfully, now showing purchase modal');
+                            setShowPurchaseModal(true);
+                          } else {
+                            console.log('❌ Session creation failed');
+                          }
+                        } catch (error) {
+                          console.error('❌ Error creating session:', error);
+                        }
+                      } else {
+                        console.log('✅ Session already active, showing purchase modal directly');
+                        setShowPurchaseModal(true);
+                      }
                     }}
                     style={{
                       marginLeft: 'var(--space-2)',
@@ -1555,6 +1756,9 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
       {/* Why Popup */}
       {showWhyPopup && <WhyPopup />}
       
+      {/* Collections Popup */}
+      {showCollectionsPopup && <CollectionsPopup />}
+      
       {/* Lick Claiming Popup */}
       {showLickPopup && (
         <>
@@ -1618,22 +1822,37 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
           // Trigger Licks animation
           triggerLicksAnimation(licksCount);
           
-          // Add delay to ensure database update completes before refresh
-          console.log('⏳ Waiting for database update to complete...');
-          setTimeout(async () => {
+          // Robust retry logic for balance refresh
+          const refreshWithRetry = async (attempt = 1, maxAttempts = 5) => {
+            console.log(`🔄 Refreshing user data (attempt ${attempt}/${maxAttempts})...`);
+            
             try {
-              console.log('🔄 Refreshing user data after purchase...');
               await refreshUser();
               console.log('✅ User data refreshed successfully');
+              return true;
             } catch (error) {
-              console.error('❌ Error refreshing user data after purchase:', error);
-              // Try again after another delay
-              setTimeout(async () => {
-                console.log('🔄 Retrying user data refresh...');
-                await refreshUser();
-              }, 2000);
+              console.error(`❌ Refresh attempt ${attempt} failed:`, error);
+              
+              if (attempt < maxAttempts) {
+                // Exponential backoff: wait longer between retries
+                const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+                console.log(`⏳ Waiting ${delay}ms before retry ${attempt + 1}...`);
+                
+                setTimeout(() => {
+                  refreshWithRetry(attempt + 1, maxAttempts);
+                }, delay);
+              } else {
+                console.error('❌ All refresh attempts failed. User may need to refresh the page manually.');
+              }
+              return false;
             }
-          }, 1500); // 1.5 second delay to ensure database transaction completes
+          };
+          
+          // Initial delay to ensure database update completes
+          console.log('⏳ Waiting for database update to complete...');
+          setTimeout(() => {
+            refreshWithRetry();
+          }, 2000); // 2 second initial delay
         }}
       />
     </>

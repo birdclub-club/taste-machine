@@ -4,7 +4,7 @@ import React from 'react';
 
 interface WelcomePopupProps {
   isOpen: boolean;
-  onCollectionChoice: (choice: 'bearish' | 'surprise') => void;
+  onCollectionChoice: (choice: 'bearish' | 'mix') => void;
 }
 
 export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopupProps) {
@@ -67,36 +67,55 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
             marginBottom: 'var(--space-4)',
             lineHeight: '1.3'
           }}>
-            Rarity is overrated — and now GUGO runs art on Abstract.
+            Welcome to Taste Machine
           </h1>
         </div>
 
         {/* Body Text */}
         <div style={{ 
-          marginBottom: 'var(--space-6)', // Less margin
-          textAlign: 'left',
-          fontSize: 'var(--font-size-sm)', // Smaller text
+          marginBottom: 'var(--space-6)',
+          textAlign: 'center',
+          fontSize: 'var(--font-size-base)',
           lineHeight: '1.5',
-          color: '#e5e5e5' // Light grey text for dark background
+          color: '#e5e5e5'
         }}>
-          <p style={{ marginBottom: 'var(--space-3)' }}>
-            We're an on-chain aesthetic engine exploring whether visual appeal can stand apart from rarity. Every vote helps build a new kind of signal — one based on how things <em>look</em>, not what metadata says.
+          <p style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-lg)' }}>
+            Where beauty matters and metadata doesn't.
           </p>
           
-          <p style={{ marginBottom: 'var(--space-3)' }}>
-            You'll need a wallet to participate — and some GUGO if you want to go deeper, earn more, and unlock bigger rewards. That small stake keeps votes meaningful and filters out bots and noise.
+          <p style={{ marginBottom: 'var(--space-4)' }}>
+            You vote, you earn GUGO, and we burn the rest. Let's find out what actually looks good.
           </p>
-          
-          <p style={{ marginBottom: 'var(--space-3)' }}>
-            All transactions are converted to GUGO under the hood — and <strong>50% of all rewards are burned</strong>, fueling a deflationary system where good taste benefits everyone.
-          </p>
-          
-          <p style={{ 
+
+          {/* Bullet Points */}
+          <div style={{ 
+            textAlign: 'left', 
             marginBottom: 'var(--space-4)',
-            fontStyle: 'italic'
+            fontSize: 'var(--font-size-sm)',
+            maxWidth: '400px',
+            margin: '0 auto var(--space-4) auto'
           }}>
-            Just want to vibe? That's cool too — you can still play, with lighter rewards.
-          </p>
+            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
+              <span>Whatever you win, we burn the same amount.</span>
+            </div>
+            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
+              <span>10 free votes daily (with multipliers)</span>
+            </div>
+            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
+              <span>Prize Breaks every 10 votes</span>
+            </div>
+            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
+              <span>Jackpot and Price Raffles every week</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
+              <span>Free to play, earn more with GUGO</span>
+            </div>
+          </div>
         </div>
 
         {/* Question */}
@@ -156,7 +175,7 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
           </button>
 
           <button
-            onClick={() => onCollectionChoice('surprise')}
+            onClick={() => onCollectionChoice('mix')}
             style={{
               padding: 'var(--space-2) var(--space-4)', // Even smaller padding
               background: '#333333', // Same dark grey as Bearish button
@@ -188,7 +207,7 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
               target.style.boxShadow = 'none';
             }}
           >
-            Surprise Me
+            Mix it Up
           </button>
         </div>
 

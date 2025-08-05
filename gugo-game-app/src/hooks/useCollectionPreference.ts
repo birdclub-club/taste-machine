@@ -2,18 +2,23 @@
 
 import { useState, useEffect } from 'react';
 
-export type CollectionPreference = 'bearish' | 'surprise' | null;
+export type CollectionPreference = 'bearish' | 'mix' | null;
 
 export function useCollectionPreference() {
-  const [preference, setPreference] = useState<CollectionPreference>(null);
-  const [hasSetPreference, setHasSetPreference] = useState(false);
+  const [preference, setPreference] = useState<CollectionPreference>('bearish'); // Default to bearish
+  const [hasSetPreference, setHasSetPreference] = useState(true); // Default to true since we have a default
 
   // Load preference from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem('collection-preference');
-    if (stored && (stored === 'bearish' || stored === 'surprise')) {
+    if (stored && (stored === 'bearish' || stored === 'mix')) {
       setPreference(stored);
       setHasSetPreference(true);
+    } else {
+      // If no stored preference, set default to bearish
+      setPreference('bearish');
+      setHasSetPreference(true);
+      localStorage.setItem('collection-preference', 'bearish');
     }
   }, []);
 
@@ -47,10 +52,10 @@ export function getCollectionFilter(preference: CollectionPreference): string | 
   switch (preference) {
     case 'bearish':
       return 'Bearish';
-    case 'surprise':
+    case 'mix':
       return null; // No filter = all collections
     default:
-      return null;
+      return 'Bearish'; // Default to Bearish
   }
 }
 
@@ -59,7 +64,7 @@ export function matchesCollectionPreference(
   nftCollectionName: string | null, 
   preference: CollectionPreference
 ): boolean {
-  if (preference === 'surprise' || preference === null) {
+  if (preference === 'mix' || preference === null) {
     return true; // Show all collections
   }
   
@@ -67,5 +72,5 @@ export function matchesCollectionPreference(
     return nftCollectionName === 'Bearish';
   }
   
-  return true; // Default to showing all
+  return nftCollectionName === 'Bearish'; // Default to Bearish only
 }

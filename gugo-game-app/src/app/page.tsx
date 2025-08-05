@@ -10,7 +10,7 @@ import WelcomePopup from '@/components/WelcomePopup';
 import { useVote } from '@/hooks/useVote';
 import { usePrizeBreak } from '@/hooks/usePrizeBreak';
 import { useSessionKey } from '@/hooks/useSessionKey';
-import { useCollectionPreference } from '@/hooks/useCollectionPreference';
+import { useCollectionPreference, getCollectionFilter } from '@/hooks/useCollectionPreference';
 import { fetchVotingSession } from '@lib/matchup';
 import { votingPreloader } from '@lib/preloader';
 import { useAccount } from 'wagmi';
@@ -142,8 +142,8 @@ export default function Page() {
       setLoading(true);
       
       // Get collection filter based on user preference
-      const collectionFilter = preference === 'bearish' ? 'Bearish' : undefined;
-      const session = await fetchVotingSession(address, collectionFilter);
+      const collectionFilter = getCollectionFilter(preference);
+      const session = await fetchVotingSession(address, collectionFilter || undefined);
       setVotingSession(session);
       
       console.log(`🎯 Loaded ${session.vote_type} voting session from database`);
@@ -393,7 +393,7 @@ export default function Page() {
   };
 
   // 🎯 Handle collection preference choice
-  const handleCollectionChoice = async (choice: 'bearish' | 'surprise') => {
+  const handleCollectionChoice = async (choice: 'bearish' | 'mix') => {
     console.log(`🎯 User chose collection preference: ${choice}`);
     setCollectionPreference(choice);
     
@@ -868,11 +868,7 @@ export default function Page() {
                           >
                             🔥
                           </button>
-                          {votingSession.nft.collection_name ? (
-                            <span>{votingSession.nft.collection_name}</span>
-                          ) : (
-                            <div></div> // Empty div to maintain flex layout
-                          )}
+
                         </div>
                         
                         {/* Token ID - Right Side - Exact MatchupCard style */}
@@ -917,19 +913,15 @@ export default function Page() {
                     <div style={{ 
                       width: '100%', 
                       maxWidth: '600px',
-                      padding: 'var(--space-3)',
-                      background: 'var(--color-white)',
-                      borderRadius: 'var(--border-radius-lg)',
-                      border: '2px solid var(--color-grey-200)',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                      overflow: 'hidden'
+                      padding: 'var(--space-4)',
+                      paddingBottom: 'var(--space-6)'
                     }}>
                       {/* Instruction text */}
                       <div style={{
                         textAlign: 'center',
-                        marginBottom: 'var(--space-2)',
-                        fontSize: 'var(--font-size-sm)',
-                        color: 'var(--color-grey-600)',
+                        marginBottom: 'var(--space-4)',
+                        fontSize: 'var(--font-size-base)',
+                        color: 'var(--color-grey-500)',
                         fontWeight: '500'
                       }}>
                         Slide how much you like it.
@@ -940,14 +932,14 @@ export default function Page() {
                         className="custom-slider-track"
                         style={{
                           width: '100%',
-                          height: '35px',
-                          background: 'linear-gradient(90deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0.05) 100%)',
-                          borderRadius: '17px',
+                          height: '48px',
+                          background: 'linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.05) 100%)',
+                          borderRadius: '24px',
                           position: 'relative',
-                          border: '2px solid var(--color-grey-200)',
+                          border: '2px solid rgba(255,255,255,0.1)',
                           cursor: 'grab',
                           overflow: 'hidden',
-                          marginBottom: 'var(--space-2)'
+                          marginBottom: 'var(--space-3)'
                         }}
                         onMouseDown={(e) => {
                           if (isVoting) return;
@@ -1022,11 +1014,11 @@ export default function Page() {
                             top: '50%',
                             transform: 'translateY(-50%)',
                             width: '56px',
-                            height: '48px',
+                            height: '44px',
                             background: currentSliderValue > 0 ? 'var(--accent-color)' : 'var(--color-white)',
-                            borderRadius: '24px',
-                            border: '2px solid var(--color-grey-300)',
-                            boxShadow: currentSliderValue > 0 ? '0 4px 12px rgba(0,211,149,0.3)' : '0 2px 8px rgba(0,0,0,0.1)',
+                            borderRadius: '22px',
+                            border: '2px solid rgba(255,255,255,0.2)',
+                            boxShadow: currentSliderValue > 0 ? '0 4px 12px rgba(0,211,149,0.3)' : '0 2px 8px rgba(255,255,255,0.1)',
                             transition: 'all 0.2s ease-out',
                             display: 'flex',
                             alignItems: 'center',
@@ -1059,10 +1051,11 @@ export default function Page() {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        fontSize: 'var(--font-size-lg)',
-                        paddingLeft: 'var(--space-4)',
-                        paddingRight: 'var(--space-4)',
-                        marginTop: 'var(--space-1)'
+                        fontSize: 'var(--font-size-xl)',
+                        paddingLeft: 'var(--space-6)',
+                        paddingRight: 'var(--space-6)',
+                        marginTop: 'var(--space-2)',
+                        opacity: 0.7
                       }}>
                         <span>😐</span>
                         <span>😊</span>

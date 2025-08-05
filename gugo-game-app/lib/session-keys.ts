@@ -120,28 +120,31 @@ export function createSessionAuthMessage(
   const mainAmount = mainToken ? ethers.formatEther(mainToken.maxAmount) : '0';
   const mainSymbol = mainToken?.tokenSymbol || 'TOKEN';
 
-  // Create token limits summary
-  const tokenLimitsSummary = tokenLimits.map(token => 
-    `• ${ethers.formatEther(token.maxAmount)} ${token.tokenSymbol}${token.isMainToken ? ' (primary)' : ''}`
+  // Create spending limits summary
+  const spendingLimits = tokenLimits.map(token => 
+    `• Up to ${ethers.formatEther(token.maxAmount)} ${token.tokenSymbol}${token.tokenSymbol === 'ETH' ? '' : ' (for vote-related actions)'}`
   ).join('\n');
 
-  return `Taste Machine Session Authorization
+  // Create authorized actions summary
+  const authorizedActions = actionsAllowed.map(action => `• ${action}`).join('\n');
+
+  return `Taste Machine: Secure Session Authorization
+You are authorizing a temporary session to interact with Taste Machine without needing to sign each transaction individually.
 
 Network: ${networkName}
 User: ${userAddress}
 Session Key: ${sessionPublicKey}
-Duration: Secure session (expires ${new Date(expiresAt).toLocaleString()})
+Session Duration: Until ${new Date(expiresAt).toLocaleString()} (local time)
 
-💰 Spending Limits:
-${tokenLimitsSummary}
+Spending Limits:
+${spendingLimits}
 
-🎯 Authorized Actions:
-${actionsAllowed.map(action => `• ${action.replace('_', ' ')}`).join('\n')}
+Authorized Actions:
+${authorizedActions}
 
-This signature opens a secure session to interact without repeated approvals.
-It allows up to ${Math.round(parseFloat(mainAmount)).toLocaleString()} ${mainSymbol} + 0.5 ETH for vote purchasing.
+This session key is only valid in this browser tab and will expire automatically at the time listed above. No funds can be moved beyond the authorized limits. You may revoke access at any time.
 
-⚠️ This session expires automatically and is stored only in your browser tab.`;
+By signing this message, you enable a secure and seamless voting experience on Taste Machine.`;
 }
 
 /**

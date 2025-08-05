@@ -23,12 +23,9 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
   const [selectedOption, setSelectedOption] = useState<string>('50');
   const [customAmount, setCustomAmount] = useState<string>('');
   const [isCustom, setIsCustom] = useState(false);
-  const [showSessionSuggestion, setShowSessionSuggestion] = useState(false);
+
   const { purchaseVotes, isPurchasing, purchaseError } = useSessionVotePurchase();
   const { 
-    sessionStatus, 
-    createSession, 
-    isCreatingSession, 
     isSessionActive 
   } = useSessionKey();
 
@@ -109,19 +106,14 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
     }
   };
 
-  // Reset on close and check session status on open
+  // Reset on close
   useEffect(() => {
     if (!isOpen) {
       setSelectedOption('50');
       setIsCustom(false);
       setCustomAmount('');
-      setShowSessionSuggestion(false);
-    } else {
-      // Check if user has session when modal opens
-      const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
-      setShowSessionSuggestion(!hasSession);
     }
-  }, [isOpen, sessionStatus]);
+  }, [isOpen]);
 
   if (!isOpen) {
     console.log('🛒 [FINAL] Modal not rendering because isOpen is false');
@@ -148,10 +140,10 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
     }}>
       <div style={{
         background: 'var(--color-black)',
-        border: '2px solid var(--color-green)',
+        border: '1px solid #444',
         borderRadius: 'var(--border-radius)',
-        padding: 'var(--space-6)',
-        maxWidth: '500px',
+        padding: 'var(--space-4)',
+        maxWidth: '400px',
         width: '100%',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.9)'
       }}>
@@ -160,16 +152,30 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 'var(--space-6)'
+          marginBottom: 'var(--space-4)'
         }}>
-          <h2 style={{
-            color: 'var(--color-green)',
-            fontSize: 'var(--font-size-xl)',
-            fontWeight: '800',
-            margin: 0
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)'
           }}>
-            🎁 Buy Licks
-          </h2>
+            <img
+              src="/lick-icon.png"
+              alt="Licks"
+              style={{
+                width: '20px',
+                height: '20px'
+              }}
+            />
+            <h2 style={{
+              color: 'var(--color-white)',
+              fontSize: 'var(--font-size-lg)',
+              fontWeight: '600',
+              margin: 0
+            }}>
+              Buy Licks
+            </h2>
+          </div>
           
           <button
             onClick={onClose}
@@ -186,135 +192,14 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
           </button>
         </div>
 
-        {/* Session Suggestion */}
-        {showSessionSuggestion && (
-          <div style={{
-            background: 'linear-gradient(135deg, #1a3d1a 0%, #2a1f1a 100%)',
-            border: '1px solid var(--color-green)',
-            borderRadius: 'var(--border-radius)',
-            padding: 'var(--space-4)',
-            marginBottom: 'var(--space-5)',
-            position: 'relative'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-3)',
-              marginBottom: 'var(--space-3)'
-            }}>
-              <span style={{ fontSize: '1.5rem' }}>💫</span>
-              <div>
-                <h3 style={{
-                  color: 'var(--color-green)',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: '700',
-                  margin: '0 0 var(--space-1) 0',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
-                }}>
-                  Want Seamless Purchasing?
-                </h3>
-                <p style={{
-                  color: 'var(--color-white)',
-                  fontSize: 'var(--font-size-xs)',
-                  margin: 0,
-                  lineHeight: '1.4'
-                }}>
-                  Create a secure session to buy Licks instantly without signing each transaction.
-                </p>
-              </div>
-            </div>
-            
-            <div style={{
-              display: 'flex',
-              gap: 'var(--space-2)',
-              alignItems: 'center'
-            }}>
-              <button
-                onClick={async () => {
-                  try {
-                    setShowSessionSuggestion(false);
-                    const success = await createSession();
-                    if (success) {
-                      console.log('✅ Session created from purchase modal');
-                    }
-                  } catch (error) {
-                    console.error('❌ Error creating session from modal:', error);
-                    setShowSessionSuggestion(true); // Show again on error
-                  }
-                }}
-                disabled={isCreatingSession}
-                style={{
-                  padding: 'var(--space-2) var(--space-3)',
-                  background: 'var(--color-green)',
-                  border: 'none',
-                  borderRadius: 'var(--border-radius-sm)',
-                  cursor: isCreatingSession ? 'not-allowed' : 'pointer',
-                  fontSize: 'var(--font-size-xs)',
-                  fontWeight: '600',
-                  color: 'var(--color-black)',
-                  transition: 'all 0.2s ease',
-                  opacity: isCreatingSession ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-1)'
-                }}
-              >
-                {isCreatingSession && (
-                  <div style={{
-                    width: '12px',
-                    height: '12px',
-                    border: '2px solid var(--color-black)',
-                    borderTop: '2px solid transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}></div>
-                )}
-                {isCreatingSession ? 'Creating...' : 'Create Session'}
-              </button>
-              
-              <button
-                onClick={() => setShowSessionSuggestion(false)}
-                style={{
-                  padding: 'var(--space-2) var(--space-3)',
-                  background: 'transparent',
-                  border: '1px solid #444',
-                  borderRadius: 'var(--border-radius-sm)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
-                  color: 'var(--color-grey-400)',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--color-white)';
-                  e.currentTarget.style.borderColor = '#666';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--color-grey-400)';
-                  e.currentTarget.style.borderColor = '#444';
-                }}
-              >
-                Continue with Signatures
-              </button>
-            </div>
-            
-            <div style={{
-              fontSize: 'var(--font-size-xs)',
-              color: 'var(--color-grey-500)',
-              marginTop: 'var(--space-2)',
-              lineHeight: '1.3'
-            }}>
-              💡 You can still purchase, but will need to sign each transaction
-            </div>
-          </div>
-        )}
+
 
         {/* Purchase Options */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
-          gap: 'var(--space-3)',
-          marginBottom: 'var(--space-5)'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(75px, 1fr))',
+          gap: 'var(--space-2)',
+          marginBottom: 'var(--space-4)'
         }}>
           {purchaseOptions.map((option) => (
             <button
@@ -323,58 +208,78 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               disabled={isPurchasing}
               style={{
                 position: 'relative',
-                padding: 'var(--space-4) var(--space-3)',
-                background: selectedOption === option.id ? 'var(--color-green)' : 'transparent',
-                color: selectedOption === option.id ? 'var(--color-black)' : 'var(--color-white)',
-                border: selectedOption === option.id ? '2px solid var(--color-green)' : '2px solid #444',
+                padding: 'var(--space-2)',
+                background: selectedOption === option.id ? '#333' : 'transparent',
+                color: 'var(--color-white)',
+                border: selectedOption === option.id ? '1px solid #666' : '1px solid #444',
                 borderRadius: 'var(--border-radius)',
                 cursor: isPurchasing ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
                 textAlign: 'center',
-                fontWeight: '600',
-                opacity: isPurchasing ? 0.6 : 1
+                fontWeight: '500',
+                opacity: isPurchasing ? 0.6 : 1,
+                fontSize: 'var(--font-size-sm)'
               }}
               onMouseEnter={(e) => {
                 if (!isPurchasing && selectedOption !== option.id) {
-                  e.currentTarget.style.borderColor = 'var(--color-green)';
+                  e.currentTarget.style.borderColor = '#666';
+                  e.currentTarget.style.background = '#2a2a2a';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isPurchasing && selectedOption !== option.id) {
                   e.currentTarget.style.borderColor = '#444';
+                  e.currentTarget.style.background = 'transparent';
                 }
               }}
             >
               {option.isPopular && (
                 <div style={{
                   position: 'absolute',
-                  top: '-8px',
+                  top: '-6px',
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  background: 'var(--color-green)',
-                  color: 'var(--color-black)',
-                  fontSize: '10px',
-                  fontWeight: '700',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
+                  background: '#666',
+                  color: 'var(--color-white)',
+                  fontSize: '8px',
+                  fontWeight: '600',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  letterSpacing: '0.3px'
                 }}>
                   Popular
                 </div>
               )}
               
               <div style={{
-                fontSize: 'var(--font-size-lg)',
-                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 'var(--space-1)',
                 marginBottom: 'var(--space-1)'
               }}>
-                {option.id === 'custom' ? '✏️' : `${option.licks} 👅`}
+                {option.id === 'custom' ? (
+                  <span style={{ fontSize: 'var(--font-size-sm)' }}>✏️</span>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: '600' }}>{option.licks}</span>
+                    <img
+                      src="/lick-icon.png"
+                      alt="Licks"
+                      style={{
+                        width: '12px',
+                        height: '12px'
+                      }}
+                    />
+                  </>
+                )}
               </div>
               
               <div style={{
-                fontSize: 'var(--font-size-xs)',
-                opacity: 0.8
+                fontSize: '10px',
+                opacity: 0.7,
+                lineHeight: '1.2'
               }}>
                 {option.id === 'custom' ? 'Custom' : 
                  `${calculateCosts(option.licks).costGUGO.toLocaleString()} GUGO`}
@@ -386,7 +291,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
         {/* Custom Amount Input */}
         {isCustom && (
           <div style={{
-            marginBottom: 'var(--space-5)'
+            marginBottom: 'var(--space-4)'
           }}>
             <label style={{
               display: 'block',
@@ -416,7 +321,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                 transition: 'border-color 0.2s ease'
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-green)';
+                e.currentTarget.style.borderColor = '#666';
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = '#444';
@@ -431,19 +336,33 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
             background: '#1a1a1a',
             border: '1px solid #333',
             borderRadius: 'var(--border-radius)',
-            padding: 'var(--space-4)',
-            marginBottom: 'var(--space-5)'
+            padding: 'var(--space-3)',
+            marginBottom: 'var(--space-4)'
           }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 'var(--space-2)'
+              marginBottom: 'var(--space-1)'
             }}>
-              <span style={{ color: 'var(--color-white)', fontSize: 'var(--font-size-lg)', fontWeight: '600' }}>
-                {currentLickCount} Licks 👅
-              </span>
-              <span style={{ color: 'var(--color-green)', fontSize: 'var(--font-size-lg)', fontWeight: '700' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-1)'
+              }}>
+                <span style={{ color: 'var(--color-white)', fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
+                  {currentLickCount} Licks
+                </span>
+                <img
+                  src="/lick-icon.png"
+                  alt="Licks"
+                  style={{
+                    width: '14px',
+                    height: '14px'
+                  }}
+                />
+              </div>
+              <span style={{ color: 'var(--color-white)', fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
                 {costGUGO.toLocaleString()} GUGO
               </span>
             </div>
@@ -452,7 +371,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               display: 'flex',
               justifyContent: 'space-between',
               color: 'var(--color-grey-400)',
-              fontSize: 'var(--font-size-sm)'
+              fontSize: 'var(--font-size-xs)'
             }}>
               <span>${PRICE_PER_LICK_USD.toFixed(2)} per Lick</span>
               <span>${costUSD.toFixed(2)} USD equivalent</span>
@@ -493,20 +412,20 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
         {/* Action Buttons */}
         <div style={{
           display: 'flex',
-          gap: 'var(--space-3)'
+          gap: 'var(--space-2)'
         }}>
           <button
             onClick={onClose}
             disabled={isPurchasing}
             style={{
               flex: 1,
-              padding: 'var(--space-3)',
+              padding: 'var(--space-2)',
               background: 'transparent',
-              border: '2px solid #444',
+              border: '1px solid #444',
               borderRadius: 'var(--border-radius)',
               color: 'var(--color-white)',
-              fontSize: 'var(--font-size-base)',
-              fontWeight: '600',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: '500',
               cursor: isPurchasing ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               opacity: isPurchasing ? 0.6 : 1
@@ -520,20 +439,18 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
             disabled={isPurchasing || !isValidPurchase}
             style={{
               flex: 2,
-              padding: 'var(--space-3)',
-              background: isValidPurchase && !isPurchasing ? 'var(--color-green)' : '#444',
-              border: '2px solid transparent',
+              padding: 'var(--space-2)',
+              background: isValidPurchase && !isPurchasing ? '#666' : '#444',
+              border: '1px solid transparent',
               borderRadius: 'var(--border-radius)',
-              color: isValidPurchase && !isPurchasing ? 'var(--color-black)' : 'var(--color-grey-400)',
-              fontSize: 'var(--font-size-base)',
-              fontWeight: '700',
+              color: 'var(--color-white)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: '600',
               cursor: isValidPurchase && !isPurchasing ? 'pointer' : 'not-allowed',
-              transition: 'all 0.2s ease',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
+              transition: 'all 0.2s ease'
             }}
           >
-            {isPurchasing ? 'Purchasing...' : `Buy ${currentLickCount} Licks`}
+            {isPurchasing ? 'Purchasing...' : `BUY ${currentLickCount} LICKS`}
           </button>
         </div>
       </div>

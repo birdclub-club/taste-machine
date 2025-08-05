@@ -4,6 +4,15 @@
 
 A sophisticated blockchain-powered game where users vote on NFT aesthetics with a clean, professional interface inspired by Swiss graphic design. Features mobile-first responsive design, interactive components, and seamless Abstract Chain integration.
 
+## 🚀 Live Deployment
+
+**✅ Production Ready**: Taste Machine is live and fully operational on Vercel with robust error handling and retry mechanisms.
+
+- **Live URL**: [Deployed on Vercel](https://vercel.com)
+- **Database**: Supabase (PostgreSQL) with 46,615+ NFTs
+- **Status**: All core features operational, purchase flows tested and working
+- **Last Updated**: August 2025
+
 ## 🌟 Features
 
 ### **🎨 Swiss Minimalist Design**
@@ -32,12 +41,19 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **🔥 Super Vote System** - Premium fire votes with 2x Elo impact (costs 5 votes)
 - **📊 Elo Rating System** - Dynamic aesthetic rankings
 - **🔗 Abstract Global Wallet** - Seamless onboarding with AGW
+- **🎮 Welcome Experience** - Onboarding popup with collection choice (Bearish vs Mix it Up)
+- **🎛️ Collections Menu** - Toggle between focused Bearish collection or mixed NFT experience
+- **🛍️ Streamlined Purchase Flow** - Professional Licks purchase with session key integration
+- **⚡ Session Keys** - Gasless transactions with detailed authorization messages
 
 ### **🛡️ Robust Infrastructure**
 - **Intelligent IPFS Gateway Management** - Adaptive selection from 8+ gateways with health tracking
 - **Graceful Image Failure Handling** - 10 free votes awarded + automatic recovery attempts
 - **Professional Maintenance Mode** - Polished UX during system issues
 - **Self-Healing Systems** - Automatic recovery when gateway issues resolve
+- **Robust Purchase System** - 3-retry mechanism with exponential backoff for failed transactions
+- **Balance Sync** - 5-retry refresh system ensures accurate balance updates after purchases
+- **API Error Handling** - Comprehensive error boundaries with user-friendly fallbacks
 
 ## 🛠 Tech Stack
 
@@ -231,6 +247,25 @@ node scripts/update-gugo-price.js 0.25
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
+### Current Development Workflow
+
+**Development Environment**
+1. Run `npm run dev` to start local development server on http://localhost:3000
+2. Test all features locally before pushing to production
+3. Use browser developer tools to monitor API calls and error handling
+
+**Deployment Pipeline**
+1. Push code to GitHub repository
+2. Vercel automatically deploys from main branch
+3. Environment variables are managed through Vercel dashboard
+4. Production database uses Supabase with live API keys
+
+**Testing Protocol**
+- Test wallet connection and session key creation
+- Verify voting flows (matchup and slider)
+- Test Licks purchase flow with retry mechanisms
+- Confirm balance updates and refresh logic
+
 ### Project Status
 
 **✅ Phase 1: Core Setup (COMPLETE)**
@@ -267,6 +302,38 @@ node scripts/update-gugo-price.js 0.25
 - [x] Real-time gateway health tracking and adaptive selection
 - [x] Comprehensive error handling and user compensation
 - [x] Self-healing systems with automatic failover
+
+**✅ Phase 5: Enhanced User Experience (COMPLETE)**
+- [x] Welcome popup with collection choice (Bearish vs Mix it Up)
+- [x] Collections menu with toggle functionality
+- [x] Redesigned modals (About, How, Buy Licks) with professional styling
+- [x] Simplified reward popups and session prompts
+- [x] Enhanced session key authorization messages
+- [x] Streamlined purchase flow with robust error handling
+
+**✅ Phase 6: Production Deployment (COMPLETE)**
+- [x] Live deployment on Vercel with automatic CI/CD
+- [x] Database connectivity with 46,615+ NFTs operational
+- [x] Purchase flow with 3-retry mechanism and exponential backoff
+- [x] Balance refresh system with 5-retry logic
+- [x] Comprehensive error logging and user feedback
+- [x] Production-ready with all core features tested and working
+
+## 🔧 Recent Fixes & Improvements
+
+### **Latest Updates (August 2025)**
+- **✅ Fixed**: "Failed to fetch" error in Licks purchase flow
+- **✅ Enhanced**: Purchase retry mechanism with exponential backoff (3 attempts)
+- **✅ Improved**: Balance refresh logic with 5-retry system and delay handling
+- **✅ Resolved**: Development server stability issues
+- **✅ Optimized**: API error handling across all endpoints
+
+### **Pending Items for Future Development**
+- **🔄 Security**: Re-implement Row Level Security (RLS) for production
+- **🔍 Audit**: Conduct comprehensive security audit before mainnet
+- **📊 Monitoring**: Set up API key expiration alerts
+- **🏥 Health**: Implement automated health monitoring in CI/CD
+- **🧪 Testing**: End-to-end voting flow automation
 
 ## 🤝 Contributing
 

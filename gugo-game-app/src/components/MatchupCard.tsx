@@ -399,44 +399,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                   </span>
                 )}
 
-                {nft.collection_address && (
-                  <>
-                    {/* Collection */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopyAddress(nft.collection_address!, 'collection', nft.id);
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: 'var(--color-grey-600)',
-                        fontSize: 'var(--font-size-xs)',
-                        padding: '0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px'
-                      }}
-                      title="Copy collection address"
-                    >
-                      <span>Collection</span>
-                      <span style={{ color: 'var(--color-grey-500)' }}>⧉</span>
-                    </button>
 
-                    {/* Confirmation Messages - Only for Collection */}
-                    {copiedAddresses[`${nft.id}-collection`] && (
-                      <span style={{ 
-                        color: 'var(--color-green)', 
-                        fontSize: 'var(--font-size-xs)',
-                        fontWeight: '500',
-                        marginLeft: 'var(--space-2)'
-                      }}>
-                        Address copied
-                      </span>
-                    )}
-                  </>
-                )}
               </>
             ) : (
               // Right card: Fire button first
@@ -477,46 +440,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 >
                   🔥
                 </button>
-                {nft.collection_address ? (
-                  <>
-                    {/* Collection */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopyAddress(nft.collection_address!, 'collection', nft.id);
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: 'var(--color-grey-600)',
-                        fontSize: 'var(--font-size-xs)',
-                        padding: '0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px'
-                      }}
-                      title="Copy collection address"
-                    >
-                      <span>Collection</span>
-                      <span style={{ color: 'var(--color-grey-500)' }}>⧉</span>
-                    </button>
-
-                    {/* Confirmation Messages - Only for Collection */}
-                    {copiedAddresses[`${nft.id}-collection`] && (
-                      <span style={{ 
-                        color: 'var(--color-green)', 
-                        fontSize: 'var(--font-size-xs)',
-                        fontWeight: '500',
-                        marginLeft: 'var(--space-2)'
-                      }}>
-                        Address copied
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <div></div> // Empty div to maintain flex layout
-                )}
+                <div></div> {/* Empty div to maintain flex layout */}
               </>
             )}
           </div>

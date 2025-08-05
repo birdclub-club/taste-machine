@@ -200,36 +200,71 @@ export function useSessionVotePurchase() {
 
       console.log('🎁 Purchase transaction completed, updating database...');
 
-      // Update the database with purchased Licks via rewards API
+      // Update the database with purchased Licks via rewards API (with retry logic)
       try {
-        const rewardResponse = await fetch('/api/rewards/store', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            walletAddress: address,
-            reward: {
-              rewardType: 'licks_purchase',
-              xpAmount: 0,
-              votesAmount: 0,
-              gugoAmount: 0,
-              licksAmount: voteCount, // Add purchased Licks to available_votes
-              timestamp: Date.now()
-            }
-          })
-        });
+        console.log('🔄 Attempting to update database...');
+        
+        let rewardResponse;
+        let attempt = 0;
+        const maxAttempts = 3;
+        
+        while (attempt < maxAttempts) {
+          attempt++;
+          console.log(`📡 Database update attempt ${attempt}/${maxAttempts}...`);
+          
+          try {
+            rewardResponse = await fetch('/api/rewards/store', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                walletAddress: address,
+                reward: {
+                  rewardType: 'licks_purchase',
+                  xpAmount: 0,
+                  votesAmount: 0,
+                  gugoAmount: 0,
+                  licksAmount: voteCount, // Add purchased Licks to available_votes
+                  timestamp: Date.now()
+                }
+              })
+            });
 
-        if (!rewardResponse.ok) {
-          throw new Error(`Failed to update database: ${rewardResponse.statusText}`);
+            if (rewardResponse.ok) {
+              break; // Success, exit retry loop
+            } else {
+              console.warn(`⚠️ Attempt ${attempt} failed with status: ${rewardResponse.status} ${rewardResponse.statusText}`);
+              if (attempt === maxAttempts) {
+                throw new Error(`Failed to update database: ${rewardResponse.statusText}`);
+              }
+            }
+          } catch (fetchError) {
+            console.error(`❌ Attempt ${attempt} failed with error:`, fetchError);
+            if (attempt === maxAttempts) {
+              throw fetchError;
+            }
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+          }
         }
 
-        const rewardResult = await rewardResponse.json();
-        console.log('✅ Database updated successfully:', rewardResult);
+        if (rewardResponse && rewardResponse.ok) {
+          const rewardResult = await rewardResponse.json();
+          console.log('✅ Database updated successfully:', rewardResult);
+        }
 
       } catch (dbError) {
-        console.error('❌ Failed to update database after purchase:', dbError);
-        // Still return success since the "transaction" completed, but log the error
+        console.error('❌ Failed to update database after purchase (all attempts):', dbError);
+        
+        // Return error instead of success since this is critical for the balance update
+        const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+        return {
+          success: false,
+          votesAmount: 0,
+          cost: costString,
+          error: `Purchase completed but failed to update balance: ${errorMessage}`
+        };
       }
 
       console.log('✅ Votes purchased successfully:', {
