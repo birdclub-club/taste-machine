@@ -150,7 +150,8 @@ export async function POST(request: NextRequest) {
       
       if (fgugoTransferStatus === 'simulated') {
         console.warn('⚠️  [IMPORTANT] FGUGO transfer was SIMULATED - user balance will NOT increase');
-        console.warn('🔧 [SOLUTION] Add TREASURY_PRIVATE_KEY to environment variables for real transfers');
+        console.warn('🔧 [SOLUTION] Need smart contract integration with GugoVoteManager claimPrizeBreak()');
+        console.warn('📋 [INFO] Contract treasury already seeded, just need to integrate the calls');
       }
 
       return NextResponse.json(
@@ -192,59 +193,48 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Transfer FGUGO tokens to user wallet using session key authorization
- * This performs real blockchain transactions on Abstract Testnet
+ * Transfer FGUGO tokens using smart contract treasury system
+ * This should integrate with the GugoVoteManager contract's claimPrizeBreak function
  */
 async function transferFgugoTokens(walletAddress: string, amount: number): Promise<void> {
-  console.log(`💰 Transferring ${amount} FGUGO tokens to wallet...`);
+  console.log(`💰 Processing ${amount} FGUGO reward through smart contract...`);
   
   try {
-    // FGUGO token contract on Abstract Testnet
-    const FGUGO_CONTRACT_ADDRESS = '0x3eAd960365697E1809683617af9390ABC9C24E56';
+    // Import smart contract constants
+    const { GUGO_VOTE_MANAGER_ADDRESS, GUGO_VOTE_MANAGER_ABI } = await import('@/lib/constants');
     const ABSTRACT_TESTNET_RPC = 'https://api.testnet.abs.xyz';
     
-    // Standard ERC-20 transfer ABI
-    const ERC20_ABI = [
-      'function transfer(address to, uint256 amount) returns (bool)',
-      'function balanceOf(address account) view returns (uint256)',
-      'function decimals() view returns (uint8)'
-    ];
-
     // Create provider for Abstract Testnet
     const provider = new ethers.JsonRpcProvider(ABSTRACT_TESTNET_RPC);
     
-    // For now, we'll use a treasury wallet private key to send FGUGO
-    // In production, this would be managed by the smart contract system
-    const treasuryPrivateKey = process.env.TREASURY_PRIVATE_KEY || process.env.PRIVATE_KEY;
+    // Check if we have a treasury/admin private key for contract interaction
+    const adminPrivateKey = process.env.TREASURY_PRIVATE_KEY || process.env.PRIVATE_KEY;
     
-    if (!treasuryPrivateKey) {
-      console.warn('⚠️ No treasury private key found, using simulation mode');
+    if (!adminPrivateKey) {
+      console.warn('⚠️ No admin private key found for smart contract interaction');
+      console.log('💡 SMART CONTRACT INTEGRATION NEEDED:');
+      console.log('   The GugoVoteManager contract at:', GUGO_VOTE_MANAGER_ADDRESS);
+      console.log('   Should handle FGUGO distribution via claimPrizeBreak()');
+      console.log('   Current reward amount:', amount, 'FGUGO');
+      console.log('   Target wallet:', walletAddress);
       await simulateFgugoTransfer(walletAddress, amount);
       return;
     }
 
-    const treasuryWallet = new ethers.Wallet(treasuryPrivateKey, provider);
-    const fgugoContract = new ethers.Contract(FGUGO_CONTRACT_ADDRESS, ERC20_ABI, treasuryWallet);
-
-    // Convert amount to FGUGO wei (18 decimals)
-    const transferAmount = ethers.parseEther(amount.toString());
+    // TODO: Implement smart contract integration
+    // This should call the GugoVoteManager's claimPrizeBreak() function
+    // instead of direct ERC-20 transfers
     
-    console.log(`🔗 Executing FGUGO transfer: ${amount} FGUGO → ${walletAddress}`);
-    console.log(`📊 Transfer amount (wei): ${transferAmount.toString()}`);
-
-    // Execute the transfer
-    const transaction = await fgugoContract.transfer(walletAddress, transferAmount);
-    console.log(`📝 Transaction sent: ${transaction.hash}`);
+    console.log('🔧 IMPLEMENTATION NEEDED: Smart contract integration');
+    console.log('   Contract:', GUGO_VOTE_MANAGER_ADDRESS);
+    console.log('   Function: claimPrizeBreak()');
+    console.log('   Treasury should handle:', amount, 'FGUGO →', walletAddress);
     
-    // Wait for confirmation
-    const receipt = await transaction.wait();
-    console.log(`✅ Transaction confirmed in block: ${receipt.blockNumber}`);
-    console.log(`💰 Successfully transferred ${amount} FGUGO to ${walletAddress}`);
-    console.log(`🔍 View transaction: https://explorer.testnet.abs.xyz/tx/${transaction.hash}`);
+    // For now, fall back to simulation until smart contract integration is complete
+    await simulateFgugoTransfer(walletAddress, amount);
 
   } catch (error) {
-    console.error('❌ Error transferring FGUGO tokens:', error);
-    console.log('🔄 Falling back to simulation mode');
+    console.error('❌ Error in smart contract FGUGO transfer:', error);
     await simulateFgugoTransfer(walletAddress, amount);
   }
 }
@@ -253,18 +243,20 @@ async function transferFgugoTokens(walletAddress: string, amount: number): Promi
  * Fallback simulation for when real transfers can't be executed
  */
 async function simulateFgugoTransfer(walletAddress: string, amount: number): Promise<void> {
-  console.log(`🔗 [SIMULATE] Smart contract transfer: ${amount} FGUGO → ${walletAddress}`);
-  console.log(`⚠️  [DEVELOPMENT MODE] No TREASURY_PRIVATE_KEY configured`);
-  console.log(`📝 [DEVELOPMENT MODE] To enable real FGUGO transfers:`);
-  console.log(`   1. Create a wallet with FGUGO tokens`);
-  console.log(`   2. Add TREASURY_PRIVATE_KEY=your_key to .env.local`);
-  console.log(`   3. Add the same key to Vercel environment variables`);
+  console.log(`🔗 [SIMULATE] Smart contract FGUGO transfer: ${amount} FGUGO → ${walletAddress}`);
+  console.log(`⚠️  [DEVELOPMENT MODE] Smart contract integration not yet implemented`);
+  console.log(`📝 [NEXT STEPS] To enable real FGUGO transfers:`);
+  console.log(`   1. The GugoVoteManager contract already has FGUGO treasury seeded`);
+  console.log(`   2. Need to integrate claimPrizeBreak() function calls`);
+  console.log(`   3. This should trigger automatic FGUGO transfers from contract treasury`);
+  console.log(`   4. Configure admin key for contract interaction (TREASURY_PRIVATE_KEY)`);
   
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
   console.log(`✅ [SIMULATE] Transfer complete - SIMULATION ONLY`);
-  console.log(`💡 [INFO] User will not see balance increase (simulation mode)`);
+  console.log(`💡 [INFO] User will not see balance increase until smart contract integration`);
+  console.log(`🔗 [CONTRACT] GugoVoteManager should handle this via its treasury`);
 }
 
 /**
