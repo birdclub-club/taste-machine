@@ -217,8 +217,9 @@ export function useVote() {
         vote_type: voteType
       });
 
-    if (eloError || !eloResult || eloResult.length === 0) {
-      console.error('❌ Elo calculation error:', eloError);
+    if (eloError || !eloResult || !Array.isArray(eloResult) || eloResult.length === 0) {
+      console.error('❌ Elo calculation error:', eloError || 'No result returned');
+      console.error('❌ Raw eloResult:', eloResult);
       throw new Error('Failed to calculate new Elo ratings');
     }
 

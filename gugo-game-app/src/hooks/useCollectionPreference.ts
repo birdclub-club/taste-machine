@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 export type CollectionPreference = 'bearish' | 'mix' | null;
 
 export function useCollectionPreference() {
-  const [preference, setPreference] = useState<CollectionPreference>('bearish'); // Default to bearish
-  const [hasSetPreference, setHasSetPreference] = useState(true); // Default to true since we have a default
+  const [preference, setPreference] = useState<CollectionPreference>(null); // Start with null
+  const [hasSetPreference, setHasSetPreference] = useState(false); // Start with false to trigger welcome popup
 
   // Load preference from localStorage on mount
   useEffect(() => {
@@ -14,11 +14,13 @@ export function useCollectionPreference() {
     if (stored && (stored === 'bearish' || stored === 'mix')) {
       setPreference(stored);
       setHasSetPreference(true);
+      console.log(`🎯 Loaded stored preference: ${stored}`);
     } else {
-      // If no stored preference, set default to bearish
-      setPreference('bearish');
-      setHasSetPreference(true);
-      localStorage.setItem('collection-preference', 'bearish');
+      // If no stored preference, user needs to see welcome popup
+      setPreference(null); // Keep as null until user chooses
+      setHasSetPreference(false); // This will trigger welcome popup
+      console.log('🆕 No stored preference - welcome popup will show');
+      // Don't save to localStorage yet - let user choose in welcome popup
     }
   }, []);
 
@@ -51,11 +53,13 @@ export function useCollectionPreference() {
 export function getCollectionFilter(preference: CollectionPreference): string | null {
   switch (preference) {
     case 'bearish':
-      return 'Bearish';
+      return 'BEARISH'; // Updated to match actual database collection name
     case 'mix':
       return null; // No filter = all collections
+    case null:
+      return 'BEARISH'; // Default to BEARISH for null (before user has chosen)
     default:
-      return 'Bearish'; // Default to Bearish
+      return 'BEARISH'; // Default to BEARISH
   }
 }
 
@@ -64,13 +68,13 @@ export function matchesCollectionPreference(
   nftCollectionName: string | null, 
   preference: CollectionPreference
 ): boolean {
-  if (preference === 'mix' || preference === null) {
+  if (preference === 'mix') {
     return true; // Show all collections
   }
   
-  if (preference === 'bearish') {
-    return nftCollectionName === 'Bearish';
+  if (preference === 'bearish' || preference === null) {
+    return nftCollectionName === 'BEARISH'; // Updated to match actual database collection name
   }
   
-  return nftCollectionName === 'Bearish'; // Default to Bearish only
+  return nftCollectionName === 'BEARISH'; // Default to BEARISH only
 }

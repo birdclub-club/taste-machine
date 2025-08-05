@@ -26,6 +26,10 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
         padding: 'var(--space-4)',
         backdropFilter: 'blur(4px)' // Less blur to see loading behind
       }}
+      onClick={(e) => {
+        // Prevent auto-closing when clicking outside
+        e.stopPropagation();
+      }}
     >
       <div 
         style={{
@@ -38,6 +42,10 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
           boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
           border: '1px solid var(--accent-color)', // Green border to match theme
           position: 'relative'
+        }}
+        onClick={(e) => {
+          // Prevent clicks inside modal from closing it
+          e.stopPropagation();
         }}
       >
         {/* GOGO Duck Image - Back on Top */}
@@ -74,7 +82,7 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
         {/* Body Text */}
         <div style={{ 
           marginBottom: 'var(--space-6)',
-          textAlign: 'center',
+          textAlign: 'left',
           fontSize: 'var(--font-size-base)',
           lineHeight: '1.5',
           color: '#e5e5e5'
@@ -93,7 +101,7 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
             marginBottom: 'var(--space-4)',
             fontSize: 'var(--font-size-sm)',
             maxWidth: '400px',
-            margin: '0 auto var(--space-4) auto'
+            margin: '0 0 var(--space-4) 0'
           }}>
             <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
@@ -139,7 +147,12 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
           marginBottom: 'var(--space-4)'
         }}>
           <button
-            onClick={() => onCollectionChoice('bearish')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🐻 Bearish button clicked');
+              onCollectionChoice('bearish');
+            }}
             style={{
               padding: 'var(--space-2) var(--space-4)', // Even smaller padding
               background: '#333333', // Dark grey
@@ -175,7 +188,12 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
           </button>
 
           <button
-            onClick={() => onCollectionChoice('mix')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🎯 Mix it Up button clicked');
+              onCollectionChoice('mix');
+            }}
             style={{
               padding: 'var(--space-2) var(--space-4)', // Even smaller padding
               background: '#333333', // Same dark grey as Bearish button
@@ -218,6 +236,28 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
           fontStyle: 'italic'
         }}>
           You can change this preference anytime in settings
+        </div>
+
+        {/* Monster Logo - Bottom Right Corner */}
+        <div style={{
+          position: 'absolute',
+          bottom: 'var(--space-3)',
+          right: 'var(--space-3)',
+          opacity: 0.6
+        }}>
+          <img 
+            src="/Taste-Machine-Monster-Abstract-Green-150x150.png" 
+            alt="Taste Machine Logo"
+            style={{
+              width: '40px',
+              height: '40px',
+              objectFit: 'contain'
+            }}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
         </div>
       </div>
     </div>

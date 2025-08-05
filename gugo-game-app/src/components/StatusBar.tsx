@@ -58,6 +58,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
     
     console.log(`💰 Triggering wallet glow animation for +${gugoAmount} GUGO`);
     
+    // Refresh wallet balance after GUGO transfer (with delay for blockchain propagation)
+    setTimeout(() => {
+      console.log('🔄 Refreshing wallet balance after GUGO reward...');
+      refreshBalance().catch(error => {
+        console.error('❌ Failed to refresh balance after GUGO reward:', error);
+      });
+    }, 1000); // 1 second delay to ensure transaction propagation
+    
     // Hide glow after animation completes
     setTimeout(() => {
       setShowWalletGlow(false);
@@ -128,7 +136,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
     triggerWalletGlow,
     triggerLicksAnimation
   }), [refreshUser]);
-  const { eligibility } = useTokenBalance();
+  const { eligibility, refreshBalance } = useTokenBalance();
   const [showWalletDropdown, setShowWalletDropdown] = useState(false);
   const [showAboutPopup, setShowAboutPopup] = useState(false);
   const [showHowPopup, setShowHowPopup] = useState(false);
@@ -267,7 +275,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
         border: '1px solid #333333',
         borderTop: 'none', // Remove top border to connect with triangle
         zIndex: 1000,
-        width: '180px', // Smaller, more compact card
+        width: '190px', // Slightly wider for better icon spacing
         maxWidth: 'calc(100vw - 20px)', // Ensure it doesn't overflow on mobile
         textAlign: 'center',
         // Only animate on initial appearance, then stay locked
@@ -374,8 +382,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-between', // Even distribution
-        height: popupStage === 'result' ? '120px' : '100px', // Slightly taller for result message
-        width: '160px', // Smaller to match card width
+        height: popupStage === 'result' ? '130px' : '110px', // Slightly taller to accommodate bigger icon
+        width: '170px', // Slightly wider for better spacing
         padding: '0', // Remove variable padding
         margin: '0' // Remove any margins
       }}>
@@ -397,13 +405,13 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '8px', // Fixed gap instead of CSS variable
+          gap: '10px', // Slightly larger gap for bigger icon
           fontSize: '28px', // Fixed pixel size
           fontWeight: '800',
           color: 'var(--color-white)',
-          height: '40px', // Exact fixed height
-          width: '140px', // Smaller width for compact card
-          lineHeight: '40px', // Fixed line height
+          height: '48px', // Taller to accommodate bigger icon
+          width: '150px', // Slightly wider for better spacing
+          lineHeight: '48px', // Match height for better alignment
           flexShrink: 0, // Never shrink
           flexGrow: 0 // Never grow
         }}>
@@ -412,8 +420,9 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
             src="/lick-icon.png"
             alt="Lick"
             style={{
-              width: '24px', // Fixed size, no transitions
-              height: '24px' // Fixed size, no transitions
+              width: '36px', // Bigger icon size
+              height: '36px', // Bigger icon size
+              flexShrink: 0
             }}
           />
           {popupStage !== 'initial' && (
@@ -424,7 +433,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                 textShadow: popupStage === 'result' ? '0 0 16px rgba(0, 211, 149, 1)' : '0 0 12px rgba(0, 211, 149, 0.8)',
                 transform: 'scale(1.2)',
                 width: '50px', // Exact fixed width instead of minWidth
-                height: '40px', // Exact fixed height
+                height: '48px', // Match the main container height
                 textAlign: 'center',
                 display: 'flex',
                 alignItems: 'center',
@@ -443,7 +452,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
         
         {/* Button or Result Info */}
         <div style={{
-          height: '36px', // Smaller height for compact button
+          height: '32px', // Match button height for better alignment
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
@@ -511,12 +520,13 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                 color: 'var(--color-white)',
                 border: 'none',
                 borderRadius: 'var(--border-radius)',
-                padding: 'var(--space-2) var(--space-3)', // Smaller padding
-                fontSize: 'var(--font-size-sm)',
+                padding: '6px 16px', // Even smaller padding
+                fontSize: '14px', // Smaller font
                 fontWeight: '600',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                minWidth: '80px' // Much smaller button
+                minWidth: '60px', // Smaller button width
+                height: '28px' // Fixed smaller height
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'var(--color-green-dark)';
@@ -540,7 +550,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
               lineHeight: '1.2',
               marginTop: 'var(--space-2)'
             }}>
-              Come back tomorrow for more free chomps.
+              Come back tomorrow for more free Licks.
             </div>
           )}
         </div>
@@ -799,12 +809,22 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
   // Collections popup component
   const CollectionsPopup = () => {
     const handleCollectionChange = async (newPreference: 'bearish' | 'mix') => {
-      console.log(`🎯 Switching collection preference to: ${newPreference}`);
+      console.log(`🎯 Switching collection preference from "${preference}" to "${newPreference}"`);
+      console.log('🔧 Debug: Current preference before change:', preference);
       setCollectionPreference(newPreference);
-      setShowCollectionsPopup(false);
       
-      // Trigger a page reload to restart with new preference
-      window.location.reload();
+      // Add extra debugging to track the change
+      setTimeout(() => {
+        console.log('🔧 Debug: Preference should now be:', newPreference);
+      }, 100);
+      
+      console.log('✅ Collection preference updated - ready to apply changes');
+    };
+
+    const handleGoClick = () => {
+      console.log('🚀 Go button clicked - closing modal and triggering soft refresh');
+      setShowCollectionsPopup(false);
+      console.log('🔧 Debug: Modal closed, page.tsx useEffect should be triggered...');
     };
     
     return (
@@ -878,9 +898,10 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
             }}>
               <span style={{ 
                 fontSize: 'var(--font-size-sm)',
-                color: preference === 'bearish' ? 'var(--accent-color)' : '#e5e5e5',
-                fontWeight: preference === 'bearish' ? '600' : '400',
-                transition: 'all 0.3s ease'
+                color: preference === 'bearish' ? '#ffffff' : '#cccccc',
+                fontWeight: preference === 'bearish' ? '700' : '500',
+                transition: 'all 0.3s ease',
+                textShadow: preference === 'bearish' ? '0 0 8px var(--accent-color)' : 'none'
               }}>
                 Bearish
               </span>
@@ -888,53 +909,105 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
               {/* Toggle Switch */}
               <div 
                 onClick={() => handleCollectionChange(preference === 'bearish' ? 'mix' : 'bearish')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = preference === 'bearish' 
+                    ? '0 0 16px rgba(var(--accent-color-rgb), 0.6)' 
+                    : '0 0 12px rgba(255,255,255,0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = preference === 'bearish' 
+                    ? '0 0 12px rgba(var(--accent-color-rgb), 0.4)' 
+                    : '0 0 8px rgba(255,255,255,0.2)';
+                }}
                 style={{
                   position: 'relative',
-                  width: '48px',
-                  height: '24px',
+                  width: '56px',
+                  height: '28px',
                   background: preference === 'bearish' ? 'var(--accent-color)' : '#666666',
-                  borderRadius: '12px',
+                  borderRadius: '14px',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  border: '1px solid #333333'
+                  border: `2px solid ${preference === 'bearish' ? 'var(--accent-color)' : '#999999'}`,
+                  boxShadow: preference === 'bearish' ? '0 0 12px rgba(var(--accent-color-rgb), 0.4)' : '0 0 8px rgba(255,255,255,0.2)'
                 }}
               >
                 <div style={{
                   position: 'absolute',
-                  top: '2px',
-                  left: preference === 'bearish' ? '2px' : '24px',
-                  width: '18px',
-                  height: '18px',
+                  top: '3px',
+                  left: preference === 'bearish' ? '3px' : '29px',
+                  width: '20px',
+                  height: '20px',
                   background: '#ffffff',
                   borderRadius: '50%',
                   transition: 'all 0.3s ease',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                  border: '1px solid #e0e0e0'
                 }} />
               </div>
               
               <span style={{ 
                 fontSize: 'var(--font-size-sm)',
-                color: preference === 'mix' ? 'var(--accent-color)' : '#e5e5e5',
-                fontWeight: preference === 'mix' ? '600' : '400',
-                transition: 'all 0.3s ease'
+                color: preference === 'mix' ? '#ffffff' : '#cccccc',
+                fontWeight: preference === 'mix' ? '700' : '500',
+                transition: 'all 0.3s ease',
+                textShadow: preference === 'mix' ? '0 0 8px var(--accent-color)' : 'none'
               }}>
                 Mix it Up
               </span>
             </div>
             
             <div style={{ 
-              fontSize: 'var(--font-size-xs)',
-              color: '#999999',
-              fontStyle: 'italic',
-              padding: 'var(--space-2)',
-              background: '#1a1a1a',
+              fontSize: 'var(--font-size-sm)',
+              color: '#ffffff',
+              fontWeight: '600',
+              padding: 'var(--space-3)',
+              background: preference === 'bearish' ? 'rgba(var(--accent-color-rgb), 0.15)' : 'rgba(255, 255, 255, 0.1)',
               borderRadius: 'var(--border-radius)',
-              border: '1px solid #333333'
+              border: `1px solid ${preference === 'bearish' ? 'var(--accent-color)' : '#666666'}`,
+              textAlign: 'center',
+              textShadow: preference === 'bearish' ? '0 0 8px var(--accent-color)' : 'none',
+              marginBottom: 'var(--space-4)'
             }}>
               {preference === 'bearish' 
-                ? 'Currently showing only Bearish NFTs'
-                : 'Currently showing NFTs from all collections'
+                ? '🐻 Currently showing only Bearish NFTs'
+                : '🎨 Currently showing NFTs from all collections'
               }
+            </div>
+            
+            {/* Go Button */}
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={handleGoClick}
+                style={{
+                  background: 'linear-gradient(135deg, var(--accent-color) 0%, #00d4aa 100%)',
+                  color: '#000000',
+                  border: '2px solid var(--accent-color)',
+                  borderRadius: '8px',
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 20px rgba(var(--accent-color-rgb), 0.5)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  minWidth: '80px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.08)';
+                  e.currentTarget.style.boxShadow = '0 6px 30px rgba(var(--accent-color-rgb), 0.7)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #00ff88 0%, var(--accent-color) 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(var(--accent-color-rgb), 0.5)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, var(--accent-color) 0%, #00d4aa 100%)';
+                }}
+              >
+                Go
+              </button>
             </div>
           </div>
         </div>
@@ -1569,28 +1642,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                                 </div>
                               </div>
                               
-                              <div style={{ 
-                                fontSize: 'var(--font-size-xs)',
-                                color: 'var(--color-grey-400)',
-                                marginBottom: 'var(--space-2)'
-                              }}>
-                                {sessionStatus.sessionData?.tokenLimits ? (
-                                  // Show enhanced token limits
-                                  sessionStatus.sessionData.tokenLimits.map((token: any, index: number) => (
-                                    <div key={index} style={{ marginBottom: 'var(--space-1)' }}>
-                                      💰 {Number(token.maxAmount) / 1e18 >= 1000 
-                                        ? `${Math.floor(Number(token.maxAmount) / 1e21)}k` 
-                                        : Math.floor(Number(token.maxAmount) / 1e18).toLocaleString()} {token.tokenSymbol} 
-                                      {token.isMainToken && ' (primary)'}
-                                    </div>
-                                  ))
-                                ) : (
-                                  // Fallback display
-                                  <>
-                                    🎁 Prize breaks, 🗳️ vote buying, 🎮 all actions
-                                  </>
-                                )}
-                              </div>
+                              {/* Removed money amounts and emojis per user request */}
                               
                               <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                                 {needsRenewal && (

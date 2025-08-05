@@ -7,11 +7,11 @@ import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from './ipfs-gate
 
 class VotingPreloader {
   private static instance: VotingPreloader;
-  private preloadedSessions: VotingSession[] = [];
+  private preloadedSessions: Map<string, VotingSession[]> = new Map(); // Collection-aware queues
   private isPreloading = false;
-  private readonly TARGET_PRELOAD_COUNT = 8; // Always maintain 8 sessions
-  private readonly MINIMUM_QUEUE_SIZE = 5; // Never go below 5
-  private readonly REFILL_TRIGGER = 3; // Refill when queue drops to 3
+  private readonly TARGET_PRELOAD_COUNT = 8; // Always maintain 8 sessions per collection
+  private readonly MINIMUM_QUEUE_SIZE = 5; // Never go below 5 per collection
+  private readonly REFILL_TRIGGER = 3; // Refill when queue drops to 3 per collection
   private imagePreloadCache = new Map<string, boolean>();
   private seenNFTIds = new Set<string>(); // Track NFTs shown in current session
   private readonly MAX_SEEN_NFTS = 50; // Clear tracking after this many NFTs
@@ -118,11 +118,11 @@ class VotingPreloader {
     return 'cross_coll';                 // 30% cross collection matchups
   }
 
-  // 🎚️ Generate slider session (with duplicate prevention)
-  private async generateSliderSession(): Promise<VotingSession | null> {
+  // 🎚️ Generate slider session (with duplicate prevention and collection filtering)
+  private async generateSliderSession(collectionFilter?: string): Promise<VotingSession | null> {
     try {
       // Try to get NFTs with low slider count first, excluding already seen, video files, and unrevealed NFTs
-      let { data: nfts, error } = await supabase
+      let query = supabase
         .from('nfts')
         .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
         .lt('slider_count', 5)
@@ -146,7 +146,14 @@ class VotingPreloader {
         .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
         .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
         .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations
+        .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+
+      // Apply collection filter if specified
+      if (collectionFilter) {
+        query = query.eq('collection_name', collectionFilter);
+      }
+
+      const { data: nfts, error } = await query
         .order('slider_count', { ascending: true })
         .order('total_votes', { ascending: true })
         .limit(20); // Get more to filter out seen ones
@@ -179,17 +186,18 @@ class VotingPreloader {
       }
 
       // Filter out already seen NFTs
-      if (nfts?.length) {
-        const beforeFilter = nfts.length;
-        nfts = nfts.filter(nft => !this.seenNFTIds.has(nft.id));
-        console.log(`🔍 Filtered seen NFTs: ${beforeFilter} → ${nfts.length}`);
+      let filteredNfts = nfts;
+      if (filteredNfts?.length) {
+        const beforeFilter = filteredNfts.length;
+        filteredNfts = filteredNfts.filter(nft => !this.seenNFTIds.has(nft.id));
+        console.log(`🔍 Filtered seen NFTs: ${beforeFilter} → ${filteredNfts.length}`);
       }
 
       // Fallback to random NFTs if no unseen low-count NFTs found
-      if (error || !nfts?.length) {
+      if (error || !filteredNfts?.length) {
         console.log('📦 No unseen low slider count NFTs, trying random...');
         if (error) console.log('❌ Slider query error:', error);
-        const result = await supabase
+        let fallbackQuery = supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
           .not('image', 'ilike', '%.mp4%')
@@ -197,23 +205,29 @@ class VotingPreloader {
           .not('image', 'ilike', '%.avi%')
           .not('image', 'ilike', '%.webm%')
           .not('image', 'ilike', '%.mkv%')
-                  .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // Exclude unrevealed NFTs
-        .not('traits', 'cs', '[{"trait_type": "reveal", "value": "unrevealed"}]')  // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Status", "value": "Unrevealed"}]')  // Alternative trait names
-        .not('traits', 'cs', '[{"trait_type": "status", "value": "unrevealed"}]')  // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu collection unrevealed
-        .not('traits', 'cs', '[{"trait_type": "status", "value": "hidden"}]')     // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // Bearish collection unrevealed
-        .not('traits', 'cs', '[{"trait_type": "stage", "value": "pre-reveal"}]')  // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]')      // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations
-        .limit(100); // Get more for better filtering
+          .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // Exclude unrevealed NFTs
+          .not('traits', 'cs', '[{"trait_type": "reveal", "value": "unrevealed"}]')  // Case variations
+          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Unrevealed"}]')  // Alternative trait names
+          .not('traits', 'cs', '[{"trait_type": "status", "value": "unrevealed"}]')  // Case variations
+          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu collection unrevealed
+          .not('traits', 'cs', '[{"trait_type": "status", "value": "hidden"}]')     // Case variations
+          .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // Bearish collection unrevealed
+          .not('traits', 'cs', '[{"trait_type": "stage", "value": "pre-reveal"}]')  // Case variations
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // Beeish collection unrevealed (specific to Beeish)
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // Beeish collection unrevealed (specific to Beeish)
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // Beeish collection unrevealed (specific to Beeish)
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]')      // Beeish collection unrevealed (specific to Beeish)
+          .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
+          .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
+          .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
+          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+
+        // Apply collection filter to fallback query as well
+        if (collectionFilter) {
+          fallbackQuery = fallbackQuery.eq('collection_name', collectionFilter);
+        }
+
+        const result = await fallbackQuery.limit(500); // Increased limit for collection-specific queries
         
         if (result.error || !result.data?.length) {
           console.error('❌ Failed to fetch any NFTs for slider:', result.error);
@@ -237,13 +251,22 @@ class VotingPreloader {
         if (unseenNFTs.length === 0) {
           console.log('🔄 All NFTs seen, clearing history and retrying...');
           this.clearSeenNFTs();
-          nfts = [result.data[Math.floor(Math.random() * result.data.length)]];
+          filteredNfts = [result.data[Math.floor(Math.random() * result.data.length)]];
         } else {
-          nfts = [unseenNFTs[Math.floor(Math.random() * unseenNFTs.length)]];
+          filteredNfts = [unseenNFTs[Math.floor(Math.random() * unseenNFTs.length)]];
         }
+      } else {
+        // Use the filtered NFTs from the first query
+        if (!filteredNfts?.length) {
+          console.error('❌ No filtered NFTs available for slider');
+          return null;
+        }
+        
+        // Select a random NFT from filtered results
+        filteredNfts = [filteredNfts[Math.floor(Math.random() * filteredNfts.length)]];
       }
 
-      const rawNft = nfts[0];
+      const rawNft = filteredNfts[0];
       
       // Map database result to NFT type
       const nft = {
@@ -281,14 +304,14 @@ class VotingPreloader {
     }
   }
 
-  // 🥊 Generate matchup session
-  private async generateMatchupSession(voteType: 'same_coll' | 'cross_coll'): Promise<VotingSession | null> {
+  // 🥊 Generate matchup session (collection-aware)
+  private async generateMatchupSession(voteType: 'same_coll' | 'cross_coll', collectionFilter?: string): Promise<VotingSession | null> {
     try {
       let nfts;
       
       if (voteType === 'same_coll') {
         // Simplified same collection logic - get NFTs from a random collection, excluding videos and unrevealed
-        const { data: allNfts } = await supabase
+        let sameCollQuery = supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, traits')
           .not('collection_name', 'is', null)
@@ -312,8 +335,14 @@ class VotingPreloader {
           .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
           .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
           .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations
-          .limit(200);
+          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+
+        // Apply collection filter if specified
+        if (collectionFilter) {
+          sameCollQuery = sameCollQuery.eq('collection_name', collectionFilter);
+        }
+
+        const { data: allNfts } = await sameCollQuery.limit(1000); // Increased limit for collection-specific queries
 
         console.log(`🔍 Found ${allNfts?.length || 0} same-collection NFTs after unrevealed filters`);
         if (!allNfts?.length) return null;
@@ -323,26 +352,18 @@ class VotingPreloader {
         const nftsToUse = unseenNfts.length >= 2 ? unseenNfts : allNfts; // Fallback if not enough unseen
         console.log(`🔍 Same-collection: ${allNfts.length} total → ${unseenNfts.length} unseen → using ${nftsToUse.length}`);
 
-        // Debug: Log NFTs that passed the filter
-        const kabuNfts = nftsToUse.filter(nft => nft.collection_name === 'Kabu');
-        const beeishNfts = nftsToUse.filter(nft => nft.collection_name === 'Beeish');
+        // Debug: Log all collections that passed the filter
+        const collectionBreakdown: Record<string, number> = {};
+        nftsToUse.forEach(nft => {
+          collectionBreakdown[nft.collection_name] = (collectionBreakdown[nft.collection_name] || 0) + 1;
+        });
         
-        if (kabuNfts.length > 0) {
-          console.log(`🚨 ${kabuNfts.length} Kabu NFTs passed filters:`);
-          kabuNfts.slice(0, 2).forEach((nft, i) => {
-            console.log(`  Kabu ${i + 1}: ${nft.name}`);
-            console.log(`    Traits:`, nft.traits);
-            console.log(`    Traits JSON:`, JSON.stringify(nft.traits, null, 2));
-          });
-        }
+        console.log(`🎨 Collections found for same-collection matchups:`, collectionBreakdown);
         
-        if (beeishNfts.length > 0) {
-          console.log(`🚨 ${beeishNfts.length} Beeish NFTs passed filters:`);
-          beeishNfts.slice(0, 2).forEach((nft, i) => {
-            console.log(`  Beeish ${i + 1}: ${nft.name}`);
-            console.log(`    Traits:`, nft.traits);
-            console.log(`    Traits JSON:`, JSON.stringify(nft.traits, null, 2));
-          });
+        // Log BEARISH specifically since that's what we care about
+        const bearishNfts = nftsToUse.filter(nft => nft.collection_name === 'BEARISH');
+        if (bearishNfts.length > 0) {
+          console.log(`🐻 ${bearishNfts.length} BEARISH NFTs available for matchups`);
         }
 
         // Group by collection and find collections with 2+ NFTs
@@ -366,7 +387,7 @@ class VotingPreloader {
         nfts = shuffled.slice(0, 2);
       } else {
         // Cross collection - random NFTs, excluding videos and unrevealed
-        const { data: randomNfts, error } = await supabase
+        let crossCollQuery = supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, traits')
           .not('image', 'ilike', '%.mp4%')
@@ -389,8 +410,14 @@ class VotingPreloader {
           .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
           .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
           .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations
-          .limit(100);
+          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+
+        // Apply collection filter if specified
+        if (collectionFilter) {
+          crossCollQuery = crossCollQuery.eq('collection_name', collectionFilter);
+        }
+
+        const { data: randomNfts, error } = await crossCollQuery.limit(500); // Increased limit for collection-specific queries
 
         console.log(`🔍 Found ${randomNfts?.length || 0} cross-collection NFTs after unrevealed filters`);
         if (error || !randomNfts || randomNfts.length < 2) {
@@ -402,27 +429,13 @@ class VotingPreloader {
         const unseenNfts = randomNfts.filter(nft => !this.seenNFTIds.has(nft.id));
         const nftsToUse = unseenNfts.length >= 2 ? unseenNfts : randomNfts; // Fallback if not enough unseen
         
-        // Debug: Log NFTs that passed cross-collection filter
-        const kabuNfts = nftsToUse.filter(nft => nft.collection_name === 'Kabu');
-        const beeishNfts = nftsToUse.filter(nft => nft.collection_name === 'Beeish');
+        // Debug: Log all collections that passed cross-collection filter
+        const crossCollectionBreakdown: Record<string, number> = {};
+        nftsToUse.forEach(nft => {
+          crossCollectionBreakdown[nft.collection_name] = (crossCollectionBreakdown[nft.collection_name] || 0) + 1;
+        });
         
-        if (kabuNfts.length > 0) {
-          console.log(`🚨 CROSS-COLL: ${kabuNfts.length} Kabu NFTs passed filters:`);
-          kabuNfts.slice(0, 1).forEach((nft, i) => {
-            console.log(`  Cross-Kabu: ${nft.name}`);
-            console.log(`    Traits:`, nft.traits);
-            console.log(`    Traits JSON:`, JSON.stringify(nft.traits, null, 2));
-          });
-        }
-        
-        if (beeishNfts.length > 0) {
-          console.log(`🚨 CROSS-COLL: ${beeishNfts.length} Beeish NFTs passed filters:`);
-          beeishNfts.slice(0, 1).forEach((nft, i) => {
-            console.log(`  Cross-Beeish: ${nft.name}`);
-            console.log(`    Traits:`, nft.traits);
-            console.log(`    Traits JSON:`, JSON.stringify(nft.traits, null, 2));
-          });
-        }
+        console.log(`🔀 Collections found for cross-collection matchups:`, crossCollectionBreakdown);
         
         const shuffled = nftsToUse.sort(() => 0.5 - Math.random());
         nfts = shuffled.slice(0, 2);
@@ -477,32 +490,38 @@ class VotingPreloader {
     }
   }
 
-  // 🔄 Generate single voting session
-  private async generateVotingSession(): Promise<VotingSession | null> {
+  // 🔄 Generate single voting session (collection-aware)
+  private async generateSession(collectionFilter?: string): Promise<VotingSession | null> {
     const voteType = this.decideVoteType();
+    const filterLabel = collectionFilter || 'mixed';
     
     try {
       if (voteType === 'slider') {
-        const session = await this.generateSliderSession();
+        const session = await this.generateSliderSession(collectionFilter);
         if (session) {
-          console.log(`✅ Generated ${voteType} session`);
+          console.log(`✅ Generated ${voteType} session for ${filterLabel}`);
         } else {
-          console.log(`❌ Failed to generate ${voteType} session`);
+          console.log(`❌ Failed to generate ${voteType} session for ${filterLabel}`);
         }
         return session;
       } else {
-        const session = await this.generateMatchupSession(voteType);
+        const session = await this.generateMatchupSession(voteType, collectionFilter);
         if (session) {
-          console.log(`✅ Generated ${voteType} session`);
+          console.log(`✅ Generated ${voteType} session for ${filterLabel}`);
         } else {
-          console.log(`❌ Failed to generate ${voteType} session`);
+          console.log(`❌ Failed to generate ${voteType} session for ${filterLabel}`);
         }
         return session;
       }
     } catch (error) {
-      console.error(`❌ Error generating ${voteType} session:`, error);
+      console.error(`❌ Error generating ${voteType} session for ${filterLabel}:`, error);
       return null;
     }
+  }
+
+  // 🔄 Generate single voting session (backward compatibility)
+  private async generateVotingSession(): Promise<VotingSession | null> {
+    return this.generateSession(); // Use mixed collection by default
   }
 
   // 🚀 Preload sessions in background (parallel for speed)
@@ -530,7 +549,9 @@ class VotingPreloader {
     const allSessions = batchResults.flat();
     const validSessions = allSessions.filter(s => s !== null) as VotingSession[];
     
-    this.preloadedSessions.push(...validSessions);
+    // Add to mixed collection queue for backward compatibility
+    const mixedQueue = this.preloadedSessions.get('mixed') || [];
+    this.preloadedSessions.set('mixed', [...mixedQueue, ...validSessions]);
     
     const loadTime = performance.now() - startTime;
     console.log(`✅ Preloaded ${validSessions.length}/${count} sessions in ${Math.round(loadTime)}ms (${Math.round(loadTime/validSessions.length)}ms each)`);
@@ -547,46 +568,102 @@ class VotingPreloader {
     }
   }
 
-  // ⚡ Get next session instantly
-  getNextSession(): VotingSession | null {
+  // ⚡ Get next session instantly (collection-aware)
+  getNextSession(collectionFilter?: string): VotingSession | null {
+    const queueKey = collectionFilter || 'mixed';
+    const queue = this.preloadedSessions.get(queueKey) || [];
+    
     // Emergency check - never let queue go empty
-    if (this.preloadedSessions.length === 0) {
-      console.warn('⚠️ Queue empty! This should not happen.');
-      // Force immediate preload
-      this.preloadSessions(this.TARGET_PRELOAD_COUNT);
+    if (queue.length === 0) {
+      console.warn(`⚠️ Queue empty for ${queueKey}! This should not happen.`);
+      // Force immediate preload for this collection
+      this.preloadSessionsForCollection(this.TARGET_PRELOAD_COUNT, collectionFilter);
       return null;
     }
     
-    const session = this.preloadedSessions.shift();
+    const session = queue.shift();
+    this.preloadedSessions.set(queueKey, queue);
     
-    // Aggressive queue management - always maintain 5+ sessions
-    if (this.preloadedSessions.length <= this.REFILL_TRIGGER && !this.isPreloading) {
-      console.log(`🔄 Queue low (${this.preloadedSessions.length}), triggering refill...`);
-      this.preloadSessions(this.TARGET_PRELOAD_COUNT - this.preloadedSessions.length);
+    // 🚫 Mark NFTs as seen when actually consumed by user (prevents duplicates)
+    if (session) {
+      if (session.vote_type === 'slider' && session.nft) {
+        this.markNFTAsSeen(session.nft.id);
+        console.log(`🚫 Marked NFT ${session.nft.id} as seen (slider)`);
+      } else if ((session.vote_type === 'same_coll' || session.vote_type === 'cross_coll') && session.nft1 && session.nft2) {
+        this.markNFTAsSeen(session.nft1.id);
+        this.markNFTAsSeen(session.nft2.id);
+        console.log(`🚫 Marked NFTs ${session.nft1.id} and ${session.nft2.id} as seen (matchup)`);
+      }
+    }
+    
+    // Aggressive queue management - always maintain 5+ sessions per collection
+    if (queue.length <= this.REFILL_TRIGGER && !this.isPreloading) {
+      console.log(`🔄 Queue low for ${queueKey} (${queue.length}), triggering refill...`);
+      this.preloadSessionsForCollection(this.TARGET_PRELOAD_COUNT - queue.length, collectionFilter);
     }
     
     // Log queue status for monitoring
-    if (this.preloadedSessions.length < this.MINIMUM_QUEUE_SIZE) {
-      console.warn(`⚠️ Queue below minimum! Current: ${this.preloadedSessions.length}, Target: ${this.MINIMUM_QUEUE_SIZE}+`);
+    if (queue.length < this.MINIMUM_QUEUE_SIZE) {
+      console.warn(`⚠️ Queue below minimum for ${queueKey}! Current: ${queue.length}, Target: ${this.MINIMUM_QUEUE_SIZE}+`);
     }
     
     return session || null;
   }
 
-  // 📊 Get preload status
+  // 🎯 Preload sessions for specific collection (public method)
+  async preloadSessionsForCollection(count: number, collectionFilter?: string) {
+    if (this.isPreloading) return;
+    
+    const queueKey = collectionFilter || 'mixed';
+    console.log(`🎯 Preloading ${count} sessions for ${queueKey}...`);
+    
+    this.isPreloading = true;
+    const sessions = [];
+    
+    try {
+      for (let i = 0; i < count; i++) {
+        const session = await this.generateSession(collectionFilter);
+        if (session) {
+          sessions.push(session);
+        }
+      }
+      
+      // Add to the appropriate queue
+      const existingQueue = this.preloadedSessions.get(queueKey) || [];
+      this.preloadedSessions.set(queueKey, [...existingQueue, ...sessions]);
+      
+      console.log(`✅ Preloaded ${sessions.length} sessions for ${queueKey}`);
+    } catch (error) {
+      console.error(`❌ Error preloading sessions for ${queueKey}:`, error);
+    } finally {
+      this.isPreloading = false;
+    }
+  }
+
+  // 📊 Get preload status (collection-aware)
   getStatus() {
+    const totalSessions = Array.from(this.preloadedSessions.values())
+      .reduce((total, queue) => total + queue.length, 0);
+    
+    const queues: Record<string, number> = {};
+    for (const [key, queue] of this.preloadedSessions.entries()) {
+      queues[key] = queue.length;
+    }
+    
     return {
-      queueLength: this.preloadedSessions.length,
+      queueLength: totalSessions, // Keep for backward compatibility
+      queues: queues,
       isPreloading: this.isPreloading,
       cacheSize: this.imagePreloadCache.size
     };
   }
 
-  // 🔍 Force queue to minimum size
+  // 🔍 Force queue to minimum size (for mixed collection)
   async ensureMinimumQueue(): Promise<void> {
-    if (this.preloadedSessions.length < this.MINIMUM_QUEUE_SIZE && !this.isPreloading) {
-      const needed = this.TARGET_PRELOAD_COUNT - this.preloadedSessions.length;
-      console.log(`🔍 Enforcing minimum queue: need ${needed} more sessions`);
+    const mixedQueue = this.preloadedSessions.get('mixed') || [];
+    if (mixedQueue.length < this.MINIMUM_QUEUE_SIZE && !this.isPreloading) {
+      const needed = this.TARGET_PRELOAD_COUNT - mixedQueue.length;
+      console.log(`🔍 Enforcing minimum queue for mixed: need ${needed} more sessions`);
       await this.preloadSessions(needed);
     }
   }
@@ -599,7 +676,9 @@ class VotingPreloader {
     // Ensure we hit the minimum after initial load
     await this.ensureMinimumQueue();
     
-    console.log(`✅ Preloader initialized with ${this.preloadedSessions.length} sessions ready`);
+    const totalSessions = Array.from(this.preloadedSessions.values())
+      .reduce((total, queue) => total + queue.length, 0);
+    console.log(`✅ Preloader initialized with ${totalSessions} total sessions ready`);
   }
 
   // 🚫 Mark NFT as seen to prevent duplicates
@@ -627,7 +706,7 @@ class VotingPreloader {
 
   // 🚫👻 Force clear all cached sessions (for filter updates, etc.)
   public async forceFullReset(): Promise<void> {
-    this.preloadedSessions = [];
+    this.preloadedSessions.clear();
     this.clearSeenNFTs();
     this.imagePreloadCache.clear();
     console.log('🔄 FORCE RESET: Cleared all preloaded sessions, seen NFTs, and image cache');
@@ -642,8 +721,11 @@ class VotingPreloader {
 
   // 📋 Get session stats including duplicate tracking
   public getSessionStats() {
+    const totalSessions = Array.from(this.preloadedSessions.values())
+      .reduce((total, queue) => total + queue.length, 0);
+    
     return {
-      queueLength: this.preloadedSessions.length,
+      queueLength: totalSessions,
       isPreloading: this.isPreloading,
       cacheSize: this.imagePreloadCache.size,
       seenNFTs: this.seenNFTIds.size,
@@ -655,14 +737,16 @@ class VotingPreloader {
   public async skipFailedSession(): Promise<VotingSession | null> {
     console.log('🚫 Skipping failed session, getting next available...');
     
-    // Remove current session if it exists
-    if (this.preloadedSessions.length > 0) {
-      const failedSession = this.preloadedSessions.shift();
-      console.log(`❌ Removed failed ${failedSession?.vote_type} session from queue`);
+    // Remove current session from mixed queue if it exists (fallback behavior)
+    const mixedQueue = this.preloadedSessions.get('mixed') || [];
+    if (mixedQueue.length > 0) {
+      const failedSession = mixedQueue.shift();
+      this.preloadedSessions.set('mixed', mixedQueue);
+      console.log(`❌ Removed failed ${failedSession?.vote_type} session from mixed queue`);
     }
 
-    // Try to get next session
-    let session = await this.getNextSession();
+    // Try to get next session (default to mixed for backward compatibility)
+    let session = this.getNextSession();
     let attempts = 0;
     const maxAttempts = 5;
 

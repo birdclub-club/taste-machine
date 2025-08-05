@@ -18,7 +18,7 @@ export async function fetchVotingSession(userWallet?: string, collectionFilter?:
   
   // Fallback to dynamic generation (should rarely happen)
   console.log('⚠️ Queue empty, generating dynamic matchup');
-  const voteType = await decideVoteType(userWallet);
+  const voteType = await decideVoteType(userWallet, collectionFilter);
   console.log(`🎯 Selected vote type: ${voteType}`);
   
   if (voteType === 'slider') {
@@ -126,7 +126,7 @@ async function getInstantMatchupFromQueue(userWallet?: string, collectionFilter?
 }
 
 // 🎲 Smart vote type decision with balanced distribution
-async function decideVoteType(userWallet?: string): Promise<VoteType> {
+async function decideVoteType(userWallet?: string, collectionFilter?: string): Promise<VoteType> {
   // Check how many NFTs need slider votes (cold start)
   const { data: coldStartNFTs, error } = await supabase
     .rpc('find_cold_start_nfts', { limit_count: 1 });
@@ -144,7 +144,18 @@ async function decideVoteType(userWallet?: string): Promise<VoteType> {
     .select('*', { count: 'exact', head: true })
     .lt('slider_count', 3); // Lowered threshold
     
-  // Balanced weighted random selection
+  // 🎯 Collection filtering logic
+  if (collectionFilter) {
+    // For specific collections (like BEARISH), only use same_coll and slider
+    const random = Math.random();
+    if (random < 0.2 && hasColdStart) {
+      return 'slider';
+    } else {
+      return 'same_coll'; // Only same-collection matchups for filtered collections
+    }
+  }
+  
+  // Balanced weighted random selection for mixed collections
   const random = Math.random();
   
   // 🎯 MATCHUP-FOCUSED DISTRIBUTION:
