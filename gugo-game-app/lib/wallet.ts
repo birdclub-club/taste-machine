@@ -52,7 +52,7 @@ export const isAbstractWalletAvailable = (): boolean => {
 
 // Add Abstract Chain to MetaMask
 export const addAbstractChainToMetamask = async (): Promise<boolean> => {
-  if (!isMetamaskInstalled()) {
+  if (!isMetamaskInstalled() || !window.ethereum) {
     throw new Error('MetaMask is not installed');
   }
 
