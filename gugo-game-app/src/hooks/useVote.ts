@@ -135,7 +135,9 @@ export function useVote() {
       throw new Error('Invalid slider vote data');
     }
 
-    // Get current NFT data
+    console.log(`📊 Processing slider vote: NFT ${voteData.nft_a_id}, value: ${voteData.slider_value}`);
+
+    // Get current NFT data for logging
     const { data: nft, error: nftError } = await supabase
       .from('nfts')
       .select('id, slider_average, slider_count')
@@ -146,35 +148,30 @@ export function useVote() {
       throw new Error('Failed to fetch NFT for slider update');
     }
 
-    // Calculate new average using the Supabase function
-    const { data: updateResult, error: updateError } = await supabase
+    // Call the database function with correct parameters (nft_uuid, new_rating)
+    const { error: updateError } = await supabase
       .rpc('update_slider_average', {
-        current_avg: nft.slider_average,
-        current_count: nft.slider_count,
-        new_value: voteData.slider_value
+        nft_uuid: voteData.nft_a_id, 
+        new_rating: voteData.slider_value
       });
 
-    if (updateError || !updateResult || updateResult.length === 0) {
-      throw new Error('Failed to calculate new slider average');
+    if (updateError) {
+      console.error('❌ Slider vote update error:', updateError);
+      throw new Error(`Failed to update slider average: ${updateError.message}`);
     }
 
-    const { new_average, new_count } = updateResult[0];
-
-    // Update the NFT record
-    const { error: updateNFTError } = await supabase
+    // Get updated NFT data for logging
+    const { data: updatedNft, error: fetchError } = await supabase
       .from('nfts')
-      .update({
-        slider_average: new_average,
-        slider_count: new_count,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', voteData.nft_a_id);
+      .select('slider_average, slider_count')
+      .eq('id', voteData.nft_a_id)
+      .single();
 
-    if (updateNFTError) {
-      throw new Error('Failed to update NFT slider data');
+    if (!fetchError && updatedNft) {
+      console.log(`📊 Slider updated: ${nft.slider_average} → ${updatedNft.slider_average} (count: ${nft.slider_count} → ${updatedNft.slider_count})`);
+    } else {
+      console.log(`📊 Slider vote processed successfully for NFT ${voteData.nft_a_id}`);
     }
-
-    console.log(`📊 Updated slider: ${nft.slider_average} → ${new_average} (count: ${new_count})`);
   };
 
   // 🥊 Process matchup vote (update Elo ratings)
