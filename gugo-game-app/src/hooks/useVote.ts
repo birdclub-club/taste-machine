@@ -104,7 +104,7 @@ export function useVote() {
       await updateUserStats(userWallet);
 
       // Clean up used matchup from queue if it came from queue
-      if (voteData.engagement_data?.queueId) {
+      if (voteData.engagement_data?.queueId && typeof voteData.engagement_data.queueId === 'string') {
         await cleanupUsedMatchup(voteData.engagement_data.queueId);
       }
 

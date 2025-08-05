@@ -20,7 +20,7 @@ export function useSmartContractPrizeBreak(): UseSmartContractPrizeBreakReturn {
 
   // Read user data from smart contract
   const { data: userData, refetch: refetchUserData } = useReadContract({
-    address: GUGO_VOTE_MANAGER_ADDRESS,
+    address: GUGO_VOTE_MANAGER_ADDRESS as `0x${string}`,
     abi: GUGO_VOTE_MANAGER_ABI,
     functionName: 'users',
     args: address ? [address] : undefined,
@@ -31,7 +31,7 @@ export function useSmartContractPrizeBreak(): UseSmartContractPrizeBreakReturn {
 
   // Watch for PrizeBreakClaimed events
   useWatchContractEvent({
-    address: GUGO_VOTE_MANAGER_ADDRESS,
+    address: GUGO_VOTE_MANAGER_ADDRESS as `0x${string}`,
     abi: GUGO_VOTE_MANAGER_ABI,
     eventName: 'PrizeBreakClaimed',
     args: {
@@ -47,6 +47,7 @@ export function useSmartContractPrizeBreak(): UseSmartContractPrizeBreakReturn {
           xpAmount: Number(event.args.xpAmount),
           votesAmount: Number(event.args.votesAmount),
           gugoAmount: Number(event.args.gugoAmount),
+          licksAmount: 0, // Not applicable for smart contract events
           timestamp: Date.now()
         };
         
