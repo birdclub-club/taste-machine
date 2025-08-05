@@ -122,12 +122,23 @@ export async function POST(request: NextRequest) {
         console.log('✅ User balances updated successfully:', updates);
         
         // Handle FGUGO token transfer (immediate to wallet)
+        let fgugoTransferStatus = 'not_applicable';
         if (reward.gugoAmount > 0) {
           try {
-            // Transfer real FGUGO tokens to user's wallet on Abstract Testnet
-            await transferFgugoTokens(walletAddress, reward.gugoAmount);
+            // Check if treasury key is configured
+            const treasuryPrivateKey = process.env.TREASURY_PRIVATE_KEY || process.env.PRIVATE_KEY;
+            if (treasuryPrivateKey) {
+              // Transfer real FGUGO tokens to user's wallet on Abstract Testnet
+              await transferFgugoTokens(walletAddress, reward.gugoAmount);
+              fgugoTransferStatus = 'completed';
+            } else {
+              // Simulation mode
+              await transferFgugoTokens(walletAddress, reward.gugoAmount);
+              fgugoTransferStatus = 'simulated';
+            }
           } catch (transferError) {
             console.error('❌ Failed to transfer FGUGO tokens:', transferError);
+            fgugoTransferStatus = 'failed';
             // Don't throw - XP was still saved successfully
           }
         }
@@ -136,6 +147,11 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('💾 Reward processed and user updated successfully');
+      
+      if (fgugoTransferStatus === 'simulated') {
+        console.warn('⚠️  [IMPORTANT] FGUGO transfer was SIMULATED - user balance will NOT increase');
+        console.warn('🔧 [SOLUTION] Add TREASURY_PRIVATE_KEY to environment variables for real transfers');
+      }
 
       return NextResponse.json(
         { 
@@ -147,7 +163,11 @@ export async function POST(request: NextRequest) {
             votes: reward.votesAmount || 0,
             fgugo: reward.gugoAmount || 0,  // FGUGO on testnet
             licks: reward.licksAmount || 0
-          }
+          },
+          fgugoTransferStatus,
+          developmentNote: fgugoTransferStatus === 'simulated' ? 
+            'FGUGO transfer was simulated. Configure TREASURY_PRIVATE_KEY for real transfers.' : 
+            undefined
         },
         { status: 201 }
       );
@@ -234,11 +254,17 @@ async function transferFgugoTokens(walletAddress: string, amount: number): Promi
  */
 async function simulateFgugoTransfer(walletAddress: string, amount: number): Promise<void> {
   console.log(`🔗 [SIMULATE] Smart contract transfer: ${amount} FGUGO → ${walletAddress}`);
+  console.log(`⚠️  [DEVELOPMENT MODE] No TREASURY_PRIVATE_KEY configured`);
+  console.log(`📝 [DEVELOPMENT MODE] To enable real FGUGO transfers:`);
+  console.log(`   1. Create a wallet with FGUGO tokens`);
+  console.log(`   2. Add TREASURY_PRIVATE_KEY=your_key to .env.local`);
+  console.log(`   3. Add the same key to Vercel environment variables`);
   
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
-  console.log(`✅ [SIMULATE] Transfer complete - user should see ${amount} FGUGO in wallet`);
+  console.log(`✅ [SIMULATE] Transfer complete - SIMULATION ONLY`);
+  console.log(`💡 [INFO] User will not see balance increase (simulation mode)`);
 }
 
 /**
