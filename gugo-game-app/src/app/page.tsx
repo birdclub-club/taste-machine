@@ -1,15 +1,20 @@
 "use client"
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import MatchupCard from '@/components/MatchupCard';
-import StatusBar from '@/components/StatusBar';
-import WalletConnect from '@/components/WalletConnect';
+import StatusBar, { StatusBarRef } from '@/components/StatusBar';
 import PurchaseAlert from '@/components/PurchaseAlert';
+import NetworkStatus from '@/components/NetworkStatus';
+import { SessionPrompt } from '@/components/SessionPrompt';
+import WelcomePopup from '@/components/WelcomePopup';
 import { useVote } from '@/hooks/useVote';
 import { usePrizeBreak } from '@/hooks/usePrizeBreak';
+import { useSessionKey } from '@/hooks/useSessionKey';
+import { useCollectionPreference } from '@/hooks/useCollectionPreference';
 import { fetchVotingSession } from '@lib/matchup';
 import { votingPreloader } from '@lib/preloader';
 import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { VotingSession, VoteSubmission } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 import { supabase } from '@lib/supabase';
@@ -47,7 +52,7 @@ export default function Page() {
   const [votingSession, setVotingSession] = useState<VotingSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showWalletConnect, setShowWalletConnect] = useState(false);
+  // Removed showWalletConnect - now using direct RainbowKit integration
   const [userVoteCount, setUserVoteCount] = useState(0);
   const [preloaderReady, setPreloaderReady] = useState(false);
   const [preloaderStatus, setPreloaderStatus] = useState({ 
@@ -63,9 +68,29 @@ export default function Page() {
   const [imageFailureCount, setImageFailureCount] = useState(0);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [freeVotesPrizeBreak, setFreeVotesPrizeBreak] = useState(false);
+  const [showSessionPrompt, setShowSessionPrompt] = useState<{
+    isOpen: boolean;
+    trigger: 'first-reward' | 'vote-purchase';
+    pendingPrizeBreak?: { voteCount: number };
+  }>({
+    isOpen: false,
+    trigger: 'first-reward'
+  });
   const { submitVote, vote, isVoting } = useVote();
-  const { prizeBreakState, startPrizeBreak, endPrizeBreak } = usePrizeBreak();
+  const { prizeBreakState, startPrizeBreak, endPrizeBreak, clearRewardState } = usePrizeBreak();
   const { address, isConnected } = useAccount();
+  const { 
+    sessionStatus, 
+    createSession, 
+    isCreatingSession, 
+    isSessionActive 
+  } = useSessionKey();
+  const { 
+    preference, 
+    shouldShowWelcome, 
+    setCollectionPreference 
+  } = useCollectionPreference();
+  const statusBarRef = useRef<StatusBarRef>(null);
   
   // Current blockchain - can be made dynamic in the future
   const currentChain = "Abstract";
@@ -116,7 +141,9 @@ export default function Page() {
       console.log('📦 Preloader empty, falling back to database...');
       setLoading(true);
       
-      const session = await fetchVotingSession(address);
+      // Get collection filter based on user preference
+      const collectionFilter = preference === 'bearish' ? 'Bearish' : undefined;
+      const session = await fetchVotingSession(address, collectionFilter);
       setVotingSession(session);
       
       console.log(`🎯 Loaded ${session.vote_type} voting session from database`);
@@ -174,10 +201,9 @@ export default function Page() {
   const handleVote = async (winnerId: string, superVote: boolean = false) => {
     if (!votingSession) return;
     
-    // Require wallet connection
+    // Require wallet connection (handled at page level now)
     if (!isConnected || !address) {
       setError('Please connect your wallet to vote.');
-      setShowWalletConnect(true);
       return;
     }
     
@@ -218,9 +244,27 @@ export default function Page() {
       // Update vote count
       setUserVoteCount(result.voteCount);
       
+      // Refresh user data to update Licks balance in status bar
+      statusBarRef.current?.refreshUserData();
+      
       // Check for prize break
       if (result.isPrizeBreak) {
         console.log(`🎁 Prize break triggered after ${result.voteCount} votes!`);
+        
+        // 🔑 CHECK: Does user have session key for claiming rewards?
+        const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
+        
+        if (!hasSession) {
+          console.log('⚠️ Prize break triggered but no session - prompting for session creation');
+          setShowSessionPrompt({
+            isOpen: true,
+            trigger: 'first-reward',
+            pendingPrizeBreak: { voteCount: result.voteCount }
+          });
+          return; // Don't start prize break without session
+        }
+        
+        // User has session - proceed with normal prize break flow
         await startPrizeBreak(result.voteCount);
         
         // Reset duplicate tracking for fresh variety after prize break
@@ -265,7 +309,6 @@ export default function Page() {
       console.error('Vote failed:', error);
       if (error instanceof Error && error.message.includes('Wallet connection required')) {
         setError('Please connect your wallet to vote.');
-        setShowWalletConnect(true);
       } else {
         setError('Vote failed. Please try again.');
       }
@@ -276,9 +319,7 @@ export default function Page() {
     await handleVote(sliderValue.toString(), superVote);
   };
 
-  const handleConnectWallet = () => {
-    setShowWalletConnect(true);
-  };
+  // Removed handleConnectWallet - now using direct RainbowKit integration
 
   // 💳 Handle vote purchase
   const handlePurchaseVotes = () => {
@@ -291,6 +332,94 @@ export default function Page() {
   // ❌ Close purchase alert
   const handleClosePurchaseAlert = () => {
     setShowPurchaseAlert(false);
+  };
+
+  // 🔑 Session prompt handlers
+  const handleCreateSession = async () => {
+    console.log('🔑 Creating session from prompt...');
+    
+    try {
+      const success = await createSession();
+      
+      if (success) {
+        console.log('✅ Session created successfully!');
+        
+        // If there's a pending prize break, execute it now
+        if (showSessionPrompt.pendingPrizeBreak) {
+          console.log('🎁 Executing pending prize break with new session...');
+          await startPrizeBreak(showSessionPrompt.pendingPrizeBreak.voteCount);
+          
+          // Reset tracking and load next session
+          votingPreloader.resetSession();
+          await loadVotingSession();
+        }
+        
+        // Close the prompt
+        setShowSessionPrompt({ isOpen: false, trigger: 'first-reward' });
+        
+      } else {
+        console.log('❌ Session creation failed or was cancelled');
+        // Keep prompt open so user can try again
+      }
+    } catch (error) {
+      console.error('❌ Error creating session:', error);
+      // Keep prompt open so user can try again
+    }
+  };
+
+  const handleSkipSession = () => {
+    console.log('⏭️ User skipped session creation');
+    
+    if (showSessionPrompt.trigger === 'first-reward') {
+      // Show warning that they'll miss the reward
+      setError('⚠️ You skipped your reward! Create a gaming session to claim future rewards.');
+      
+      // Clear any pending prize break
+      setShowSessionPrompt({ isOpen: false, trigger: 'first-reward' });
+      
+      // Continue voting normally
+      loadVotingSession();
+    } else {
+      // For vote purchase, just close and continue
+      setShowSessionPrompt({ isOpen: false, trigger: 'first-reward' });
+    }
+  };
+
+  const handleCloseSessionPrompt = () => {
+    console.log('❌ User closed session prompt');
+    
+    // Same as skip for now
+    handleSkipSession();
+  };
+
+  // 🎯 Handle collection preference choice
+  const handleCollectionChoice = async (choice: 'bearish' | 'surprise') => {
+    console.log(`🎯 User chose collection preference: ${choice}`);
+    setCollectionPreference(choice);
+    
+    // Force reload preloader with new preference
+    console.log('🔄 Reloading preloader with collection preference...');
+    await votingPreloader.forceFullReset();
+    await votingPreloader.initialize();
+    
+    // Load a new session that matches the preference
+    await loadVotingSession();
+  };
+
+  // 🛒 Function to trigger session prompt for vote purchase
+  const promptSessionForPurchase = () => {
+    const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
+    
+    if (!hasSession) {
+      console.log('🛒 Prompting for session before vote purchase');
+      setShowSessionPrompt({
+        isOpen: true,
+        trigger: 'vote-purchase'
+      });
+      return true; // Prompt shown
+    }
+    
+    return false; // No prompt needed
   };
 
   // 🎁 Graceful image failure handler with free votes
@@ -363,42 +492,8 @@ export default function Page() {
     }
   };
 
-  if (showWalletConnect) {
-    return (
-      <div style={{ 
-        minHeight: '100vh',
-        background: 'var(--color-cream)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 'var(--space-6)'
-      }}>
-        <div style={{
-          background: 'var(--color-white)',
-          borderRadius: 'var(--border-radius-lg)',
-          padding: 'var(--space-8)',
-          boxShadow: 'var(--shadow-lg)',
-          width: '100%',
-          maxWidth: '500px'
-        }}>
-          <WalletConnect />
-          <button
-            onClick={() => setShowWalletConnect(false)}
-            style={{
-              marginTop: 'var(--space-4)',
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-grey-500)',
-              cursor: 'pointer',
-              fontSize: 'var(--font-size-sm)'
-            }}
-          >
-            ← Back to Game
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Always show the normal dark gaming interface
+  // Wallet connection is handled in StatusBar with RainbowKit
 
   return (
     <div style={{ 
@@ -409,38 +504,16 @@ export default function Page() {
       {/* Clean Dot Grid Background */}
       <div className="dot-grid"></div>
       
-              {/* Status Bar */}
-        <StatusBar onConnectWallet={handleConnectWallet} />
-        
-        {/* Preloader Status (dev only) */}
-        {process.env.NODE_ENV === 'development' && preloaderReady && (
-          <div style={{
-            position: 'fixed',
-            top: '60px',
-            right: '20px',
-            background: preloaderStatus.queueLength >= 5 ? 'rgba(0, 128, 0, 0.9)' : 'rgba(255, 165, 0, 0.9)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            zIndex: 1000,
-            display: 'flex',
-            gap: '8px',
-            border: preloaderStatus.queueLength < 3 ? '2px solid red' : 'none'
-          }}>
-            <span style={{color: preloaderStatus.queueLength >= 5 ? '#90EE90' : '#FFD700'}}>
-              ⚡ Queue: {preloaderStatus.queueLength}
-            </span>
-            <span>🖼️ Cache: {preloaderStatus.cacheSize}</span>
-            <span>🚫 Seen: {preloaderStatus.seenNFTs}/{preloaderStatus.maxSeenNFTs}</span>
-            {preloaderStatus.isPreloading && <span>🔄 Loading...</span>}
-            {preloaderStatus.queueLength >= 8 && <span>✅ Optimal</span>}
-            {preloaderStatus.queueLength < 5 && <span>⚠️ Low</span>}
-          </div>
-        )}
+      {/* Network Status Alert */}
+      <NetworkStatus />
       
-      {/* Main Content */}
+      {/* Status Bar */}
+              <StatusBar 
+          ref={statusBarRef} 
+          onConnectWallet={() => {}} // No longer needed - StatusBar has direct RainbowKit
+        />
+        
+        {/* Main Content */}
       <main style={{ 
         padding: 'var(--space-4) var(--space-6)',
         minHeight: 'calc(100vh - 80px)',
@@ -463,20 +536,24 @@ export default function Page() {
               paddingTop: 'var(--space-6)'
             }}>
               <h1 className="text-hero" style={{ 
-                color: 'var(--color-black)',
+                color: '#aca9a9',
+                opacity: '0.10',
                 marginBottom: 'var(--space-4)',
-                maxWidth: '800px',
-                margin: '0 auto var(--space-4) auto'
+                maxWidth: '1200px',
+                margin: '0 auto var(--space-4) auto',
+                fontSize: 'clamp(3rem, 6vw, 5rem)',
+                lineHeight: '1.1',
+                whiteSpace: 'nowrap'
               }}>
-                ART WITH GUGO
+                BEAUTY OVER METADATA
               </h1>
               <p className="text-subtitle" style={{ 
-                color: 'var(--color-grey-600)',
+                color: '#e5e5e5',
                 maxWidth: '500px',
                 margin: '0 auto',
                 fontWeight: '300'
               }}>
-                Cast votes. Move markets. Earn from your eye.
+                Powered by GUGO
               </p>
             </div>
 
@@ -494,10 +571,11 @@ export default function Page() {
                   alignItems: 'center',
                   gap: 'var(--space-3)',
                   padding: 'var(--space-6)',
-                  background: 'var(--color-white)',
+                  background: '#2a2a2a', // Dark background to match site theme
+                  border: '1px solid #444444', // Dark border
                   borderRadius: 'var(--border-radius-lg)',
-                  boxShadow: 'var(--shadow)',
-                  color: 'var(--color-grey-600)'
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.6)', // Darker shadow
+                  color: 'var(--color-white)' // White text for dark background
                 }}>
                   <div style={{
                     width: '20px',
@@ -507,7 +585,7 @@ export default function Page() {
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }}></div>
-                  <span>Loading next matchup...</span>
+                  <span>Loading matchups</span>
                 </div>
               ) : maintenanceMode ? (
                 <div className="slide-up" style={{
@@ -618,13 +696,19 @@ export default function Page() {
                   <div className="text-caption" style={{ marginBottom: 'var(--space-6)' }}>
                     Connect your wallet to participate in aesthetic voting and earn rewards.
                   </div>
-                  <button 
-                    onClick={handleConnectWallet}
-                    className="btn-accent"
-                    style={{ padding: 'var(--space-4) var(--space-8)' }}
-                  >
-                    Connect Wallet
-                  </button>
+                  
+                  {/* RainbowKit Connect Button */}
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <ConnectButton 
+                      label="Connect Wallet"
+                      showBalance={false}
+                      chainStatus="icon"
+                      accountStatus={{
+                        smallScreen: 'avatar',
+                        largeScreen: 'full',
+                      }}
+                    />
+                  </div>
                 </div>
               ) : votingSession ? (
                 votingSession.vote_type === 'slider' ? (
@@ -637,7 +721,6 @@ export default function Page() {
                     width: '100%',
                     maxWidth: '600px'
                   }}>
-                    <h3 style={{ margin: 0, color: 'var(--color-grey-800)', textAlign: 'center' }}>Slide how much you like it</h3>
                     
                     {/* Matchup-style NFT Card */}
                     <div style={{
@@ -887,7 +970,7 @@ export default function Page() {
                             document.removeEventListener('mouseup', handleMouseUp);
                             if (!isConnected) {
                               setError('Please connect your wallet to vote.');
-                              setShowWalletConnect(true);
+                              // No longer needed - wallet connection handled at page level;
                               return;
                             }
                             handleSliderVote(currentSliderValue);
@@ -919,7 +1002,7 @@ export default function Page() {
                             document.removeEventListener('touchend', handleTouchEnd);
                             if (!isConnected) {
                               setError('Please connect your wallet to vote.');
-                              setShowWalletConnect(true);
+                              // No longer needed - wallet connection handled at page level;
                               return;
                             }
                             handleSliderVote(currentSliderValue);
@@ -996,14 +1079,78 @@ export default function Page() {
                       onVote={handleVote}
                       onNoVote={async () => {
                         console.log('🚫 User voted "No" - doesn\'t like either NFT');
+                        
+                        // Require wallet connection for "No" votes too
+                        if (!isConnected || !address) {
+                          setError('Please connect your wallet to vote.');
+                          // No longer needed - wallet connection handled at page level;
+                          return;
+                        }
+                        
                         try {
-                          // Record "No" vote without affecting Elo scores
-                          // This is a neutral outcome - user couldn't decide
+                          // Create "No" vote submission - costs 1 Lick but doesn't affect Elo
+                          const voteData: VoteSubmission = {
+                            vote_type: votingSession.vote_type,
+                            nft_a_id: votingSession.nft1.id,
+                            nft_b_id: votingSession.nft2.id,
+                            // No winner_id - indicates "No" vote
+                            engagement_data: {
+                              queueId: votingSession.queueId,
+                              no_vote: true, // Special flag for "No" votes
+                              user_agent: navigator.userAgent,
+                              timestamp: new Date().toISOString()
+                            }
+                          };
+
+                          const result = await submitVote(voteData, address, userVoteCount);
                           
-                          // TODO: Record this as a special "no_preference" vote type for analytics
-                          // For now, just skip to next session without affecting rankings
+                          // Check for insufficient votes
+                          if (result.insufficientVotes) {
+                            console.log(`💳 Insufficient votes for "No" vote: need ${result.requiredVotes || 1}`);
+                            setRequiredVotes(result.requiredVotes || 1);
+                            setShowPurchaseAlert(true);
+                            return;
+                          }
                           
-                          loadVotingSession();
+                          // Update vote count
+                          setUserVoteCount(result.voteCount);
+                          
+                          // Refresh user data to update Licks balance
+                          statusBarRef.current?.refreshUserData();
+                          
+                          // Check for prize break
+                          if (result.isPrizeBreak) {
+                            console.log(`🎁 Prize break triggered after ${result.voteCount} votes!`);
+                            
+                            // 🔑 CHECK: Does user have session key for claiming rewards?
+                            const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
+                            
+                            if (!hasSession) {
+                              console.log('⚠️ Prize break triggered but no session - prompting for session creation');
+                              setShowSessionPrompt({
+                                isOpen: true,
+                                trigger: 'first-reward',
+                                pendingPrizeBreak: { voteCount: result.voteCount }
+                              });
+                              return; // Don't start prize break without session
+                            }
+                            
+                            // User has session - proceed with normal prize break flow
+                            await startPrizeBreak(result.voteCount);
+                            
+                            // Reset duplicate tracking for fresh variety after prize break
+                            console.log('🎯 Resetting session for fresh NFTs after prize break...');
+                            votingPreloader.resetSession();
+                            
+                            // Load next session now during prize break so it's ready when break ends
+                            console.log('🔄 Loading next session during prize break...');
+                            await loadVotingSession();
+                            return;
+                          }
+                          
+                          // Load next voting session
+                          await loadVotingSession();
+                          
                         } catch (error) {
                           console.error('❌ Error handling no vote:', error);
                           setError('Error processing vote');
@@ -1042,13 +1189,19 @@ export default function Page() {
                       <p style={{ color: 'var(--color-grey-600)', margin: '0 0 var(--space-6) 0' }}>
                         Connect your wallet to start voting on NFT aesthetics and earn rewards.
                       </p>
-                      <button 
-                        onClick={() => setShowWalletConnect(true)}
-                        className="btn-primary"
-                        style={{ padding: 'var(--space-4) var(--space-8)' }}
-                      >
-                        Connect Wallet
-                      </button>
+                      
+                      {/* RainbowKit Connect Button */}
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <ConnectButton 
+                          label="Connect Wallet"
+                          showBalance={false}
+                          chainStatus="icon"
+                          accountStatus={{
+                            smallScreen: 'avatar',
+                            largeScreen: 'full',
+                          }}
+                        />
+                      </div>
                     </div>
                   )
                 )
@@ -1089,6 +1242,7 @@ export default function Page() {
                     try {
                       const refillResult = await endPrizeBreak();
                       setFreeVotesPrizeBreak(false); // Reset free votes flag
+                      clearRewardState(); // Clear reward state
                       if (refillResult) {
                         console.log(`🔄 Queue refilled during overlay dismiss: +${refillResult.added.total} matchups`);
                       }
@@ -1097,6 +1251,7 @@ export default function Page() {
                       console.error('❌ Error dismissing prize break via overlay:', error);
                       await endPrizeBreak(); // Force end on error
                       setFreeVotesPrizeBreak(false); // Reset free votes flag
+                      clearRewardState(); // Clear reward state on error too
                       await loadVotingSession();
                     }
                   }
@@ -1104,114 +1259,222 @@ export default function Page() {
               >
                 <div 
                   style={{
-                    background: 'var(--color-white)',
+                    background: 'var(--color-black)',
+                    border: '2px solid var(--color-green)',
                     borderRadius: 'var(--border-radius-lg)',
-                    padding: 'var(--space-8)',
+                    padding: 'var(--space-10)',
                     textAlign: 'center',
-                    maxWidth: '400px',
+                    maxWidth: '800px',
                     margin: 'var(--space-4)',
-                    cursor: 'default'
+                    cursor: 'default',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8)'
                   }}
                   onClick={(e) => e.stopPropagation()} // Prevent overlay dismiss when clicking modal content
                 >
+                  {/* Random congratulatory phrase */}
                   <h2 style={{ 
                     color: 'var(--color-green)', 
-                    margin: '0 0 var(--space-4) 0',
-                    fontSize: 'var(--font-size-xl)'
-                  }}>
-                    {freeVotesPrizeBreak ? '🎁 Free Votes!' : '🎁 Prize Break!'}
-                  </h2>
-                  <p style={{ 
-                    color: 'var(--color-grey-700)',
-                    margin: '0 0 var(--space-4) 0',
-                    lineHeight: 1.5
+                    margin: '0 0 var(--space-6) 0',
+                    fontSize: '1rem',
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
                   }}>
                     {freeVotesPrizeBreak ? (
-                      <>
-                        <strong>Good news!</strong> We detected some image loading issues and awarded you <strong>10 free votes</strong> as compensation.
-                        <br /><br />
-                        We're fixing the issue and preparing fresh content for you!
-                      </>
+                      '🎁 FREE VOTES!'
+                    ) : prizeBreakState.isClaimingReward ? (
+                      'REWARD INCOMING'
+                    ) : prizeBreakState.reward ? (
+                      (() => {
+                        const phrases = ['YOU WIN!', 'CONGRATS!', 'HELL YES!'];
+                        const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+                        return randomPhrase;
+                      })()
                     ) : (
-                      `Congratulations! You've completed ${prizeBreakState.voteCount} votes.`
+                      'YOU WIN!'
                     )}
-                  </p>
-                  
-                  {prizeBreakState.refillInProgress && (
-                    <div style={{ 
-                      color: 'var(--color-grey-600)',
-                      fontSize: 'var(--font-size-sm)',
-                      margin: 'var(--space-2) 0'
-                    }}>
-                      🔄 Preparing more matchups for you...
-                    </div>
-                  )}
-                  
-                  {prizeBreakState.refillResult && (
-                    <div style={{ 
-                      color: 'var(--color-green)',
-                      fontSize: 'var(--font-size-sm)',
-                      margin: 'var(--space-2) 0'
-                    }}>
-                      ✅ +{prizeBreakState.refillResult.added.total} fresh matchups ready!
-                    </div>
-                  )}
-                  
+                  </h2>
+
+                  {/* Big reward display in the middle */}
                   <div style={{ 
-                    color: 'var(--color-grey-500)',
-                    fontSize: 'var(--font-size-sm)',
-                    marginTop: 'var(--space-4)'
+                    margin: '0 0 var(--space-6) 0',
+                    textAlign: 'center'
                   }}>
-                    Duration: {Math.round(prizeBreakState.duration / 1000)}s
+                    {freeVotesPrizeBreak ? (
+                      <div style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '900',
+                        color: 'var(--color-white)',
+                        textShadow: '0 0 20px var(--color-green)',
+                        padding: 'var(--space-6) 0',
+                        minHeight: '80px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        +10 VOTES
+                      </div>
+                    ) : prizeBreakState.isClaimingReward ? (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 'var(--space-5)',
+                        padding: 'var(--space-8) 0',
+                        minHeight: '120px',
+                        justifyContent: 'center'
+                      }}>
+                        {/* Animated loading bar */}
+                        <div style={{
+                          width: 'min(500px, 80vw)',
+                          height: '16px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          position: 'relative'
+                        }}>
+                          <div style={{
+                            width: '100px',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, var(--color-green), transparent)',
+                            borderRadius: '8px',
+                            position: 'absolute',
+                            animation: 'loading-sweep 2s ease-in-out infinite'
+                          }}></div>
+                        </div>
+                      </div>
+                    ) : prizeBreakState.reward ? (
+                      <div style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '900',
+                        color: 'var(--color-white)',
+                        textShadow: '0 0 20px var(--color-green)',
+                        lineHeight: 1.2,
+                        animation: 'reward-reveal 0.8s ease-out',
+                        padding: 'var(--space-6) 0',
+                        minHeight: '80px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {prizeBreakState.reward.xpAmount > 0 && (
+                          <div>+{prizeBreakState.reward.xpAmount} XP</div>
+                        )}
+                        {prizeBreakState.reward.votesAmount > 0 && (
+                          <div>+{prizeBreakState.reward.votesAmount} VOTES</div>
+                        )}
+                        {prizeBreakState.reward.gugoAmount > 0 && (
+                          <div>+{prizeBreakState.reward.gugoAmount} GUGO</div>
+                        )}
+                        {prizeBreakState.reward.licksAmount > 0 && (
+                          <div>+{prizeBreakState.reward.licksAmount} LICKS</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{
+                        fontSize: '1.5rem',
+                        fontWeight: '900',
+                        color: 'var(--color-white)',
+                        textShadow: '0 0 20px var(--color-green)',
+                        padding: 'var(--space-6) 0',
+                        minHeight: '80px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        AWESOME!
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Manual dismiss button */}
-                  <button
-                    onClick={async () => {
-                      console.log('🎯 Manually ending prize break...');
-                      try {
-                        const refillResult = await endPrizeBreak();
-                        setFreeVotesPrizeBreak(false); // Reset free votes flag
-                        if (refillResult) {
-                          console.log(`🔄 Queue refilled during manual dismiss: +${refillResult.added.total} matchups`);
+                  {/* Manual dismiss button - only show when not loading */}
+                  {!prizeBreakState.isClaimingReward && (
+                    <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                      <button
+                      onClick={async () => {
+                        console.log('🎁 Claiming reward and triggering animations...');
+                        try {
+                          // Trigger XP animation if XP was awarded
+                          if (prizeBreakState.reward?.xpAmount && prizeBreakState.reward.xpAmount > 0) {
+                            console.log(`⚡ Triggering XP animation for +${prizeBreakState.reward.xpAmount} XP`);
+                            statusBarRef.current?.triggerXpAnimation(prizeBreakState.reward.xpAmount);
+                          }
+                          
+                          // Trigger wallet glow if GUGO reward was received
+                          if (prizeBreakState.reward?.gugoAmount && prizeBreakState.reward.gugoAmount > 0) {
+                            console.log(`💰 Triggering wallet glow for +${prizeBreakState.reward.gugoAmount} GUGO`);
+                            statusBarRef.current?.triggerWalletGlow(prizeBreakState.reward.gugoAmount);
+                          }
+                          
+                          // Trigger Licks animation if Licks reward was received  
+                          if (prizeBreakState.reward?.licksAmount && prizeBreakState.reward.licksAmount > 0) {
+                            console.log(`🎁 Triggering Licks animation for +${prizeBreakState.reward.licksAmount} Licks`);
+                            statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward.licksAmount);
+                          }
+                          
+                          // Refresh user data to show updated balances
+                          setTimeout(() => {
+                            statusBarRef.current?.refreshUserData();
+                          }, 500);
+                          
+                          const refillResult = await endPrizeBreak();
+                          setFreeVotesPrizeBreak(false); // Reset free votes flag
+                          clearRewardState(); // Clear reward state
+                          if (refillResult) {
+                            console.log(`🔄 Queue refilled during manual dismiss: +${refillResult.added.total} matchups`);
+                          }
+                          // Only load new session if we don't already have one
+                          if (!votingSession) {
+                            console.log('📭 No session loaded, fetching new one...');
+                            await loadVotingSession();
+                          } else {
+                            console.log('✅ Session already loaded, keeping current one');
+                          }
+                        } catch (error) {
+                          console.error('❌ Error manually ending prize break:', error);
+                          await endPrizeBreak(); // Force end on error
+                          setFreeVotesPrizeBreak(false); // Reset free votes flag
+                          clearRewardState(); // Clear reward state on error too
+                          if (!votingSession) {
+                            await loadVotingSession();
+                          }
                         }
-                        // Only load new session if we don't already have one
-                        if (!votingSession) {
-                          console.log('📭 No session loaded, fetching new one...');
-                          await loadVotingSession();
-                        } else {
-                          console.log('✅ Session already loaded, keeping current one');
-                        }
-                      } catch (error) {
-                        console.error('❌ Error manually ending prize break:', error);
-                        await endPrizeBreak(); // Force end on error
-                        setFreeVotesPrizeBreak(false); // Reset free votes flag
-                        if (!votingSession) {
-                          await loadVotingSession();
-                        }
-                      }
-                    }}
-                    style={{
-                      marginTop: 'var(--space-6)',
-                      padding: 'var(--space-3) var(--space-6)',
-                      background: 'var(--color-green)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--border-radius)',
-                      fontSize: 'var(--font-size-base)',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'background 0.2s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = 'var(--color-green-dark)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = 'var(--color-green)';
-                    }}
-                  >
-                    {freeVotesPrizeBreak ? 'Continue with 10 Free Votes →' : 'Continue Voting →'}
-                  </button>
+                      }}
+                      style={{
+                        marginTop: 'var(--space-4)',
+                        padding: 'var(--space-2) var(--space-4)',
+                        background: 'var(--color-green)',
+                        color: 'var(--color-black)',
+                        border: '2px solid var(--color-green)',
+                        borderRadius: 'var(--border-radius)',
+                        fontSize: '0.8rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)',
+                        display: 'inline-block',
+                        width: 'auto',
+                        maxWidth: 'fit-content',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--color-green)';
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = 'var(--color-green)';
+                        e.currentTarget.style.color = 'var(--color-black)';
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                                          >
+                        Claim Reward
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1235,28 +1498,30 @@ export default function Page() {
           paddingLeft: 'var(--space-6)',
           paddingRight: 'var(--space-6)',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'end'
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 'var(--space-4)'
         }}>
-          <div className="bottom-tagline" style={{
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: '600',
-            color: 'var(--color-grey-500)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
+          {/* Large background title at bottom */}
+          <h1 className="text-hero" style={{ 
+            color: '#aca9a9',
+            opacity: '0.10',
+            fontSize: 'clamp(3rem, 6vw, 5rem)',
+            lineHeight: '1.1',
+            whiteSpace: 'nowrap',
             userSelect: 'none',
-            pointerEvents: 'auto'
+            pointerEvents: 'none'
           }}>
-            PROOF OF AESTHETIC.
-          </div>
+            PROOF OF AESTHETIC<sup style={{ fontSize: '0.6em' }}>™</sup>
+          </h1>
           
-          {/* Chain Info - Bottom Right */}
+          {/* Chain Info - Centered */}
           <div className="chain-info" style={{
             fontSize: 'var(--font-size-sm)',
             fontWeight: '600',
             color: 'var(--color-grey-500)',
             letterSpacing: '0.05em',
-            textAlign: 'right',
+            textAlign: 'center',
             userSelect: 'none',
             pointerEvents: 'auto'
           }}>
@@ -1273,6 +1538,22 @@ export default function Page() {
           onClose={handleClosePurchaseAlert}
         />
       )}
+      
+      {/* Session Prompt Modal */}
+      <SessionPrompt
+        isOpen={showSessionPrompt.isOpen}
+        trigger={showSessionPrompt.trigger}
+        onCreateSession={handleCreateSession}
+        onSkip={handleSkipSession}
+        onClose={handleCloseSessionPrompt}
+        isCreatingSession={isCreatingSession}
+      />
+      
+      {/* Welcome Popup - Shows on first visit */}
+      <WelcomePopup
+        isOpen={shouldShowWelcome}
+        onCollectionChoice={handleCollectionChoice}
+      />
     </div>
   );
 }

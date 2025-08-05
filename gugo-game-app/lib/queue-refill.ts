@@ -131,16 +131,28 @@ async function addSliderVotesToQueue(count: number): Promise<number> {
   if (count <= 0) return 0;
   
   try {
-    const { data: nfts, error } = await supabase
+    // First, get existing slider NFT IDs in queue to avoid duplicates
+    const { data: existingQueue } = await supabase
+      .from('matchup_queue')
+      .select('slider_nft_id')
+      .eq('vote_type', 'slider')
+      .not('slider_nft_id', 'is', null);
+
+    const existingIds = new Set(existingQueue?.map(item => item.slider_nft_id) || []);
+
+    // Get potential slider NFTs 
+    const { data: allNfts, error } = await supabase
       .from('nfts')
       .select('id, slider_count, total_votes')
       .lt('slider_count', 10)
-      .not('id', 'in', `(SELECT slider_nft_id FROM matchup_queue WHERE vote_type = 'slider' AND slider_nft_id IS NOT NULL)`)
       .order('slider_count', { ascending: true })
       .order('total_votes', { ascending: true })
-      .limit(count);
-    
-    if (error || !nfts || nfts.length === 0) return 0;
+      .limit(count * 3); // Get extra to account for filtering
+
+    if (error || !allNfts || allNfts.length === 0) return 0;
+
+    // Filter out existing IDs and take only what we need
+    const nfts = allNfts.filter(nft => !existingIds.has(nft.id)).slice(0, count);
     
     const queueItems = nfts.map(nft => ({
       vote_type: 'slider',

@@ -110,12 +110,12 @@ class VotingPreloader {
     return Math.abs(hash);
   }
 
-  // 📊 Vote type distribution
+  // 📊 Vote type distribution - Matchup-focused for maximum fun!
   private decideVoteType(): 'slider' | 'same_coll' | 'cross_coll' {
     const rand = Math.random();
-    if (rand < 0.4) return 'slider';
-    if (rand < 0.8) return 'same_coll';
-    return 'cross_coll';
+    if (rand < 0.1) return 'slider';     // 10% slider votes (1 out of 10)
+    if (rand < 0.7) return 'same_coll';  // 60% same collection matchups
+    return 'cross_coll';                 // 30% cross collection matchups
   }
 
   // 🎚️ Generate slider session (with duplicate prevention)

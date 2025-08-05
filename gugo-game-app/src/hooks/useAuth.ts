@@ -33,9 +33,22 @@ export const useAuth = (): UseAuthReturn => {
         console.error('❌ getOrCreateUser returned null');
         setError('Failed to create or fetch user');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error in fetchUser:', err);
-      setError('Authentication error');
+      
+      // Check if it's a user cancellation (don't show error for normal user actions)
+      if (
+        err?.code === 4001 || // User rejected request
+        err?.message?.toLowerCase().includes('user rejected') ||
+        err?.message?.toLowerCase().includes('user denied') ||
+        err?.message?.toLowerCase().includes('user cancelled')
+      ) {
+        console.log('👋 User cancelled wallet operation - clearing auth state');
+        setUser(null);
+        setError(null); // Don't show error for user cancellations
+      } else {
+        setError('Authentication error');
+      }
     } finally {
       setLoading(false);
     }

@@ -2,11 +2,15 @@ import { supabase } from './supabase';
 import type { VotingSession, VoteType, NFT, MatchupPair, SliderVote } from '@/types/voting';
 
 // 🧠 Sophisticated Voting Session Logic (INSTANT DELIVERY)
-export async function fetchVotingSession(userWallet?: string): Promise<VotingSession> {
+export async function fetchVotingSession(userWallet?: string, collectionFilter?: string): Promise<VotingSession> {
   console.log('🔍 Fetching voting session...');
   
+  if (collectionFilter) {
+    console.log(`🎯 Filtering for collection: ${collectionFilter}`);
+  }
+  
   // Try to get instant matchup from pre-generated queue
-  const instantMatchup = await getInstantMatchupFromQueue(userWallet);
+  const instantMatchup = await getInstantMatchupFromQueue(userWallet, collectionFilter);
   if (instantMatchup) {
     console.log(`⚡ Instant delivery: ${instantMatchup.vote_type}`);
     return instantMatchup;
@@ -18,14 +22,14 @@ export async function fetchVotingSession(userWallet?: string): Promise<VotingSes
   console.log(`🎯 Selected vote type: ${voteType}`);
   
   if (voteType === 'slider') {
-    return await fetchSliderVote();
+    return await fetchSliderVote(collectionFilter);
   } else {
-    return await fetchMatchupVote(voteType);
+    return await fetchMatchupVote(voteType, collectionFilter);
   }
 }
 
 // ⚡ Get instant matchup from pre-generated queue
-async function getInstantMatchupFromQueue(userWallet?: string): Promise<VotingSession | null> {
+async function getInstantMatchupFromQueue(userWallet?: string, collectionFilter?: string): Promise<VotingSession | null> {
   try {
     const userSession = userWallet || `anon_${Date.now()}`;
     
@@ -66,6 +70,12 @@ async function getInstantMatchupFromQueue(userWallet?: string): Promise<VotingSe
         return null;
       }
       
+      // Check if NFT matches collection filter
+      if (collectionFilter && nft.collection_name !== collectionFilter) {
+        console.log(`🚫 Slider NFT collection "${nft.collection_name}" doesn't match filter "${collectionFilter}", falling back to dynamic generation`);
+        return null;
+      }
+      
       return {
         nft: mapNFTData(nft),
         vote_type: 'slider',
@@ -89,6 +99,17 @@ async function getInstantMatchupFromQueue(userWallet?: string): Promise<VotingSe
       if (nft1Result.error || nft2Result.error || !nft1Result.data || !nft2Result.data) {
         console.error('❌ Failed to fetch matchup NFTs from queue');
         return null;
+      }
+      
+      // Check if NFTs match collection filter
+      if (collectionFilter) {
+        const nft1Matches = nft1Result.data.collection_name === collectionFilter;
+        const nft2Matches = nft2Result.data.collection_name === collectionFilter;
+        
+        if (!nft1Matches && !nft2Matches) {
+          console.log(`🚫 Neither matchup NFT matches collection filter "${collectionFilter}", falling back to dynamic generation`);
+          return null;
+        }
       }
       
       return {
@@ -126,12 +147,12 @@ async function decideVoteType(userWallet?: string): Promise<VoteType> {
   // Balanced weighted random selection
   const random = Math.random();
   
-  // 🎯 NEW BALANCED DISTRIBUTION:
-  // 40% slider votes (when cold start available)
-  // 40% same collection matchups  
-  // 20% cross collection matchups
+  // 🎯 MATCHUP-FOCUSED DISTRIBUTION:
+  // 10% slider votes (when cold start available) - much more fun to do head-to-head!
+  // 60% same collection matchups  
+  // 30% cross collection matchups
   
-  if (random < 0.4 && hasColdStart) {
+  if (random < 0.1 && hasColdStart) {
     return 'slider';
   } else if (random < 0.7) {
     return 'same_coll';
@@ -141,7 +162,7 @@ async function decideVoteType(userWallet?: string): Promise<VoteType> {
 }
 
 // 📊 Fetch slider voting session
-async function fetchSliderVote(): Promise<SliderVote> {
+async function fetchSliderVote(collectionFilter?: string): Promise<SliderVote> {
   console.log('🎚️ Fetching slider vote...');
   
   // Use the cold start function to find NFTs needing slider votes
@@ -152,7 +173,7 @@ async function fetchSliderVote(): Promise<SliderVote> {
     console.warn('⚠️ No cold start NFTs found, falling back to random NFT');
     
     // Fallback to random NFT with lowest slider count, excluding videos and unrevealed
-    const { data: fallbackNFT, error: fallbackError } = await supabase
+    let query = supabase
       .from('nfts')
       .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
       .not('image', 'ilike', '%.mp4%')
@@ -175,7 +196,15 @@ async function fetchSliderVote(): Promise<SliderVote> {
       .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
       .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
       .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-      .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations
+      .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations;
+
+    // Add collection filter if specified
+    if (collectionFilter) {
+      query = query.eq('collection_name', collectionFilter);
+      console.log(`🎯 Filtering slider vote for collection: ${collectionFilter}`);
+    }
+
+    const { data: fallbackNFT, error: fallbackError } = await query
       .order('slider_count', { ascending: true })
       .order('created_at', { ascending: false })
       .limit(1)
@@ -211,7 +240,7 @@ async function fetchSliderVote(): Promise<SliderVote> {
 }
 
 // 🥊 Fetch matchup voting session (same_coll or cross_coll)
-async function fetchMatchupVote(voteType: 'same_coll' | 'cross_coll'): Promise<MatchupPair> {
+async function fetchMatchupVote(voteType: 'same_coll' | 'cross_coll', collectionFilter?: string): Promise<MatchupPair> {
   console.log(`🥊 Fetching ${voteType} matchup...`);
   
   const functionName = voteType === 'same_coll' 
@@ -223,7 +252,7 @@ async function fetchMatchupVote(voteType: 'same_coll' | 'cross_coll'): Promise<M
     
   if (error || !matchupData || matchupData.length === 0) {
     console.warn(`⚠️ No ${voteType} matchup found, falling back to random selection`);
-    return await fallbackRandomMatchup(voteType);
+    return await fallbackRandomMatchup(voteType, collectionFilter);
   }
   
   const matchup = matchupData[0];
@@ -247,6 +276,17 @@ async function fetchMatchupVote(voteType: 'same_coll' | 'cross_coll'): Promise<M
     throw new Error('Failed to fetch NFT data for matchup');
   }
   
+  // Check if NFTs match collection filter
+  if (collectionFilter) {
+    const nft1Matches = nft1Result.data.collection_name === collectionFilter;
+    const nft2Matches = nft2Result.data.collection_name === collectionFilter;
+    
+    if (!nft1Matches && !nft2Matches) {
+      console.log(`🚫 Neither matchup NFT matches collection filter "${collectionFilter}", falling back to random selection`);
+      return await fallbackRandomMatchup(voteType, collectionFilter);
+    }
+  }
+  
   console.log('✅ Successfully fetched matchup with NFTs');
   
   return {
@@ -257,14 +297,14 @@ async function fetchMatchupVote(voteType: 'same_coll' | 'cross_coll'): Promise<M
 }
 
 // 🔄 Fallback to random matchup if smart selection fails
-async function fallbackRandomMatchup(voteType: 'same_coll' | 'cross_coll'): Promise<MatchupPair> {
+async function fallbackRandomMatchup(voteType: 'same_coll' | 'cross_coll', collectionFilter?: string): Promise<MatchupPair> {
   console.log(`🎲 Creating fallback random ${voteType} matchup...`);
   
   const whereClause = voteType === 'same_coll' 
     ? 'a.collection_name = b.collection_name AND a.id < b.id'
     : 'a.collection_name != b.collection_name';
     
-  const { data: nfts, error } = await supabase
+  let query = supabase
     .from('nfts')
     .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count')
     .not('image', 'ilike', '%.mp4%')
@@ -287,8 +327,15 @@ async function fallbackRandomMatchup(voteType: 'same_coll' | 'cross_coll'): Prom
     .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
     .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
     .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-    .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations
-    .limit(10);
+    .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations;
+
+  // Add collection filter if specified
+  if (collectionFilter) {
+    query = query.eq('collection_name', collectionFilter);
+    console.log(`🎯 Filtering fallback matchup for collection: ${collectionFilter}`);
+  }
+
+  const { data: nfts, error } = await query.limit(10);
     
   if (error || !nfts || nfts.length < 2) {
     throw new Error('Not enough NFTs available for matchup');

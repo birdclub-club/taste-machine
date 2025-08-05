@@ -14,7 +14,7 @@ export function useVote() {
         throw new Error('Wallet connection required to vote. Please connect your wallet first.');
       }
 
-      // Check super vote requirements
+      // Check vote requirements (regular or super)
       if (voteData.super_vote) {
         const hasEnoughVotes = await checkSuperVoteEligibility(userWallet);
         if (!hasEnoughVotes) {
@@ -28,9 +28,24 @@ export function useVote() {
             requiredVotes: 5
           };
         }
+      } else {
+        const hasEnoughVotes = await checkRegularVoteEligibility(userWallet);
+        if (!hasEnoughVotes) {
+          // Return insufficient votes result for regular vote
+          return { 
+            hash: 'insufficient-votes', 
+            voteId: null,
+            isPrizeBreak: false,
+            voteCount: userVoteCount,
+            insufficientVotes: true,
+            requiredVotes: 1
+          };
+        }
       }
 
-      console.log(`🗳️ Submitting ${voteData.super_vote ? '🔥 SUPER' : 'regular'} ${voteData.vote_type} vote:`, voteData);
+      const isNoVote = !voteData.winner_id && voteData.engagement_data?.no_vote;
+      const voteTypeDescription = isNoVote ? '"No" vote' : `${voteData.vote_type} vote`;
+      console.log(`🗳️ Submitting ${voteData.super_vote ? '🔥 SUPER' : 'regular'} ${voteTypeDescription}:`, voteData);
 
       // Get or create user record
       const userId = await getOrCreateUser(userWallet);
@@ -62,16 +77,27 @@ export function useVote() {
         throw new Error(`Failed to record vote: ${voteError.message}`);
       }
 
-      // Process the vote based on type
+      // Process the vote based on type  
       if (voteData.vote_type === 'slider') {
         await processSliderVote(voteData);
       } else {
-        await processMatchupVote(voteData);
+        // Check if this is a "No" vote (no winner selected)
+        const isNoVote = !voteData.winner_id && voteData.engagement_data?.no_vote;
+        
+        if (isNoVote) {
+          console.log('🚫 Processing "No" vote - skipping Elo updates');
+          // For "No" votes, we record the vote but don't update Elo scores
+          // The vote is already recorded in the database above
+        } else {
+          await processMatchupVote(voteData);
+        }
       }
 
-      // Deduct vote cost if super vote
+      // Deduct vote cost (1 for regular, 5 for super)
       if (voteData.super_vote) {
         await deductSuperVoteCost(userWallet);
+      } else {
+        await deductRegularVoteCost(userWallet);
       }
 
       // Update user statistics
@@ -181,28 +207,42 @@ export function useVote() {
     const nftB = nftBResult.data;
     const winner = voteData.winner_id === nftA.id ? 'a' : 'b';
 
+    // Determine winner and loser Elo ratings
+    const winnerElo = winner === 'a' ? nftA.current_elo : nftB.current_elo;
+    const loserElo = winner === 'a' ? nftB.current_elo : nftA.current_elo;
+    const voteType = isSuperVote ? 'super' : 'standard';
+
     // Calculate new Elo ratings using Supabase function
     const { data: eloResult, error: eloError } = await supabase
       .rpc('calculate_elo_update', {
-        rating_a: nftA.current_elo,
-        rating_b: nftB.current_elo,
-        winner: winner
+        winner_elo: winnerElo,
+        loser_elo: loserElo,
+        vote_type: voteType
       });
 
     if (eloError || !eloResult || eloResult.length === 0) {
+      console.error('❌ Elo calculation error:', eloError);
       throw new Error('Failed to calculate new Elo ratings');
     }
 
-    let { new_rating_a, new_rating_b } = eloResult[0];
+    const { winner_new_elo, loser_new_elo } = eloResult[0];
 
-    // Apply super vote multiplier (2x Elo change)
-    if (isSuperVote) {
-      const eloChangeA = new_rating_a - nftA.current_elo;
-      const eloChangeB = new_rating_b - nftB.current_elo;
-      new_rating_a = nftA.current_elo + (eloChangeA * 2);
-      new_rating_b = nftB.current_elo + (eloChangeB * 2);
-      console.log(`🔥 Super vote applied: 2x Elo effect!`);
+    // Map back to NFT A and B ratings
+    let new_rating_a, new_rating_b;
+    if (winner === 'a') {
+      new_rating_a = winner_new_elo;
+      new_rating_b = loser_new_elo;
+    } else {
+      new_rating_a = loser_new_elo;
+      new_rating_b = winner_new_elo;
     }
+
+    console.log(`🎯 Elo update calculated:`, {
+      nftA: `${nftA.current_elo} → ${new_rating_a}`,
+      nftB: `${nftB.current_elo} → ${new_rating_b}`,
+      winner: winner === 'a' ? 'NFT A' : 'NFT B',
+      voteType
+    });
 
     // Update both NFTs
     const voteWeight = isSuperVote ? 5 : 1; // Super votes count as 5 votes for statistics
@@ -348,6 +388,32 @@ export function useVote() {
     }
   };
 
+  // 💰 Check if user has enough votes for regular vote (costs 1 vote)
+  const checkRegularVoteEligibility = async (userWallet: string): Promise<boolean> => {
+    try {
+      const userId = await getOrCreateUser(userWallet);
+      
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('available_votes')
+        .eq('id', userId)
+        .single();
+
+      if (error || !user) {
+        // If no available_votes field exists, assume they can't vote yet
+        console.log('ℹ️ User has no available_votes field - voting not available');
+        return false;
+      }
+
+      const hasEnough = (user.available_votes || 0) >= 1;
+      console.log(`💰 Regular vote eligibility: ${hasEnough} (${user.available_votes}/1 votes)`);
+      return hasEnough;
+    } catch (error) {
+      console.error('❌ Error checking regular vote eligibility:', error);
+      return false;
+    }
+  };
+
   // 🔥 Check if user has enough votes for super vote (costs 5 votes)
   const checkSuperVoteEligibility = async (userWallet: string): Promise<boolean> => {
     try {
@@ -371,6 +437,45 @@ export function useVote() {
     } catch (error) {
       console.error('❌ Error checking super vote eligibility:', error);
       return false;
+    }
+  };
+
+  // 💳 Deduct votes for regular vote usage
+  const deductRegularVoteCost = async (userWallet: string): Promise<void> => {
+    try {
+      const userId = await getOrCreateUser(userWallet);
+      
+      const { data: user, error: fetchError } = await supabase
+        .from('users')
+        .select('available_votes')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError || !user) {
+        throw new Error('Could not fetch user vote balance');
+      }
+
+      if ((user.available_votes || 0) < 1) {
+        throw new Error('Insufficient votes for regular vote');
+      }
+
+      const newBalance = (user.available_votes || 0) - 1;
+      
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          available_votes: Math.max(0, newBalance) // Ensure it doesn't go negative
+        })
+        .eq('id', userId);
+
+      if (updateError) {
+        throw new Error('Failed to deduct regular vote cost');
+      }
+
+      console.log(`💰 Regular vote cost deducted: ${user.available_votes} → ${newBalance} votes`);
+    } catch (error) {
+      console.error('❌ Error deducting regular vote cost:', error);
+      throw error;
     }
   };
 

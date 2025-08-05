@@ -276,6 +276,96 @@ body {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 8px rgba(0, 211, 149, 0.6);
+  }
+  to {
+    text-shadow: 0 0 16px rgba(0, 211, 149, 1);
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) scale(1.2);
+  }
+}
+
+@keyframes redDotPulse {
+  0% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes dropdownReveal {
+  0% {
+    opacity: 0;
+    transform: scaleY(0) translateY(-10px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scaleY(0.6) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+  }
+}
+
+@keyframes floatUpAndFade {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-40px);
+  }
+}
+
+/* Lick Popup Mobile Responsiveness */
+@media (max-width: 768px) {
+  .lick-popup {
+    right: 20px !important;
+    left: 20px !important;
+    width: calc(100vw - 40px) !important;
+    max-width: none !important;
+  }
+}
+
 /* Mobile Optimizations */
 @media (max-width: 768px) {
   .swiss-grid {
@@ -399,4 +489,119 @@ body {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+
+/* 🎨 ENHANCED CSS STABILITY RULES - Prevent styling issues during wallet switching */
+
+/* CRITICAL: Force CSS variables to always be available */
+:root {
+  /* Emergency fallback values - always available */
+  --color-black: #000000 !important;
+  --color-white: #ffffff !important;
+  --color-green: #22c55e !important;
+  --space-4: 1rem !important;
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+/* CSS reload recovery with enhanced properties */
+body.css-reload {
+  /* Force repaint during CSS stability check */
+  transform: translateZ(0);
+  /* Ensure critical properties are preserved */
+  --force-recalc: 1;
+  /* Temporary visibility management during recovery */
+  transition: visibility 0.1s ease !important;
+}
+
+/* RainbowKit compatibility class */
+body.wallet-connected {
+  --rainbow-kit-stable: 1;
+}
+
+/* Enhanced wallet state management */
+[data-wallet-connected="true"] {
+  --stability-marker: 'connected';
+}
+
+[data-wallet-connected="false"] {
+  --stability-marker: 'disconnected';
+}
+
+/* RainbowKit modal and component stability */
+[data-rk] {
+  --rk-stability: 1;
+}
+
+/* Enhanced CSS stability hack */
+@media screen and (min-width: 0px) {
+  :root {
+    /* Force re-evaluation of critical custom properties */
+    --css-stability-timestamp: 1;
+  }
+  
+  body {
+    /* Ensure body styles are always calculated */
+    --body-stability: 1;
+  }
+}
+
+/* Development hot reload protection */
+@media (prefers-reduced-motion: no-preference) {
+  body.css-reload {
+    /* Smooth recovery transitions */
+    transition: all 0.15s ease !important;
+  }
+}
+
+/* 🎰 Prize Break Loading Animation */
+@keyframes loading-sweep {
+  0% {
+    transform: translateX(-150px);
+  }
+  50% {
+    transform: translateX(450px);
+  }
+  100% {
+    transform: translateX(-150px);
+  }
+}
+
+/* 💰 Wallet Glow Animation */
+@keyframes walletGlow {
+  0% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+  25% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 1.0), 0 0 80px rgba(34, 197, 94, 0.7);
+    transform: scale(1.03);
+  }
+  75% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+}
+
+
+
+@keyframes reward-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+  50% {
+    transform: scale(1.1) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }

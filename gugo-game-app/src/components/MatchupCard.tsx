@@ -259,12 +259,13 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               if (retryCount >= 3) {
                 console.log(`❌ All gateways failed for NFT ${nft.id} after ${retryCount} attempts, triggering session skip...`);
                 
-                // Call the failure callback to skip to next session
+                // Always skip to next session - NEVER show placeholder images to users
                 if (onImageFailure) {
                   onImageFailure();
                 } else {
-                  console.log(`❌ No failure callback provided, using placeholder for NFT ${nft.id}`);
-                  target.src = `https://picsum.photos/400/400?random=${nft.id}`;
+                  console.log(`❌ No failure callback provided, forcibly skipping session for NFT ${nft.id}`);
+                  // Force skip to next session by triggering a window reload as last resort
+                  window.location.reload();
                 }
                 return;
               }
@@ -299,28 +300,25 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           {hoveredNft === nft.id && !isVoting && (
             <div style={{
               position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'linear-gradient(135deg, rgba(0, 211, 149, 0.1), rgba(0, 0, 0, 0.1))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              top: 'var(--space-4)',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 10,
               opacity: 1,
               transition: 'opacity 0.2s ease-out'
             }}>
               <div style={{
                 background: 'rgba(0, 0, 0, 0.8)',
                 color: 'var(--color-white)',
-                padding: 'var(--space-3) var(--space-6)',
-                borderRadius: 'var(--border-radius)',
+                padding: 'var(--space-2) var(--space-4)',
+                borderRadius: 'var(--border-radius-sm)',
                 fontWeight: '600',
-                fontSize: 'var(--font-size-lg)',
+                fontSize: 'var(--font-size-sm)',
                 transform: 'scale(1)',
-                transition: 'transform 0.2s ease-out'
+                transition: 'transform 0.2s ease-out',
+                whiteSpace: 'nowrap'
               }}>
-                VOTE
+                <img src="/lick-icon.png" alt="Choose" style={{ width: '20px', height: '20px' }} />
               </div>
             </div>
           )}
@@ -336,7 +334,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           justifyContent: 'space-between',
           alignItems: 'flex-end'
         }}>
-          {/* Inline Address Copy - Bottom Left */}
+          {/* Left side content - varies based on position */}
           <div style={{ 
             display: 'flex', 
             alignItems: 'center',
@@ -346,139 +344,279 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             justifyContent: 'flex-start',
             flex: '1'
           }}>
-            {/* Super Vote Fire Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onVote) {
-                  console.log('🔥 Super vote triggered for NFT:', nft.id);
-                  onVote(nft.id, true); // true = super vote
-                }
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                padding: 'var(--space-1)',
-                borderRadius: 'var(--border-radius-sm)',
-                transition: 'transform 0.2s ease, background 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 'var(--space-2)'
-              }}
-              onMouseEnter={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.transform = 'scale(1.1)';
-                target.style.background = 'rgba(255, 69, 0, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.transform = 'scale(1)';
-                target.style.background = 'none';
-              }}
-              title="Super Vote"
-            >
-              🔥
-            </button>
-            {nft.collection_address ? (
+            {position === 'left' ? (
+              // Left card: Token ID first, then Collection button (if available)
               <>
-                {/* Collection */}
+                {/* Token ID for left card - left-justified */}
+                {nft.token_id && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (nft.token_address) {
+                        handleCopyAddress(nft.token_address, 'nft', nft.id);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.6';
+                      target.style.color = '#d0d0d0';
+                    }}
+                    onMouseLeave={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.3';
+                      target.style.color = '#e5e5e5';
+                    }}
+                    style={{
+                      fontSize: '2.5rem',
+                      fontWeight: '900',
+                      color: '#e5e5e5',
+                      lineHeight: '1',
+                      userSelect: 'none',
+                      opacity: 0.3,
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0',
+                      transition: 'opacity 0.2s ease, color 0.2s ease',
+                      marginRight: nft.collection_address ? 'var(--space-4)' : '0'
+                    }}
+                    title="Copy NFT address"
+                  >
+                    #{nft.token_id}
+                  </button>
+                )}
+                
+                {/* NFT Address Copied Confirmation - Next to Token ID */}
+                {copiedAddresses[`${nft.id}-nft`] && (
+                  <span style={{ 
+                    color: 'var(--color-green)', 
+                    fontSize: 'var(--font-size-xs)',
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                    marginRight: 'var(--space-2)'
+                  }}>
+                    Address copied
+                  </span>
+                )}
+
+                {nft.collection_address && (
+                  <>
+                    {/* Collection */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyAddress(nft.collection_address!, 'collection', nft.id);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--color-grey-600)',
+                        fontSize: 'var(--font-size-xs)',
+                        padding: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '2px'
+                      }}
+                      title="Copy collection address"
+                    >
+                      <span>Collection</span>
+                      <span style={{ color: 'var(--color-grey-500)' }}>⧉</span>
+                    </button>
+
+                    {/* Confirmation Messages - Only for Collection */}
+                    {copiedAddresses[`${nft.id}-collection`] && (
+                      <span style={{ 
+                        color: 'var(--color-green)', 
+                        fontSize: 'var(--font-size-xs)',
+                        fontWeight: '500',
+                        marginLeft: 'var(--space-2)'
+                      }}>
+                        Address copied
+                      </span>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              // Right card: Fire button first
+              <>
+                {/* Super Vote Fire Button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleCopyAddress(nft.collection_address!, 'collection', nft.id);
+                    if (onVote) {
+                      console.log('🔥 Super vote triggered for NFT:', nft.id);
+                      onVote(nft.id, true); // true = super vote
+                    }
                   }}
                   style={{
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
-                    color: 'var(--color-grey-600)',
-                    fontSize: 'var(--font-size-xs)',
-                    padding: '0',
+                    fontSize: '1.2rem',
+                    padding: 'var(--space-1)',
+                    borderRadius: 'var(--border-radius-sm)',
+                    transition: 'transform 0.2s ease, background 0.2s ease',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '2px'
+                    justifyContent: 'center',
+                    marginRight: 'var(--space-2)'
                   }}
-                  title="Copy collection address"
+                  onMouseEnter={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.transform = 'scale(1.1)';
+                    target.style.background = 'rgba(255, 69, 0, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.transform = 'scale(1)';
+                    target.style.background = 'none';
+                  }}
+                  title="Super Vote"
                 >
-                  <span>Collection</span>
-                  <span style={{ color: 'var(--color-grey-500)' }}>⧉</span>
+                  🔥
                 </button>
+                {nft.collection_address ? (
+                  <>
+                    {/* Collection */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyAddress(nft.collection_address!, 'collection', nft.id);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--color-grey-600)',
+                        fontSize: 'var(--font-size-xs)',
+                        padding: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '2px'
+                      }}
+                      title="Copy collection address"
+                    >
+                      <span>Collection</span>
+                      <span style={{ color: 'var(--color-grey-500)' }}>⧉</span>
+                    </button>
 
-                {/* Confirmation Messages - Only for Collection */}
-                {copiedAddresses[`${nft.id}-collection`] && (
-                  <span style={{ 
-                    color: 'var(--color-green)', 
-                    fontSize: 'var(--font-size-xs)',
-                    fontWeight: '500',
-                    marginLeft: 'var(--space-2)'
-                  }}>
-                    Address copied
-                  </span>
+                    {/* Confirmation Messages - Only for Collection */}
+                    {copiedAddresses[`${nft.id}-collection`] && (
+                      <span style={{ 
+                        color: 'var(--color-green)', 
+                        fontSize: 'var(--font-size-xs)',
+                        fontWeight: '500',
+                        marginLeft: 'var(--space-2)'
+                      }}>
+                        Address copied
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <div></div> // Empty div to maintain flex layout
                 )}
               </>
-            ) : (
-              <div></div> // Empty div to maintain flex layout
             )}
           </div>
           
-          {/* Token ID - Right Side - Clickable */}
-          {nft.token_id && (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: 'var(--space-2)'
-            }}>
-              {/* NFT Address Copied Confirmation - To the left of token ID */}
-              {copiedAddresses[`${nft.id}-nft`] && (
-                <span style={{ 
-                  color: 'var(--color-green)', 
-                  fontSize: 'var(--font-size-xs)',
-                  fontWeight: '500',
-                  whiteSpace: 'nowrap'
-                }}>
-                  Address copied
-                </span>
-              )}
-              
+          {/* Right side content - varies based on position */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            gap: 'var(--space-2)'
+          }}>
+            {position === 'left' ? (
+              // Left card: Fire button only on the right (Token ID moved to left side)
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (nft.token_address) {
-                    handleCopyAddress(nft.token_address, 'nft', nft.id);
+                  if (onVote) {
+                    console.log('🔥 Super vote triggered for NFT:', nft.id);
+                    onVote(nft.id, true); // true = super vote
                   }
                 }}
-                onMouseEnter={(e) => {
-                  const target = e.target as HTMLElement;
-                  target.style.opacity = '0.6';
-                  target.style.color = '#d0d0d0';
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.target as HTMLElement;
-                  target.style.opacity = '0.3';
-                  target.style.color = '#e5e5e5';
-                }}
                 style={{
-                  fontSize: '2.5rem',
-                  fontWeight: '900',
-                  color: '#e5e5e5',
-                  lineHeight: '1',
-                  userSelect: 'none',
-                  opacity: 0.3,
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  padding: '0',
-                  transition: 'opacity 0.2s ease, color 0.2s ease'
+                  fontSize: '1.2rem',
+                  padding: 'var(--space-1)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  transition: 'transform 0.2s ease, background 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
-                title="Copy NFT address"
+                onMouseEnter={(e) => {
+                  const target = e.target as HTMLElement;
+                  target.style.transform = 'scale(1.1)';
+                  target.style.background = 'rgba(255, 69, 0, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  const target = e.target as HTMLElement;
+                  target.style.transform = 'scale(1)';
+                  target.style.background = 'none';
+                }}
+                title="Super Vote"
               >
-                #{nft.token_id}
+                🔥
               </button>
-            </div>
-          )}
+            ) : (
+              // Right card: Token ID on the right (original layout)
+              nft.token_id && (
+                <>
+                  {/* NFT Address Copied Confirmation - To the left of token ID */}
+                  {copiedAddresses[`${nft.id}-nft`] && (
+                    <span style={{ 
+                      color: 'var(--color-green)', 
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: '500',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      Address copied
+                    </span>
+                  )}
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (nft.token_address) {
+                        handleCopyAddress(nft.token_address, 'nft', nft.id);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.6';
+                      target.style.color = '#d0d0d0';
+                    }}
+                    onMouseLeave={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.3';
+                      target.style.color = '#e5e5e5';
+                    }}
+                    style={{
+                      fontSize: '2.5rem',
+                      fontWeight: '900',
+                      color: '#e5e5e5',
+                      lineHeight: '1',
+                      userSelect: 'none',
+                      opacity: 0.3,
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0',
+                      transition: 'opacity 0.2s ease, color 0.2s ease'
+                    }}
+                    title="Copy NFT address"
+                  >
+                    #{nft.token_id}
+                  </button>
+                </>
+              )
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -618,10 +756,10 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             fontWeight: '500'
           }}>
             <span className="desktop-instruction">
-              Slide left or right to vote
+              Tap or swipe to vote
             </span>
             <span className="mobile-instruction" style={{ display: 'none' }}>
-              Swipe up or down to vote
+              Tap or swipe to vote
             </span>
           </div>
 
@@ -633,7 +771,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               background: 'linear-gradient(90deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0.05) 100%)',
               borderRadius: '30px',
               position: 'relative',
-              border: '2px solid var(--color-grey-200)',
+              border: '2px solid var(--color-grey-500)',
               cursor: isDragging ? 'grabbing' : 'grab',
               overflow: 'hidden'
             }}
@@ -653,7 +791,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               transform: 'translateY(-50%)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
-              color: sliderPosition < 40 ? 'var(--color-green)' : 'var(--color-grey-400)',
+              color: sliderPosition < 40 ? 'var(--color-green)' : 'var(--color-grey-500)',
               transition: 'color 0.2s ease-out',
               pointerEvents: 'none'
             }}>
@@ -667,7 +805,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               transform: 'translateY(-50%)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
-              color: sliderPosition > 60 ? 'var(--color-green)' : 'var(--color-grey-400)',
+              color: sliderPosition > 60 ? 'var(--color-green)' : 'var(--color-grey-500)',
               transition: 'color 0.2s ease-out',
               pointerEvents: 'none'
             }}>
@@ -727,7 +865,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 opacity: isDragging ? 1 : 0.7,
                 transition: 'opacity 0.2s ease-out'
               }}>
-                VOTE
+                <img src="/lick-icon.png" alt="Choose" style={{ width: '20px', height: '20px' }} />
               </div>
             )}
           </div>
