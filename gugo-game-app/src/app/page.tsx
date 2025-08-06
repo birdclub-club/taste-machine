@@ -2100,9 +2100,48 @@ export default function Page() {
             letterSpacing: '0.05em',
             textAlign: 'center',
             userSelect: 'none',
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 'var(--space-4)',
+            flexWrap: 'wrap'
           }}>
-            You are viewing NFTs from the <span style={{ color: 'var(--color-green)', fontWeight: '600' }}>{currentChain}</span> blockchain
+            <span>You are viewing NFTs from the <span style={{ color: 'var(--color-green)', fontWeight: '600' }}>{currentChain}</span> blockchain</span>
+            <span style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 'var(--space-2)',
+              opacity: 0.8 
+            }}>
+              On-chain Taste Activity Today: 
+              <span style={{ 
+                color: 'var(--color-green)', 
+                fontWeight: '600'
+              }}>
+                {isLoadingActivity ? '...' : licksToday.toLocaleString()}
+              </span>
+              <span style={{
+                width: '12px',
+                height: '12px',
+                background: 'var(--color-green)',
+                borderRadius: '50%',
+                display: 'inline-block',
+                position: 'relative',
+                flexShrink: 0
+              }}>
+                <span style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '6px',
+                  height: '6px',
+                  background: 'white',
+                  borderRadius: '50%'
+                }} />
+              </span>
+            </span>
           </div>
         </div>
       </div>
@@ -2142,57 +2181,7 @@ export default function Page() {
         />
       )}
 
-      {/* 📊 On-chain Taste Activity Counter */}
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        background: 'rgba(42, 42, 42, 0.95)',
-        border: '1px solid #444444',
-        borderRadius: 'var(--border-radius-lg)',
-        padding: 'var(--space-3) var(--space-4)',
-        backdropFilter: 'blur(10px)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-        color: 'var(--color-white)',
-        fontSize: 'var(--font-size-sm)',
-        fontWeight: '500',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--space-2)',
-        zIndex: 1000,
-        userSelect: 'none',
-        letterSpacing: '0.5px'
-      }}>
-        <span style={{ opacity: 0.8 }}>On-chain Taste Activity Today:</span>
-        <span style={{ 
-          color: 'var(--color-green)', 
-          fontWeight: '600',
-          fontSize: 'var(--font-size-base)'
-        }}>
-          {isLoadingActivity ? '...' : licksToday.toLocaleString()}
-        </span>
-        <span style={{
-          width: '16px',
-          height: '16px',
-          background: 'var(--color-green)',
-          borderRadius: '50%',
-          display: 'inline-block',
-          position: 'relative',
-          flexShrink: 0
-        }}>
-          <span style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '8px',
-            height: '8px',
-            background: 'white',
-            borderRadius: '50%'
-          }} />
-        </span>
-      </div>
+
     </div>
   );
 }
