@@ -2164,7 +2164,7 @@ export default function Page() {
         userSelect: 'none',
         letterSpacing: '0.5px'
       }}>
-        <span style={{ opacity: 0.8 }}>On-chain Taste Activity:</span>
+        <span style={{ opacity: 0.8 }}>Today's Taste Activity:</span>
         <span style={{ 
           color: 'var(--color-green)', 
           fontWeight: '600',

@@ -3,12 +3,18 @@ import { supabase } from '../../../../lib/supabase';
 
 export async function GET() {
   try {
-    // Get today's vote count from Supabase
+    // Get today's vote count from Supabase (votes cast today only)
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+    const startOfTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+    
+    console.log(`📅 Fetching votes from ${startOfToday} to ${startOfTomorrow}`);
+    
     const { data, error } = await supabase
       .from('votes')
       .select('id', { count: 'exact' })
-      .gte('created_at', new Date().toISOString().split('T')[0] + 'T00:00:00.000Z') // Start of today
-      .lt('created_at', new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T00:00:00.000Z'); // Start of tomorrow
+      .gte('created_at', startOfToday)
+      .lt('created_at', startOfTomorrow);
 
     if (error) {
       console.error('❌ Error fetching daily vote count:', error);
@@ -19,7 +25,7 @@ export async function GET() {
     }
 
     const dailyCount = data?.length || 0;
-    console.log(`📊 Daily vote count: ${dailyCount}`);
+    console.log(`📊 Today's vote count: ${dailyCount}`);
     
     return NextResponse.json({ 
       count: dailyCount,

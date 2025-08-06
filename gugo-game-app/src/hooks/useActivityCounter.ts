@@ -30,7 +30,7 @@ export function useActivityCounter() {
         } else {
           const boostedCount = data.count * BOOST_MULTIPLIER;
           setLicksToday(boostedCount);
-          console.log(`📊 Daily votes: ${data.count} → Boosted: ${boostedCount}`);
+          console.log(`📊 Today's votes: ${data.count} → Boosted: ${boostedCount}`);
         }
       } catch (err) {
         console.error('❌ Failed to fetch daily vote count:', err);
