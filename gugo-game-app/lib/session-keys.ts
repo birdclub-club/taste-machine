@@ -243,7 +243,8 @@ export async function authorizeSession(
       try {
         console.log('🔄 Attempting to get provider from wagmi config...');
         const { getConnectors } = await import('wagmi/actions');
-        const connectors = getConnectors(config);
+        const { config: wagmiConfig } = await import('./wagmi');
+        const connectors = getConnectors(wagmiConfig);
         const activeConnector = connectors.find(c => c.name.toLowerCase().includes('abstract'));
         
         if (activeConnector) {
