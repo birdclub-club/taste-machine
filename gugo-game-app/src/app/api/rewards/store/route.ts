@@ -364,3 +364,4 @@ export async function DELETE() {
     { error: 'Method not allowed' },
     { status: 405 }
   );
+}
