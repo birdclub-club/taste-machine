@@ -145,8 +145,17 @@ class IPFSGatewayManager {
   }
 
   // 🔄 Start background health monitoring
+  private healthCheckInterval?: NodeJS.Timeout;
+  
   private startHealthMonitoring() {
-    setInterval(() => {
+    // Prevent multiple intervals
+    if (this.healthCheckInterval) {
+      console.log('🚫 Health monitoring already started, skipping...');
+      return;
+    }
+    
+    console.log('🏥 Starting gateway health monitoring (5-minute intervals)...');
+    this.healthCheckInterval = setInterval(() => {
       this.performHealthCheck();
     }, this.HEALTH_CHECK_INTERVAL);
   }

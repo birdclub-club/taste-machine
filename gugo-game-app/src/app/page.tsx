@@ -355,16 +355,21 @@ export default function Page() {
       console.log('🔥 Initializing collection-aware voting preloader...');
       await votingPreloader.initialize();
       
-      // 🚫👻 Force clear any old cached sessions with unrevealed NFTs
-      console.log('🔄 Forcing full reset to apply unrevealed NFT filters...');
-      await votingPreloader.forceFullReset();
+      // 🚫👻 Check if we need to clear old cached sessions  
+      const currentStats = votingPreloader.getSessionStats();
+      if (currentStats.stackSize > 0) {
+        console.log('🔄 Clearing existing sessions to apply unrevealed NFT filters...');
+        await votingPreloader.forceFullReset();
+      } else {
+        console.log('✅ No existing sessions to clear, proceeding with fresh preload...');
+      }
       
-      // Start preloading for common collections
+      // Start preloading for common collections (reduced amounts for faster initial load)
       console.log('🎯 Starting preload for BEARISH collection...');
-      votingPreloader.preloadSessionsForCollection(10, 'BEARISH');
+      votingPreloader.preloadSessionsForCollection(5, 'BEARISH'); // Reduced from 10 to 5
       
       console.log('🎯 Starting preload for mixed collections...');
-      votingPreloader.preloadSessionsForCollection(5, undefined);
+      votingPreloader.preloadSessionsForCollection(3, undefined); // Reduced from 5 to 3
       
       setPreloaderReady(true);
       updatePreloaderStatus();
