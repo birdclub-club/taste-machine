@@ -1843,7 +1843,7 @@ export default function Page() {
                             style={{ 
                               width: '90px', // 1.5x from 60px
                               height: '90px', // 1.5x from 60px
-                              filter: 'brightness(0) saturate(100%) invert(1) drop-shadow(0 0 20px var(--color-green))',
+                              filter: 'brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) hue-rotate(180deg) brightness(119%) contrast(91%) drop-shadow(0 0 20px var(--color-green))',
                               marginTop: '10px'
                             }} 
                           />
@@ -1930,7 +1930,19 @@ export default function Page() {
                                       style={{ 
                                         width: '60px', // 1.5x from 40px
                                         height: '60px', // 1.5x from 40px
-                                        filter: `brightness(0) saturate(100%) invert(1) drop-shadow(0 0 15px ${tierColors.glow})`,
+                                        filter: (() => {
+                                          // Convert tier color to hue-rotate value
+                                          const getHueRotateForColor = (colorVar: string) => {
+                                            if (colorVar.includes('green')) return 'hue-rotate(90deg)';
+                                            if (colorVar.includes('orange') || colorVar.includes('yellow')) return 'hue-rotate(45deg)';
+                                            if (colorVar.includes('blue') || colorVar.includes('cyan')) return 'hue-rotate(180deg)';
+                                            if (colorVar.includes('purple') || colorVar.includes('magenta')) return 'hue-rotate(270deg)';
+                                            if (colorVar.includes('red')) return 'hue-rotate(0deg)';
+                                            return 'hue-rotate(180deg)'; // Default to blue/cyan
+                                          };
+                                          const hueRotate = getHueRotateForColor(tierColors.primary);
+                                          return `brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) ${hueRotate} brightness(119%) contrast(91%) drop-shadow(0 0 15px ${tierColors.glow})`;
+                                        })(),
                                         marginTop: '10px'
                                       }} 
                                     />
