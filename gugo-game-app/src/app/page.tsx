@@ -2125,9 +2125,10 @@ export default function Page() {
                 src="/lick-icon.png" 
                 alt="Licks" 
                 style={{ 
-                  width: '14px', 
-                  height: '14px',
-                  flexShrink: 0
+                  width: '18px', 
+                  height: '18px',
+                  flexShrink: 0,
+                  filter: 'brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) hue-rotate(90deg) brightness(119%) contrast(91%)'
                 }} 
               />
             </span>
