@@ -1841,9 +1841,10 @@ export default function Page() {
                             src="/lick-icon.png" 
                             alt="Licks" 
                             style={{ 
-                              width: '60px', 
-                              height: '60px',
-                              filter: 'drop-shadow(0 0 20px var(--color-green))'
+                              width: '90px', // 1.5x from 60px
+                              height: '90px', // 1.5x from 60px
+                              filter: 'brightness(0) saturate(100%) invert(1) drop-shadow(0 0 20px var(--color-green))',
+                              marginTop: '10px'
                             }} 
                           />
                         </div>
@@ -1927,9 +1928,10 @@ export default function Page() {
                                       src="/lick-icon.png" 
                                       alt="Licks" 
                                       style={{ 
-                                        width: '40px', 
-                                        height: '40px',
-                                        filter: 'drop-shadow(0 0 15px var(--color-green))'
+                                        width: '60px', // 1.5x from 40px
+                                        height: '60px', // 1.5x from 40px
+                                        filter: `brightness(0) saturate(100%) invert(1) drop-shadow(0 0 15px ${tierColors.glow})`,
+                                        marginTop: '10px'
                                       }} 
                                     />
                                   </div>
