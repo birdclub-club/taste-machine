@@ -171,20 +171,39 @@ export async function authorizeSession(
   // Try to use wagmi/viem first for better wallet compatibility
   if (typeof window !== 'undefined') {
     try {
+      console.log('🔄 Starting wagmi session authorization process...');
+      
       // Import wagmi dynamically to avoid SSR issues
+      console.log('📦 Importing wagmi modules...');
       const { signMessage } = await import('wagmi/actions');
       const { config } = await import('./wagmi');
       
+      console.log('✅ Wagmi modules imported successfully');
       console.log('🔑 Requesting session authorization signature from wallet...', {
         wallet: 'wagmi',
         userAddress,
-        messageLength: message.length
+        messageLength: message.length,
+        message: message.substring(0, 100) + '...'
       });
       
-      const signature = await signMessage(config, {
+      console.log('⏳ Calling signMessage - user should see wallet popup now...');
+      
+      // Add timeout to prevent infinite hanging
+      const signaturePromise = signMessage(config, {
         message,
         account: userAddress as `0x${string}`
       });
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          console.log('⏰ Signature request timed out after 30 seconds');
+          reject(new Error('Signature request timed out after 30 seconds'));
+        }, 30000);
+      });
+      
+      const signature = await Promise.race([signaturePromise, timeoutPromise]) as string;
+      
+      console.log('✅ Signature received from wagmi:', signature.substring(0, 10) + '...');
       
       const mainToken = tokenLimits.find(t => t.isMainToken) || tokenLimits[0];
       const mainAmount = mainToken ? ethers.formatEther(mainToken.maxAmount) : '0';
@@ -200,15 +219,53 @@ export async function authorizeSession(
       });
       
       return signature;
-    } catch (wagmiError) {
-      console.log('⚠️ Wagmi signing failed, falling back to window.ethereum:', wagmiError);
+    } catch (wagmiError: any) {
+      console.log('⚠️ Wagmi signing failed, analyzing error...', {
+        error: wagmiError,
+        message: wagmiError?.message,
+        code: wagmiError?.code,
+        name: wagmiError?.name
+      });
       
-      // Fallback to window.ethereum for older wallets
-      if (window.ethereum) {
+      // Check if this is a user rejection
+      if (wagmiError?.message?.toLowerCase().includes('rejected') || 
+          wagmiError?.message?.toLowerCase().includes('denied') ||
+          wagmiError?.code === 4001) {
+        console.log('👋 User rejected wagmi signature request');
+        throw new Error('Session authorization rejected');
+      }
+      
+      console.log('🔄 Falling back to window.ethereum due to wagmi error:', wagmiError?.message);
+      
+      // Try to get the provider from wagmi first for AGW compatibility
+      let provider = window.ethereum;
+      
+      try {
+        console.log('🔄 Attempting to get provider from wagmi config...');
+        const { getConnectors } = await import('wagmi/actions');
+        const connectors = getConnectors(config);
+        const activeConnector = connectors.find(c => c.name.toLowerCase().includes('abstract'));
+        
+        if (activeConnector) {
+          console.log('✅ Found AGW connector, getting provider...');
+          const connectorProvider = await activeConnector.getProvider();
+          if (connectorProvider) {
+            provider = connectorProvider;
+            console.log('✅ Using AGW-specific provider for signing');
+          }
+        }
+      } catch (providerError) {
+        console.log('⚠️ Could not get AGW provider, using window.ethereum:', providerError);
+      }
+      
+      // Fallback to window.ethereum or AGW provider
+      if (provider) {
         try {
-          console.log('🔑 Requesting session authorization signature via window.ethereum...');
+          console.log('🔑 Requesting session authorization signature via provider...', {
+            providerType: provider === window.ethereum ? 'window.ethereum' : 'AGW provider'
+          });
           
-          const signature = await window.ethereum.request({
+          const signature = await provider.request({
             method: 'personal_sign',
             params: [message, userAddress]
           });
@@ -216,7 +273,7 @@ export async function authorizeSession(
           const mainToken = tokenLimits.find(t => t.isMainToken) || tokenLimits[0];
           const mainAmount = mainToken ? ethers.formatEther(mainToken.maxAmount) : '0';
           
-          console.log('✅ Session authorized by user via window.ethereum:', {
+          console.log('✅ Session authorized by user via provider:', {
             userAddress,
             sessionKey: sessionPublicKey,
             chainId,
@@ -228,7 +285,7 @@ export async function authorizeSession(
           
           return signature;
         } catch (ethError) {
-          console.error('❌ User rejected session authorization via window.ethereum:', ethError);
+          console.error('❌ User rejected session authorization via provider:', ethError);
           throw new Error('Session authorization rejected');
         }
       } else {
