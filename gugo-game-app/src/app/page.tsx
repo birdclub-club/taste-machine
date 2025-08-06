@@ -11,6 +11,7 @@ import Confetti from '@/components/Confetti';
 import { useVote } from '@/hooks/useVote';
 import { usePrizeBreak } from '@/hooks/usePrizeBreak';
 import { useSessionKey } from '@/hooks/useSessionKey';
+import { useBatchedVoting } from '@/hooks/useBatchedVoting';
 import { useCollectionPreference, getCollectionFilter, CollectionPreference } from '@/hooks/useCollectionPreference';
 import { fetchVotingSession } from '@lib/matchup';
 import { votingPreloader } from '@lib/preloader';
@@ -94,6 +95,7 @@ export default function Page() {
   });
   const [currentSliderValue, setCurrentSliderValue] = useState(0);
   const [showPurchaseAlert, setShowPurchaseAlert] = useState(false);
+  const [sliderFireGlow, setSliderFireGlow] = useState(false);
   const [requiredVotes, setRequiredVotes] = useState(5);
   const [imageFailureCount, setImageFailureCount] = useState(0);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -109,6 +111,7 @@ export default function Page() {
   });
   const { submitVote, vote, isVoting } = useVote();
   const { prizeBreakState, startPrizeBreak, endPrizeBreak, clearRewardState } = usePrizeBreak();
+  const { processPendingVotes, getBatchStats } = useBatchedVoting();
   const { address, isConnected } = useAccount();
   const { 
     sessionStatus, 
@@ -318,6 +321,13 @@ export default function Page() {
     }
   }, [preference, preloaderReady]);
 
+  // Clear slider fire glow when new session loads
+  useEffect(() => {
+    setSliderFireGlow(false);
+  }, [votingSession]);
+
+
+
   const handleVote = async (winnerId: string, superVote: boolean = false) => {
     if (!votingSession) return;
     
@@ -387,6 +397,10 @@ export default function Page() {
         // User has session - proceed with normal prize break flow
         await startPrizeBreak(result.voteCount);
         
+        // 📦 SPEED OPTIMIZATION: Process batched votes during prize break
+        console.log('📦 Processing batched votes during prize break...');
+        processPendingVotes(); // Don't await - let it process in background
+        
         // Reset duplicate tracking for fresh variety after prize break
         console.log('🎯 Resetting session for fresh NFTs after prize break...');
         votingPreloader.resetSession();
@@ -422,8 +436,15 @@ export default function Page() {
         return; // Don't load next session immediately
       }
       
-      // Load next voting session after successful vote (only if not prize break)
-      await loadVotingSession();
+      // 🚀 SPEED OPTIMIZATION: Load next session immediately (for batched votes) 
+      // For matchup votes, we can start loading the next session right away since vote is batched
+      if (result.hash === 'batched-for-processing') {
+        console.log('⚡ Starting next session load immediately for batched vote...');
+        loadVotingSession(); // Don't await - load in background while animation plays
+      } else {
+        // For slider votes (immediate processing), wait for completion
+        await loadVotingSession();
+      }
       
     } catch (error) {
       console.error('Vote failed:', error);
@@ -512,17 +533,12 @@ export default function Page() {
     handleSkipSession();
   };
 
-  // 🎯 Handle collection preference choice
-  const handleCollectionChoice = async (choice: 'bearish' | 'mix') => {
-    console.log(`🎯 User chose collection preference: ${choice}`);
-    setCollectionPreference(choice);
+  // 🎯 Handle welcome acceptance
+  const handleWelcomeAccept = async () => {
+    console.log('🚀 User accepted welcome - setting up for mixed collections...');
+    setCollectionPreference(); // This now just marks welcome as seen
     
-    // Force reload preloader with new preference
-    console.log('🔄 Reloading preloader with collection preference...');
-    await votingPreloader.forceFullReset();
-    await votingPreloader.initialize();
-    
-    // Load a new session that matches the preference
+    // Load a new session immediately
     await loadVotingSession();
   };
 
@@ -828,12 +844,7 @@ export default function Page() {
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }}></div>
-                  <span>
-                    {isSwitchingCollection 
-                      ? `Loading ${preference === 'bearish' ? 'BEARISH' : 'mixed'} matchups...`
-                      : 'Loading matchups in background...'
-                    }
-                  </span>
+                  <span>Loading matchups...</span>
                 </div>
               ) : !isConnected ? (
                 <div className="slide-up" style={{
@@ -886,11 +897,13 @@ export default function Page() {
                       width: '100%',
                       maxWidth: '600px',
                       background: 'var(--color-white)',
-                      border: '2px solid var(--color-grey-200)',
+                      border: sliderFireGlow ? '4px solid #ff6b35' : '2px solid var(--color-grey-200)',
                       borderRadius: 'var(--border-radius-lg)',
                       overflow: 'hidden',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                      transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out',
+                      boxShadow: sliderFireGlow ? 
+                        '0 0 40px rgba(255, 107, 53, 0.9), 0 0 80px rgba(255, 140, 0, 0.6), 0 0 120px rgba(255, 165, 0, 0.4)' :
+                        '0 8px 24px rgba(0,0,0,0.12)',
+                      transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out, border 0.3s ease-out',
                       opacity: isVoting ? 0.7 : 1
                     }}>
                       {/* Image Container */}
@@ -998,6 +1011,10 @@ export default function Page() {
                             onClick={(e) => {
                               e.stopPropagation();
                               console.log('🔥 Super vote triggered for slider NFT:', votingSession.nft.id);
+                              
+                              // Trigger fire glow effect
+                              setSliderFireGlow(true);
+                              
                               handleSliderVote(currentSliderValue, true); // true = super vote
                             }}
                             style={{
@@ -1492,7 +1509,7 @@ export default function Page() {
                       {freeVotesPrizeBreak ? (
                         'FREE VOTES!'
                       ) : prizeBreakState.isClaimingReward ? (
-                        'WHAT WILL YOU WIN?'
+                        'POSSIBLE PRIZE INCOMING'
                       ) : prizeBreakState.reward ? (
                         (() => {
                           const phrases = ['CONGRATS!', 'HELL YES!', 'NICE!', 'COOL!', 'YES!', 'AWESOME!'];
@@ -1526,7 +1543,18 @@ export default function Page() {
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}>
-                        +10 VOTES
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                          <span>+10</span>
+                          <img 
+                            src="/lick-icon.png" 
+                            alt="Licks" 
+                            style={{ 
+                              width: '60px', 
+                              height: '60px',
+                              filter: 'drop-shadow(0 0 20px var(--color-green))'
+                            }} 
+                          />
+                        </div>
                       </div>
                     ) : prizeBreakState.isClaimingReward ? (
                       <div style={{
@@ -1596,7 +1624,18 @@ export default function Page() {
                               <div>+{prizeBreakState.reward.xpAmount} XP</div>
                             )}
                             {prizeBreakState.reward.votesAmount > 0 && (
-                              <div>+{prizeBreakState.reward.votesAmount} VOTES</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                <span>+{prizeBreakState.reward.votesAmount}</span>
+                                <img 
+                                  src="/lick-icon.png" 
+                                  alt="Licks" 
+                                  style={{ 
+                                    width: '40px', 
+                                    height: '40px',
+                                    filter: 'drop-shadow(0 0 15px var(--color-green))'
+                                  }} 
+                                />
+                              </div>
                             )}
                             {prizeBreakState.reward.gugoAmount > 0 && (
                               <div>+{prizeBreakState.reward.gugoAmount} GUGO</div>
@@ -1624,96 +1663,94 @@ export default function Page() {
                     )}
                   </div>
                   
-                  {/* Bottom Section - Button */}
-                  <div style={{ flex: '0 0 auto' }}>
-                    {/* Manual dismiss button - only show when not loading */}
-                    {!prizeBreakState.isClaimingReward && (
-                      <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-                      <button
+                  {/* Exit Button - "See more art" */}
+                  <div style={{ 
+                    flex: '0 0 auto',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    paddingTop: 'var(--space-4)'
+                  }}>
+                    <button
                       onClick={async () => {
-                        console.log('🎁 Claiming reward and triggering animations...');
+                        console.log('🎨 User wants to see more art - exiting prize break...');
                         try {
-                          // Trigger XP animation if XP was awarded
+                          // Trigger animations if rewards were received
                           if (prizeBreakState.reward?.xpAmount && prizeBreakState.reward.xpAmount > 0) {
                             console.log(`⚡ Triggering XP animation for +${prizeBreakState.reward.xpAmount} XP`);
                             statusBarRef.current?.triggerXpAnimation(prizeBreakState.reward.xpAmount);
                           }
                           
-                          // Trigger wallet glow if GUGO reward was received
                           if (prizeBreakState.reward?.gugoAmount && prizeBreakState.reward.gugoAmount > 0) {
                             console.log(`💰 Triggering wallet glow for +${prizeBreakState.reward.gugoAmount} GUGO`);
                             statusBarRef.current?.triggerWalletGlow(prizeBreakState.reward.gugoAmount);
                           }
                           
-                          // Trigger Licks animation if Licks reward was received  
                           if (prizeBreakState.reward?.licksAmount && prizeBreakState.reward.licksAmount > 0) {
                             console.log(`🎁 Triggering Licks animation for +${prizeBreakState.reward.licksAmount} Licks`);
                             statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward.licksAmount);
                           }
                           
-                          // Refresh user data to show updated balances
+                          // Refresh user data
                           setTimeout(() => {
                             statusBarRef.current?.refreshUserData();
                           }, 500);
                           
                           const refillResult = await endPrizeBreak();
-                          setFreeVotesPrizeBreak(false); // Reset free votes flag
-                          clearRewardState(); // Clear reward state
+                          setFreeVotesPrizeBreak(false);
+                          clearRewardState();
                           if (refillResult) {
-                            console.log(`🔄 Queue refilled during manual dismiss: +${refillResult.added.total} matchups`);
+                            console.log(`🔄 Queue refilled: +${refillResult.added.total} matchups`);
                           }
-                          // Only load new session if we don't already have one
+                          
+                          // Load new session
                           if (!votingSession) {
-                            console.log('📭 No session loaded, fetching new one...');
+                            console.log('📭 Loading new voting session...');
                             await loadVotingSession();
                           } else {
-                            console.log('✅ Session already loaded, keeping current one');
+                            console.log('✅ Session already loaded');
                           }
                         } catch (error) {
-                          console.error('❌ Error manually ending prize break:', error);
-                          await endPrizeBreak(); // Force end on error
-                          setFreeVotesPrizeBreak(false); // Reset free votes flag
-                          clearRewardState(); // Clear reward state on error too
+                          console.error('❌ Error exiting prize break:', error);
+                          await endPrizeBreak();
+                          setFreeVotesPrizeBreak(false);
+                          clearRewardState();
                           if (!votingSession) {
                             await loadVotingSession();
                           }
                         }
                       }}
                       style={{
-                        marginTop: 'var(--space-4)',
-                        padding: 'var(--space-2) var(--space-4)',
+                        padding: 'var(--space-3) var(--space-6)',
                         background: 'var(--color-green)',
                         color: 'var(--color-black)',
                         border: '2px solid var(--color-green)',
                         borderRadius: 'var(--border-radius)',
-                        fontSize: '0.8rem',
+                        fontSize: 'var(--font-size-base)',
                         fontWeight: '600',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)',
-                        display: 'inline-block',
-                        width: 'auto',
-                        maxWidth: 'fit-content',
-                        whiteSpace: 'nowrap'
+                        boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
+                        minWidth: '160px'
                       }}
                       onMouseOver={(e) => {
                         e.currentTarget.style.background = 'transparent';
                         e.currentTarget.style.color = 'var(--color-green)';
-                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.4)';
                       }}
                       onMouseOut={(e) => {
                         e.currentTarget.style.background = 'var(--color-green)';
                         e.currentTarget.style.color = 'var(--color-black)';
-                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.3)';
                       }}
-                                          >
-                        Claim Reward
-                      </button>
-                      </div>
-                    )}
+                    >
+                      See more art
+                    </button>
                   </div>
+
                 </div>
               </div>
             )}
@@ -1791,7 +1828,7 @@ export default function Page() {
       {/* Welcome Popup - Shows on first visit */}
       <WelcomePopup
         isOpen={shouldShowWelcome}
-        onCollectionChoice={handleCollectionChoice}
+        onAccept={handleWelcomeAccept}
       />
 
       {/* 🎉 Confetti for GUGO Prizes */}

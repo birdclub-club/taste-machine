@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { supabase } from '@lib/supabase';
+import { useBatchedVoting } from './useBatchedVoting';
 import type { VoteSubmission, EloUpdate, SliderUpdate, VoteType, VoteResult } from '@/types/voting';
 
 export function useVote() {
   const [isVoting, setVoting] = useState(false);
+  const { addVoteToBatch, processPendingVotes } = useBatchedVoting();
 
   // 🗳️ New sophisticated voting function
   const submitVote = async (voteData: VoteSubmission, userWallet?: string, userVoteCount: number = 0): Promise<VoteResult> => {
-    setVoting(true);
+    // Only set isVoting for slider votes (immediate processing) - matchup votes are batched for speed
+    const isSliderVote = voteData.vote_type === 'slider';
+    if (isSliderVote) {
+      setVoting(true);
+    }
+    
     try {
       // Require wallet connection for voting
       if (!userWallet) {
@@ -77,55 +84,71 @@ export function useVote() {
         throw new Error(`Failed to record vote: ${voteError.message}`);
       }
 
-      // Process the vote based on type  
+      // 🚀 SPEED OPTIMIZATION: Use batched processing for matchup votes
       if (voteData.vote_type === 'slider') {
+        // Slider votes still process immediately (no Elo changes)
         await processSliderVote(voteData);
-      } else {
-        // Check if this is a "No" vote (no winner selected)
-        const isNoVote = !voteData.winner_id && voteData.engagement_data?.no_vote;
         
-        if (isNoVote) {
-          console.log('🚫 Processing "No" vote - skipping Elo updates');
-          // For "No" votes, we record the vote but don't update Elo scores
-          // The vote is already recorded in the database above
+        // Deduct vote cost immediately for slider votes
+        if (voteData.super_vote) {
+          await deductSuperVoteCost(userWallet);
         } else {
-          await processMatchupVote(voteData);
+          await deductRegularVoteCost(userWallet);
         }
-      }
-
-      // Deduct vote cost (1 for regular, 5 for super)
-      if (voteData.super_vote) {
-        await deductSuperVoteCost(userWallet);
+        
+        // Update user statistics immediately for slider votes
+        await updateUserStats(userWallet);
+        
+        console.log('✅ Slider vote processed immediately');
+        
+        // Check if this triggers a prize break
+        const isPrizeBreak = userVoteCount > 0 && (userVoteCount + 1) % 10 === 0;
+        
+        return { 
+          hash: 'slider-processed', 
+          voteId: voteRecord.id,
+          isPrizeBreak,
+          voteCount: userVoteCount + 1,
+          insufficientVotes: false
+        };
       } else {
-        await deductRegularVoteCost(userWallet);
+        // 📦 Matchup votes use BATCHED PROCESSING for maximum speed
+        console.log('⚡ Adding matchup vote to batch for super-fast processing...');
+        
+        // Add to batch instead of processing immediately
+        const batchResult = await addVoteToBatch(voteData, userWallet);
+        
+        // Clean up used matchup from queue immediately for UI responsiveness
+        if (voteData.engagement_data?.queueId && typeof voteData.engagement_data.queueId === 'string') {
+          await cleanupUsedMatchup(voteData.engagement_data.queueId);
+        }
+        
+        // Immediate deduction for instant UI feedback, batch will handle database updates
+        if (voteData.super_vote) {
+          await deductSuperVoteCost(userWallet);
+        } else {
+          await deductRegularVoteCost(userWallet);
+        }
+        
+        console.log('⚡ Matchup vote batched for processing - UI responsive!');
+        
+        return {
+          hash: 'batched-for-processing',
+          voteId: `batch-${Date.now()}`,
+          isPrizeBreak: batchResult.isPrizeBreak,
+          voteCount: batchResult.voteCount,
+          insufficientVotes: false
+        };
       }
-
-      // Update user statistics
-      await updateUserStats(userWallet);
-
-      // Clean up used matchup from queue if it came from queue
-      if (voteData.engagement_data?.queueId && typeof voteData.engagement_data.queueId === 'string') {
-        await cleanupUsedMatchup(voteData.engagement_data.queueId);
-      }
-
-      console.log('✅ Vote processed successfully');
-      
-      // Check if this triggers a prize break
-      const isPrizeBreak = userVoteCount > 0 && (userVoteCount + 1) % 10 === 0;
-      
-      return { 
-        hash: 'vote-processed', 
-        voteId: voteRecord.id,
-        isPrizeBreak,
-        voteCount: userVoteCount + 1,
-        insufficientVotes: false
-      };
 
     } catch (err) {
       console.error('❌ Voting failed:', err);
       throw err;
     } finally {
-      setVoting(false);
+      // Only reset isVoting if it was set (for slider votes)
+      if (isSliderVote) {
+        setVoting(false);
+      }
     }
   };
 

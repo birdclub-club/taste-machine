@@ -7,11 +7,12 @@ import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from './ipfs-gate
 
 class VotingPreloader {
   private static instance: VotingPreloader;
-  private preloadedSessions: Map<string, VotingSession[]> = new Map(); // Collection-aware queues
+  private sessionStack: VotingSession[] = []; // 🚀 LIFO stack for instant access
   private isPreloading = false;
-  private readonly TARGET_PRELOAD_COUNT = 8; // Always maintain 8 sessions per collection
-  private readonly MINIMUM_QUEUE_SIZE = 5; // Never go below 5 per collection
-  private readonly REFILL_TRIGGER = 3; // Refill when queue drops to 3 per collection
+  private readonly TARGET_STACK_SIZE = 15; // 🚀 Larger stack for instant transitions
+  private readonly MINIMUM_STACK_SIZE = 8; // Never go below 8 sessions
+  private readonly REFILL_TRIGGER = 5; // Refill when stack drops to 5 sessions
+  private readonly MAX_PARALLEL_PRELOAD = 6; // Load multiple sessions in parallel
   private imagePreloadCache = new Map<string, boolean>();
   private seenNFTIds = new Set<string>(); // Track NFTs shown in current session
   private readonly MAX_SEEN_NFTS = 50; // Clear tracking after this many NFTs
@@ -524,161 +525,147 @@ class VotingPreloader {
     return this.generateSession(); // Use mixed collection by default
   }
 
-  // 🚀 Preload sessions in background (parallel for speed)
-  async preloadSessions(count: number = this.TARGET_PRELOAD_COUNT): Promise<void> {
+  // 🚀 OPTIMIZED: Preload sessions into LIFO stack for instant access
+  async preloadSessions(count: number = this.TARGET_STACK_SIZE): Promise<void> {
     if (this.isPreloading) return;
     
     this.isPreloading = true;
-    console.log(`🚀 Preloading ${count} voting sessions in parallel...`);
+    console.log(`🚀 STACK PRELOAD: Loading ${count} sessions into instant-access stack...`);
     
     const startTime = performance.now();
     
-    // Generate multiple batches in parallel for maximum speed
-    const batchSize = Math.max(3, Math.ceil(count / 2));
-    const batches = [];
+    // 🚀 SPEED OPTIMIZATION: Generate sessions in parallel batches
+    const sessions: VotingSession[] = [];
+    const parallelBatches = Math.ceil(count / this.MAX_PARALLEL_PRELOAD);
     
-    for (let i = 0; i < count; i += batchSize) {
-      const batchCount = Math.min(batchSize, count - i);
-      const batch = Promise.all(
-        Array.from({ length: batchCount }, () => this.generateVotingSession())
-      );
-      batches.push(batch);
+    for (let batch = 0; batch < parallelBatches; batch++) {
+      const batchStart = batch * this.MAX_PARALLEL_PRELOAD;
+      const batchEnd = Math.min(batchStart + this.MAX_PARALLEL_PRELOAD, count);
+      const batchSize = batchEnd - batchStart;
+      
+      console.log(`📦 Generating batch ${batch + 1}/${parallelBatches} (${batchSize} sessions)...`);
+      
+      // Generate batch in parallel
+      const batchPromises = Array.from({ length: batchSize }, () => this.generateSession());
+      const batchResults = await Promise.all(batchPromises);
+      const validBatchSessions = batchResults.filter(s => s !== null) as VotingSession[];
+      
+      sessions.push(...validBatchSessions);
+      console.log(`✅ Batch ${batch + 1} completed: ${validBatchSessions.length}/${batchSize} valid sessions`);
     }
     
-    const batchResults = await Promise.all(batches);
-    const allSessions = batchResults.flat();
-    const validSessions = allSessions.filter(s => s !== null) as VotingSession[];
-    
-    // Add to mixed collection queue for backward compatibility
-    const mixedQueue = this.preloadedSessions.get('mixed') || [];
-    this.preloadedSessions.set('mixed', [...mixedQueue, ...validSessions]);
+    // 🚀 Push to STACK (LIFO) for instant access
+    this.sessionStack.push(...sessions);
     
     const loadTime = performance.now() - startTime;
-    console.log(`✅ Preloaded ${validSessions.length}/${count} sessions in ${Math.round(loadTime)}ms (${Math.round(loadTime/validSessions.length)}ms each)`);
+    const avgTime = sessions.length > 0 ? Math.round(loadTime / sessions.length) : 0;
+    console.log(`✅ STACK LOADED: ${sessions.length}/${count} sessions in ${Math.round(loadTime)}ms (${avgTime}ms each)`);
+    console.log(`📚 Stack size: ${this.sessionStack.length} sessions ready for instant access`);
     
     // If we didn't get enough sessions, try again immediately  
-    if (validSessions.length < count * 0.8) {
-      console.log(`⚠️ Low success rate (${validSessions.length}/${count}), retrying...`);
+    if (sessions.length < count * 0.8) {
+      console.log(`⚠️ Low success rate (${sessions.length}/${count}), retrying with smaller batch...`);
       setTimeout(() => {
         this.isPreloading = false;
-        this.preloadSessions(count - validSessions.length);
+        this.preloadSessions(Math.max(3, count - sessions.length));
       }, 100);
     } else {
       this.isPreloading = false;
     }
   }
 
-  // ⚡ Get next session instantly (collection-aware)
+  // ⚡ INSTANT ACCESS: Pop session from stack (LIFO for maximum speed)
   getNextSession(collectionFilter?: string): VotingSession | null {
-    const queueKey = collectionFilter || 'mixed';
-    const queue = this.preloadedSessions.get(queueKey) || [];
+    // 🚀 SPEED OPTIMIZATION: Use stack (LIFO) for instant access
+    // Since we removed collection filtering, we can use the stack directly
     
-    // Emergency check - never let queue go empty
-    if (queue.length === 0) {
-      console.warn(`⚠️ Queue empty for ${queueKey}! This should not happen.`);
-      // Force immediate preload for this collection
-      this.preloadSessionsForCollection(this.TARGET_PRELOAD_COUNT, collectionFilter);
+    // Emergency check - never let stack go empty
+    if (this.sessionStack.length === 0) {
+      console.warn(`⚠️ SESSION STACK EMPTY! This should not happen - triggering emergency refill.`);
+      // Force immediate preload
+      this.preloadSessions(this.TARGET_STACK_SIZE);
       return null;
     }
     
-    const session = queue.shift();
-    this.preloadedSessions.set(queueKey, queue);
+    // 🚀 POP from stack for instant access (LIFO)
+    const session = this.sessionStack.pop();
+    
+    if (!session) {
+      console.warn('⚠️ Stack pop returned null session');
+      return null;
+    }
     
     // 🚫 Mark NFTs as seen when actually consumed by user (prevents duplicates)
-    if (session) {
-      if (session.vote_type === 'slider' && session.nft) {
-        this.markNFTAsSeen(session.nft.id);
-        console.log(`🚫 Marked NFT ${session.nft.id} as seen (slider)`);
-      } else if ((session.vote_type === 'same_coll' || session.vote_type === 'cross_coll') && session.nft1 && session.nft2) {
-        this.markNFTAsSeen(session.nft1.id);
-        this.markNFTAsSeen(session.nft2.id);
-        console.log(`🚫 Marked NFTs ${session.nft1.id} and ${session.nft2.id} as seen (matchup)`);
-      }
+    if (session.vote_type === 'slider' && session.nft) {
+      this.markNFTAsSeen(session.nft.id);
+      console.log(`🚫 Marked NFT ${session.nft.id} as seen (slider)`);
+    } else if ((session.vote_type === 'same_coll' || session.vote_type === 'cross_coll') && session.nft1 && session.nft2) {
+      this.markNFTAsSeen(session.nft1.id);
+      this.markNFTAsSeen(session.nft2.id);
+      console.log(`🚫 Marked NFTs ${session.nft1.id} and ${session.nft2.id} as seen (matchup)`);
     }
     
-    // Aggressive queue management - always maintain 5+ sessions per collection
-    if (queue.length <= this.REFILL_TRIGGER && !this.isPreloading) {
-      console.log(`🔄 Queue low for ${queueKey} (${queue.length}), triggering refill...`);
-      this.preloadSessionsForCollection(this.TARGET_PRELOAD_COUNT - queue.length, collectionFilter);
+    // 🚀 AGGRESSIVE STACK MANAGEMENT: Always maintain buffer for seamless experience
+    if (this.sessionStack.length <= this.REFILL_TRIGGER && !this.isPreloading) {
+      console.log(`🔄 Stack low (${this.sessionStack.length}), triggering background refill...`);
+      // Background refill - don't await
+      this.preloadSessions(this.TARGET_STACK_SIZE - this.sessionStack.length);
     }
     
-    // Log queue status for monitoring
-    if (queue.length < this.MINIMUM_QUEUE_SIZE) {
-      console.warn(`⚠️ Queue below minimum for ${queueKey}! Current: ${queue.length}, Target: ${this.MINIMUM_QUEUE_SIZE}+`);
+    // Log stack status for monitoring
+    if (this.sessionStack.length < this.MINIMUM_STACK_SIZE) {
+      console.warn(`⚠️ Stack below minimum! Current: ${this.sessionStack.length}, Target: ${this.MINIMUM_STACK_SIZE}+`);
     }
     
-    return session || null;
+    console.log(`⚡ INSTANT ACCESS: Popped ${session.vote_type} session, ${this.sessionStack.length} remaining in stack`);
+    return session;
   }
 
-  // 🎯 Preload sessions for specific collection (public method)
+  // 🎯 Preload sessions for stack (simplified - no collection filtering)
   async preloadSessionsForCollection(count: number, collectionFilter?: string) {
+    // Since we removed collection filtering, just refill the main stack
     if (this.isPreloading) return;
     
-    const queueKey = collectionFilter || 'mixed';
-    console.log(`🎯 Preloading ${count} sessions for ${queueKey}...`);
-    
-    this.isPreloading = true;
-    const sessions = [];
-    
-    try {
-      for (let i = 0; i < count; i++) {
-        const session = await this.generateSession(collectionFilter);
-        if (session) {
-          sessions.push(session);
-        }
-      }
-      
-      // Add to the appropriate queue
-      const existingQueue = this.preloadedSessions.get(queueKey) || [];
-      this.preloadedSessions.set(queueKey, [...existingQueue, ...sessions]);
-      
-      console.log(`✅ Preloaded ${sessions.length} sessions for ${queueKey}`);
-    } catch (error) {
-      console.error(`❌ Error preloading sessions for ${queueKey}:`, error);
-    } finally {
-      this.isPreloading = false;
-    }
+    console.log(`🎯 Adding ${count} sessions to stack (collection filtering removed for speed)...`);
+    await this.preloadSessions(count);
   }
 
-  // 📊 Get preload status (collection-aware)
+  // 📊 Get stack status (optimized for speed)
   getStatus() {
-    const totalSessions = Array.from(this.preloadedSessions.values())
-      .reduce((total, queue) => total + queue.length, 0);
-    
-    const queues: Record<string, number> = {};
-    for (const [key, queue] of this.preloadedSessions.entries()) {
-      queues[key] = queue.length;
-    }
-    
     return {
-      queueLength: totalSessions, // Keep for backward compatibility
-      queues: queues,
+      queueLength: this.sessionStack.length, // Stack size for backward compatibility
+      stackSize: this.sessionStack.length,
       isPreloading: this.isPreloading,
-      cacheSize: this.imagePreloadCache.size
+      cacheSize: this.imagePreloadCache.size,
+      targetSize: this.TARGET_STACK_SIZE,
+      minimumSize: this.MINIMUM_STACK_SIZE
     };
   }
 
-  // 🔍 Force queue to minimum size (for mixed collection)
-  async ensureMinimumQueue(): Promise<void> {
-    const mixedQueue = this.preloadedSessions.get('mixed') || [];
-    if (mixedQueue.length < this.MINIMUM_QUEUE_SIZE && !this.isPreloading) {
-      const needed = this.TARGET_PRELOAD_COUNT - mixedQueue.length;
-      console.log(`🔍 Enforcing minimum queue for mixed: need ${needed} more sessions`);
+  // 🔍 Force stack to minimum size (optimized)
+  async ensureMinimumStack(): Promise<void> {
+    if (this.sessionStack.length < this.MINIMUM_STACK_SIZE && !this.isPreloading) {
+      const needed = this.TARGET_STACK_SIZE - this.sessionStack.length;
+      console.log(`🔍 Enforcing minimum stack: need ${needed} more sessions`);
       await this.preloadSessions(needed);
     }
   }
+  
+  // Backward compatibility alias
+  async ensureMinimumQueue(): Promise<void> {
+    return this.ensureMinimumStack();
+  }
 
-  // 🔥 Initialize preloader with guaranteed minimum
+  // 🔥 Initialize optimized stack preloader
   async initialize(): Promise<void> {
-    console.log('🔥 Initializing voting preloader...');
+    console.log('🔥 Initializing STACK-OPTIMIZED voting preloader...');
     await this.preloadSessions();
     
     // Ensure we hit the minimum after initial load
-    await this.ensureMinimumQueue();
+    await this.ensureMinimumStack();
     
-    const totalSessions = Array.from(this.preloadedSessions.values())
-      .reduce((total, queue) => total + queue.length, 0);
-    console.log(`✅ Preloader initialized with ${totalSessions} total sessions ready`);
+    console.log(`✅ Stack preloader initialized with ${this.sessionStack.length} sessions ready for instant access`);
+    console.log(`🚀 PERFORMANCE: ${this.sessionStack.length}x sessions preloaded for zero-delay voting`);
   }
 
   // 🚫 Mark NFT as seen to prevent duplicates
@@ -704,48 +691,40 @@ class VotingPreloader {
     console.log('🎯 Session reset - cleared duplicate tracking');
   }
 
-  // 🚫👻 Force clear all cached sessions (for filter updates, etc.)
+  // 🚫👻 Force clear all cached sessions and rebuild stack
   public async forceFullReset(): Promise<void> {
-    this.preloadedSessions.clear();
+    this.sessionStack.length = 0; // Clear the stack
     this.clearSeenNFTs();
     this.imagePreloadCache.clear();
-    console.log('🔄 FORCE RESET: Cleared all preloaded sessions, seen NFTs, and image cache');
+    console.log('🔄 FORCE RESET: Cleared stack, seen NFTs, and image cache');
     
-    // Restart preloading with updated filters and wait for completion
+    // Restart preloading with fresh stack
     if (!this.isPreloading) {
-      console.log('🔄 Regenerating sessions with unrevealed NFT filters...');
-      await this.preloadSessions(this.TARGET_PRELOAD_COUNT);
-      console.log('✅ Fresh sessions generated with filters applied');
+      console.log('🔄 Rebuilding session stack with fresh data...');
+      await this.preloadSessions(this.TARGET_STACK_SIZE);
+      console.log('✅ Fresh session stack generated');
     }
   }
 
-  // 📋 Get session stats including duplicate tracking
+  // 📋 Get session stats for stack (optimized)
   public getSessionStats() {
-    const totalSessions = Array.from(this.preloadedSessions.values())
-      .reduce((total, queue) => total + queue.length, 0);
-    
     return {
-      queueLength: totalSessions,
+      queueLength: this.sessionStack.length, // For backward compatibility
+      stackSize: this.sessionStack.length,
       isPreloading: this.isPreloading,
       cacheSize: this.imagePreloadCache.size,
       seenNFTs: this.seenNFTIds.size,
-      maxSeenNFTs: this.MAX_SEEN_NFTS
+      maxSeenNFTs: this.MAX_SEEN_NFTS,
+      targetSize: this.TARGET_STACK_SIZE,
+      minimumSize: this.MINIMUM_STACK_SIZE
     };
   }
 
-  // 🚫 Skip current session and get next one when images fail
+  // 🚫 Skip failed session and get next from stack
   public async skipFailedSession(): Promise<VotingSession | null> {
-    console.log('🚫 Skipping failed session, getting next available...');
+    console.log('🚫 Skipping failed session, popping next from stack...');
     
-    // Remove current session from mixed queue if it exists (fallback behavior)
-    const mixedQueue = this.preloadedSessions.get('mixed') || [];
-    if (mixedQueue.length > 0) {
-      const failedSession = mixedQueue.shift();
-      this.preloadedSessions.set('mixed', mixedQueue);
-      console.log(`❌ Removed failed ${failedSession?.vote_type} session from mixed queue`);
-    }
-
-    // Try to get next session (default to mixed for backward compatibility)
+    // With stack-based system, we simply try the next session
     let session = this.getNextSession();
     let attempts = 0;
     const maxAttempts = 5;
@@ -761,11 +740,18 @@ class VotingPreloader {
         return session;
       }
 
-      console.log(`❌ Session images failed, trying next...`);
-      session = await this.getNextSession();
+      console.log(`❌ Session images failed, trying next from stack...`);
+      session = this.getNextSession();
     }
 
-    console.log('🚨 Could not find a session with valid images');
+    console.log('🚨 Could not find a session with valid images in stack');
+    
+    // Emergency: Force rebuild stack if all sessions are failing
+    if (this.sessionStack.length < 3) {
+      console.log('🚨 Stack nearly empty, forcing emergency rebuild...');
+      await this.forceFullReset();
+    }
+    
     return null;
   }
 

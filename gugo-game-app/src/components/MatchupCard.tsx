@@ -17,6 +17,7 @@ interface MatchupCardProps {
   onNoVote?: () => void; // Callback when user votes "No" (doesn't like either)
   onImageFailure?: () => void; // Callback when all image loading fails
   isVoting?: boolean;
+  lastVoteWinnerId?: string; // For winner animation
 }
 
 // 🔢 Simple hash function for consistent placeholders
@@ -32,13 +33,21 @@ const simpleHash = (str: string): number => {
 
 
 
-function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = false }: MatchupCardProps) {
+function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = false, lastVoteWinnerId }: MatchupCardProps) {
   const [hoveredNft, setHoveredNft] = useState<string | null>(null);
   const [copiedAddresses, setCopiedAddresses] = useState<{[key: string]: string | null}>({});
   const [sliderPosition, setSliderPosition] = useState(50); // 50 = center, 0 = left/top NFT, 100 = right/bottom NFT
   const [isDragging, setIsDragging] = useState(false);
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
   const [showNoButton, setShowNoButton] = useState(false);
+  const [voteAnimationState, setVoteAnimationState] = useState<{
+    winnerId: string | null;
+    isAnimating: boolean;
+    fadeOutGlow: boolean;
+    isFireVote: boolean;
+  }>({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
+  
+
 
   // Show "No" button after 5 seconds - reset timer for each new matchup
   useEffect(() => {
@@ -50,7 +59,25 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [nft1.id, nft2.id]); // Reset timer when NFTs change
+  }, [nft1.id, nft2.id]);
+
+  // Clear glow animation when new NFTs load
+  useEffect(() => {
+    setVoteAnimationState({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
+  }, [nft1.id, nft2.id]);
+
+  // ⚡ OPTIMIZED: Glow stays until new cards appear (no gap)
+  const handleVoteWithAnimation = async (winnerId: string, superVote: boolean = false) => {
+    if (isVoting || voteAnimationState.isAnimating) return;
+    
+    // 1. Instant glow feedback (white for regular, fire for super votes)
+    setVoteAnimationState({ winnerId, isAnimating: true, fadeOutGlow: false, isFireVote: superVote });
+    
+    // 2. Call the vote function immediately (no waiting for UI)
+    onVote(winnerId, superVote);
+    
+    // 3. Glow stays on until useEffect clears it when new NFTs load - no gap!
+  }; // Reset timer when NFTs change
 
   const handleCopyAddress = async (address: string, type: 'collection' | 'nft', nftId: string) => {
     try {
@@ -177,7 +204,13 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     };
   }, [isDragging]);
 
-  const NFTCard = ({ nft, position }: { nft: NFTData; position: 'left' | 'right' }) => (
+  const NFTCard = ({ nft, position }: { nft: NFTData; position: 'left' | 'right' }) => {
+    const isWinner = (voteAnimationState.isAnimating || voteAnimationState.fadeOutGlow) && 
+                     voteAnimationState.winnerId === nft.id;
+    const isFadingOut = voteAnimationState.fadeOutGlow && voteAnimationState.winnerId === nft.id;
+    const isFireVote = voteAnimationState.isFireVote && voteAnimationState.winnerId === nft.id;
+    
+    return (
     <div 
       className="nft-card"
       style={{
@@ -202,12 +235,19 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
       }} />
       <div style={{
         background: 'var(--color-white)',
-        border: hoveredNft === nft.id ? '3px solid var(--color-black)' : '2px solid var(--color-grey-200)',
+        border: isWinner ? (isFireVote ? '4px solid #ff6b35' : '4px solid white') : 
+                hoveredNft === nft.id && !voteAnimationState.isAnimating ? '3px solid var(--color-black)' : '2px solid var(--color-grey-200)',
         borderRadius: 'var(--border-radius-lg)',
         overflow: 'hidden',
-        transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out, border 0.2s ease-out',
-        transform: hoveredNft === nft.id ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)',
-        boxShadow: hoveredNft === nft.id ? '0 20px 40px rgba(0,0,0,0.2)' : '0 8px 24px rgba(0,0,0,0.12)',
+        transition: 'box-shadow 0.1s ease-out, border 0.1s ease-out, transform 0.3s ease-out',
+        transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)',
+        boxShadow: isWinner && isFireVote ? 
+                   '0 0 40px rgba(255, 107, 53, 0.9), 0 0 80px rgba(255, 140, 0, 0.6), 0 0 120px rgba(255, 165, 0, 0.4)' :
+                   isWinner && !isFireVote ? 
+                   '0 0 40px rgba(255, 255, 255, 0.9), 0 0 80px rgba(255, 255, 255, 0.6), 0 0 120px rgba(255, 255, 255, 0.4)' :
+                   hoveredNft === nft.id && !voteAnimationState.isAnimating ? 
+                   '0 8px 24px rgba(0,0,0,0.12), 0 20px 40px rgba(0,0,0,0.2)' :
+                   '0 8px 24px rgba(0,0,0,0.12)',
         opacity: isVoting ? 0.7 : 1,
         position: 'relative',
         zIndex: 10
@@ -223,7 +263,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           }}
           onMouseEnter={() => !isVoting && setHoveredNft(nft.id)}
           onMouseLeave={() => setHoveredNft(null)}
-          onClick={() => !isVoting && onVote(nft.id, false)}
+          onClick={() => !isVoting && !voteAnimationState.isAnimating && handleVoteWithAnimation(nft.id, false)}
         >
           <img 
             src={fixImageUrl(nft.image)} 
@@ -232,7 +272,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               height: '100%',
               objectFit: 'cover',
               transition: 'transform var(--transition-slow)',
-              transform: hoveredNft === nft.id ? 'scale(1.05)' : 'scale(1)'
+              transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'scale(1.05)' : 'scale(1)'
             }}
             alt={`NFT ${nft.id}`}
             onLoadStart={(e) => {
@@ -408,9 +448,9 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onVote) {
+                    if (!isVoting && !voteAnimationState.isAnimating) {
                       console.log('🔥 Super vote triggered for NFT:', nft.id);
-                      onVote(nft.id, true); // true = super vote
+                      handleVoteWithAnimation(nft.id, true); // true = super vote
                     }
                   }}
                   style={{
@@ -544,7 +584,8 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div style={{ 
@@ -559,6 +600,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
       zIndex: 5,
       overflow: 'visible'
     }}>
+
       {/* Desktop: Side by Side, Mobile: Stacked */}
       <div 
         className="matchup-container"
@@ -796,30 +838,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
         </div>
       )}
 
-      {/* Voting Status */}
-      {isVoting && (
-        <div className="slide-up" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--space-2)',
-          padding: 'var(--space-3) var(--space-6)',
-          background: 'var(--color-grey-100)',
-          borderRadius: 'var(--border-radius)',
-          color: 'var(--color-grey-600)',
-          fontSize: 'var(--font-size-sm)',
-          fontWeight: '500'
-        }}>
-          <div style={{
-            width: '16px',
-            height: '16px',
-            border: '2px solid var(--color-green)',
-            borderTop: '2px solid transparent',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }}></div>
-          Processing vote...
-        </div>
-      )}
+
     </div>
   );
 }

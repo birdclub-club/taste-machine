@@ -4,10 +4,10 @@ import React from 'react';
 
 interface WelcomePopupProps {
   isOpen: boolean;
-  onCollectionChoice: (choice: 'bearish' | 'mix') => void;
+  onAccept: () => void;
 }
 
-export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopupProps) {
+export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
   if (!isOpen) return null;
 
   return (
@@ -33,21 +33,53 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
     >
       <div 
         style={{
-          background: '#1a1a1a', // Dark background to match site
+          background: 'linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%)', // Medium-dark gradient for readability
           borderRadius: 'var(--border-radius-lg)',
-          padding: 'var(--space-6)', // Smaller padding
+          padding: 'var(--space-6)',
           textAlign: 'center',
-          maxWidth: '600px', // Back to original size for vertical layout
+          maxWidth: '600px',
           width: '100%',
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
-          border: '1px solid var(--accent-color)', // Green border to match theme
-          position: 'relative'
+          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)',
+          border: '2px solid var(--accent-color)',
+          position: 'relative',
+          overflow: 'hidden' // For halftone dots
         }}
         onClick={(e) => {
           // Prevent clicks inside modal from closing it
           e.stopPropagation();
         }}
       >
+        {/* Halftone dots around edges */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          right: '10px',
+          bottom: '10px',
+          pointerEvents: 'none',
+          background: `
+            radial-gradient(circle at 20px 20px, var(--accent-color) 2px, transparent 2px),
+            radial-gradient(circle at 40px 35px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
+            radial-gradient(circle at 15px 50px, var(--accent-color) 1px, transparent 1px),
+            radial-gradient(circle at 35px 15px, rgba(0,0,0,0.1) 1px, transparent 1px),
+            radial-gradient(circle at calc(100% - 20px) 20px, var(--accent-color) 2px, transparent 2px),
+            radial-gradient(circle at calc(100% - 40px) 35px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
+            radial-gradient(circle at calc(100% - 15px) 50px, var(--accent-color) 1px, transparent 1px),
+            radial-gradient(circle at calc(100% - 35px) 15px, rgba(0,0,0,0.1) 1px, transparent 1px),
+            radial-gradient(circle at 20px calc(100% - 20px), var(--accent-color) 2px, transparent 2px),
+            radial-gradient(circle at 40px calc(100% - 35px), rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
+            radial-gradient(circle at 15px calc(100% - 50px), var(--accent-color) 1px, transparent 1px),
+            radial-gradient(circle at 35px calc(100% - 15px), rgba(0,0,0,0.1) 1px, transparent 1px),
+            radial-gradient(circle at calc(100% - 20px) calc(100% - 20px), var(--accent-color) 2px, transparent 2px),
+            radial-gradient(circle at calc(100% - 40px) calc(100% - 35px), rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
+            radial-gradient(circle at calc(100% - 15px) calc(100% - 50px), var(--accent-color) 1px, transparent 1px),
+            radial-gradient(circle at calc(100% - 35px) calc(100% - 15px), rgba(0,0,0,0.1) 1px, transparent 1px)
+          `,
+          backgroundSize: '60px 60px, 60px 60px, 60px 60px, 60px 60px',
+          opacity: 0.6,
+          borderRadius: 'var(--border-radius-lg)'
+        }} />
+
         {/* GOGO Duck Image - Back on Top */}
         <div style={{ 
           marginBottom: 'var(--space-4)',
@@ -67,10 +99,10 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
         </div>
 
         {/* Header */}
-        <div style={{ marginBottom: 'var(--space-5)' }}>
+        <div style={{ marginBottom: 'var(--space-5)', position: 'relative', zIndex: 1 }}>
           <h1 style={{ 
-            color: 'var(--color-white)',
-            fontSize: 'var(--font-size-xl)', // Smaller title
+            color: '#ffffff', // White text for dark background
+            fontSize: 'var(--font-size-xl)',
             fontWeight: '700',
             marginBottom: 'var(--space-4)',
             lineHeight: '1.3'
@@ -85,7 +117,9 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
           textAlign: 'left',
           fontSize: 'var(--font-size-base)',
           lineHeight: '1.5',
-          color: '#e5e5e5'
+          color: '#e5e5e5', // Light text for dark background
+          position: 'relative',
+          zIndex: 1
         }}>
           <p style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-lg)' }}>
             Where beauty matters and metadata doesn't.
@@ -126,116 +160,77 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
           </div>
         </div>
 
-        {/* Question */}
-        <div style={{ marginBottom: 'var(--space-4)' }}>
+        {/* Call to Action */}
+        <div style={{ marginBottom: 'var(--space-4)', position: 'relative', zIndex: 1 }}>
           <h2 style={{ 
-            color: 'var(--color-white)',
-            fontSize: 'var(--font-size-lg)', // Smaller question
+            color: '#ffffff', // White text for dark background
+            fontSize: 'var(--font-size-lg)',
             fontWeight: '600',
             marginBottom: 'var(--space-3)'
           }}>
-            Which NFTs do you want to focus on?
+            Ready to start voting?
           </h2>
         </div>
 
-        {/* Choice Buttons */}
+        {/* Start Button */}
         <div style={{ 
           display: 'flex',
-          gap: 'var(--space-3)',
           justifyContent: 'center',
-          flexWrap: 'wrap',
-          marginBottom: 'var(--space-4)'
+          marginBottom: 'var(--space-4)',
+          position: 'relative',
+          zIndex: 1
         }}>
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('🐻 Bearish button clicked');
-              onCollectionChoice('bearish');
+              console.log('🚀 Starting voting experience...');
+              onAccept();
             }}
             style={{
-              padding: 'var(--space-2) var(--space-4)', // Even smaller padding
-              background: '#333333', // Dark grey
-              color: 'var(--color-white)',
-              border: '2px solid #333333',
+              padding: 'var(--space-3) var(--space-6)',
+              background: 'var(--accent-color)',
+              color: '#000000',
+              border: '2px solid var(--accent-color)',
               borderRadius: 'var(--border-radius)',
-              fontSize: 'var(--font-size-sm)', // Smaller font
-              fontWeight: '600',
+              fontSize: 'var(--font-size-base)',
+              fontWeight: '700',
               cursor: 'pointer',
               transition: 'all 0.3s ease',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              minWidth: '120px', // Smaller width
-              flex: '1', // Take equal space
-              maxWidth: '160px' // Smaller max width
+              minWidth: '200px',
+              boxShadow: '0 4px 20px rgba(var(--accent-color-rgb), 0.4)'
             }}
             onMouseEnter={(e) => {
               const target = e.target as HTMLElement;
-              target.style.background = 'var(--color-white)';
-              target.style.color = '#333333';
+              target.style.background = 'transparent';
+              target.style.color = 'var(--accent-color)';
               target.style.transform = 'translateY(-2px)';
-              target.style.boxShadow = '0 6px 20px rgba(255, 255, 255, 0.2)';
+              target.style.boxShadow = '0 6px 25px rgba(var(--accent-color-rgb), 0.6)';
             }}
             onMouseLeave={(e) => {
               const target = e.target as HTMLElement;
-              target.style.background = '#333333';
-              target.style.color = 'var(--color-white)';
+              target.style.background = 'var(--accent-color)';
+              target.style.color = '#000000';
               target.style.transform = 'translateY(0)';
-              target.style.boxShadow = 'none';
+              target.style.boxShadow = '0 4px 20px rgba(var(--accent-color-rgb), 0.4)';
             }}
           >
-            Bearish
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('🎯 Mix it Up button clicked');
-              onCollectionChoice('mix');
-            }}
-            style={{
-              padding: 'var(--space-2) var(--space-4)', // Even smaller padding
-              background: '#333333', // Same dark grey as Bearish button
-              color: 'var(--color-white)', // White text
-              border: '2px solid #333333', // Same border
-              borderRadius: 'var(--border-radius)',
-              fontSize: 'var(--font-size-sm)', // Smaller font
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              minWidth: '120px', // Smaller width
-              flex: '1', // Take equal space
-              maxWidth: '160px' // Smaller max width
-            }}
-            onMouseEnter={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.background = 'var(--color-white)';
-              target.style.color = '#333333';
-              target.style.transform = 'translateY(-2px)';
-              target.style.boxShadow = '0 6px 20px rgba(255, 255, 255, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.target as HTMLElement;
-              target.style.background = '#333333';
-              target.style.color = 'var(--color-white)';
-              target.style.transform = 'translateY(0)';
-              target.style.boxShadow = 'none';
-            }}
-          >
-            Mix it Up
+            Start Voting
           </button>
         </div>
 
-        {/* Subtitle */}
+        {/* Note */}
         <div style={{ 
-          fontSize: 'var(--font-size-xs)', // Even smaller subtitle
-          color: '#999999', // Light grey for dark background
-          fontStyle: 'italic'
+          fontSize: 'var(--font-size-xs)',
+          color: '#999999', // Light gray for dark background
+          fontStyle: 'italic',
+          textAlign: 'center',
+          position: 'relative',
+          zIndex: 1
         }}>
-          You can change this preference anytime in settings
+          You'll see NFTs from all collections for maximum variety
         </div>
 
         {/* Monster Logo - Bottom Right Corner */}

@@ -605,3 +605,26 @@ body.wallet-connected {
     transform: scale(1) translateY(0);
   }
 }
+
+/* Wipe transition animations for voting */
+@keyframes wipe-left {
+  0% {
+    left: -100%;
+    right: 100%;
+  }
+  100% {
+    left: 100%;
+    right: -100%;
+  }
+}
+
+@keyframes wipe-right {
+  0% {
+    left: 100%;
+    right: -100%;
+  }
+  100% {
+    left: -100%;
+    right: 100%;
+  }
+}

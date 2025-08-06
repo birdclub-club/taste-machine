@@ -5,76 +5,49 @@ import { useState, useEffect } from 'react';
 export type CollectionPreference = 'bearish' | 'mix' | null;
 
 export function useCollectionPreference() {
-  const [preference, setPreference] = useState<CollectionPreference>(null); // Start with null
-  const [hasSetPreference, setHasSetPreference] = useState(false); // Start with false to trigger welcome popup
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
 
-  // Load preference from localStorage on mount
+  // Load welcome status from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('collection-preference');
-    if (stored && (stored === 'bearish' || stored === 'mix')) {
-      setPreference(stored);
-      setHasSetPreference(true);
-      console.log(`🎯 Loaded stored preference: ${stored}`);
+    const hasSeenWelcomeStored = localStorage.getItem('has-seen-welcome');
+    if (hasSeenWelcomeStored === 'true') {
+      setHasSeenWelcome(true);
+      console.log('✅ User has seen welcome popup before');
     } else {
-      // If no stored preference, user needs to see welcome popup
-      setPreference(null); // Keep as null until user chooses
-      setHasSetPreference(false); // This will trigger welcome popup
-      console.log('🆕 No stored preference - welcome popup will show');
-      // Don't save to localStorage yet - let user choose in welcome popup
+      setHasSeenWelcome(false);
+      console.log('🆕 First-time user - welcome popup will show');
     }
   }, []);
 
-  // Save preference to localStorage
-  const setCollectionPreference = (pref: CollectionPreference) => {
-    setPreference(pref);
-    setHasSetPreference(true);
-    
-    if (pref) {
-      localStorage.setItem('collection-preference', pref);
-      console.log(`🎯 Collection preference set to: ${pref}`);
-    } else {
-      localStorage.removeItem('collection-preference');
-      console.log('🗑️ Collection preference cleared');
-    }
+  // Mark welcome as seen
+  const markWelcomeAsSeen = () => {
+    setHasSeenWelcome(true);
+    localStorage.setItem('has-seen-welcome', 'true');
+    console.log('✅ Welcome popup marked as seen');
   };
 
-  // Check if user should see welcome popup
-  const shouldShowWelcome = !hasSetPreference;
+  // Always return 'mix' preference for maximum speed - no collection filtering
+  const preference: CollectionPreference = 'mix';
 
   return {
     preference,
-    hasSetPreference,
-    shouldShowWelcome,
-    setCollectionPreference
+    hasSetPreference: hasSeenWelcome,
+    shouldShowWelcome: !hasSeenWelcome,
+    setCollectionPreference: markWelcomeAsSeen // Simplified - just marks welcome as seen
   };
 }
 
 // Utility function to get collection filter for API calls
+// Always returns null for maximum speed - no collection filtering
 export function getCollectionFilter(preference: CollectionPreference): string | null {
-  switch (preference) {
-    case 'bearish':
-      return 'BEARISH'; // Updated to match actual database collection name
-    case 'mix':
-      return null; // No filter = all collections
-    case null:
-      return 'BEARISH'; // Default to BEARISH for null (before user has chosen)
-    default:
-      return 'BEARISH'; // Default to BEARISH
-  }
+  return null; // Always return null = show all collections for maximum variety and speed
 }
 
 // Utility function to check if an NFT matches the current preference
+// Always returns true for maximum speed - no collection filtering
 export function matchesCollectionPreference(
   nftCollectionName: string | null, 
   preference: CollectionPreference
 ): boolean {
-  if (preference === 'mix') {
-    return true; // Show all collections
-  }
-  
-  if (preference === 'bearish' || preference === null) {
-    return nftCollectionName === 'BEARISH'; // Updated to match actual database collection name
-  }
-  
-  return nftCollectionName === 'BEARISH'; // Default to BEARISH only
+  return true; // Always return true = show all NFTs for maximum variety and speed
 }

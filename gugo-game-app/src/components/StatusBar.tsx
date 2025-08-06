@@ -141,7 +141,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
   const [showAboutPopup, setShowAboutPopup] = useState(false);
   const [showHowPopup, setShowHowPopup] = useState(false);
   const [showWhyPopup, setShowWhyPopup] = useState(false);
-  const [showCollectionsPopup, setShowCollectionsPopup] = useState(false);
+
   const [claimingVotes, setClaimingVotes] = useState(false);
   const [showLickPopup, setShowLickPopup] = useState(false);
   const [popupStage, setPopupStage] = useState<'initial' | 'animating' | 'result'>('initial');
@@ -806,214 +806,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
     </div>
   );
 
-  // Collections popup component
-  const CollectionsPopup = () => {
-    const handleCollectionChange = async (newPreference: 'bearish' | 'mix') => {
-      console.log(`🎯 Switching collection preference from "${preference}" to "${newPreference}"`);
-      console.log('🔧 Debug: Current preference before change:', preference);
-      setCollectionPreference(newPreference);
-      
-      // Add extra debugging to track the change
-      setTimeout(() => {
-        console.log('🔧 Debug: Preference should now be:', newPreference);
-      }, 100);
-      
-      console.log('✅ Collection preference updated - ready to apply changes');
-    };
 
-    const handleGoClick = () => {
-      console.log('🚀 Go button clicked - closing modal and triggering soft refresh');
-      setShowCollectionsPopup(false);
-      console.log('🔧 Debug: Modal closed, page.tsx useEffect should be triggered...');
-    };
-    
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: 'var(--space-4)'
-      }} onClick={() => setShowCollectionsPopup(false)}>
-        <div style={{
-          background: '#2a2a2a',
-          borderRadius: 'var(--border-radius-lg)',
-          padding: 'var(--space-6)',
-          maxWidth: '320px',
-          width: '100%',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-          position: 'relative',
-          border: '1px solid #444444'
-        }} onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => setShowCollectionsPopup(false)}
-            style={{
-              position: 'absolute',
-              top: 'var(--space-4)',
-              right: 'var(--space-4)',
-              background: 'none',
-              border: 'none',
-              fontSize: 'var(--font-size-xl)',
-              cursor: 'pointer',
-              color: 'var(--color-white)'
-            }}
-          >
-            ×
-          </button>
-          
-          <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
-            <h2 style={{ 
-              fontSize: 'var(--font-size-lg)', 
-              fontWeight: '600', 
-              color: 'var(--color-white)',
-              marginBottom: 'var(--space-1)',
-              textTransform: 'none'
-            }}>
-              Collections
-            </h2>
-          </div>
-
-          <div style={{ textAlign: 'center', lineHeight: '1.6' }}>
-            <p style={{ 
-              marginBottom: 'var(--space-4)', 
-              color: '#cccccc', 
-              fontSize: 'var(--font-size-sm)',
-            }}>
-              Focus on:
-            </p>
-            
-            {/* Toggle Switch */}
-            <div style={{ 
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 'var(--space-3)',
-              marginBottom: 'var(--space-4)'
-            }}>
-              <span style={{ 
-                fontSize: 'var(--font-size-sm)',
-                color: preference === 'bearish' ? '#ffffff' : '#cccccc',
-                fontWeight: preference === 'bearish' ? '700' : '500',
-                transition: 'all 0.3s ease',
-                textShadow: preference === 'bearish' ? '0 0 8px var(--accent-color)' : 'none'
-              }}>
-                Bearish
-              </span>
-              
-              {/* Toggle Switch */}
-              <div 
-                onClick={() => handleCollectionChange(preference === 'bearish' ? 'mix' : 'bearish')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                  e.currentTarget.style.boxShadow = preference === 'bearish' 
-                    ? '0 0 16px rgba(var(--accent-color-rgb), 0.6)' 
-                    : '0 0 12px rgba(255,255,255,0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = preference === 'bearish' 
-                    ? '0 0 12px rgba(var(--accent-color-rgb), 0.4)' 
-                    : '0 0 8px rgba(255,255,255,0.2)';
-                }}
-                style={{
-                  position: 'relative',
-                  width: '56px',
-                  height: '28px',
-                  background: preference === 'bearish' ? 'var(--accent-color)' : '#666666',
-                  borderRadius: '14px',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  border: `2px solid ${preference === 'bearish' ? 'var(--accent-color)' : '#999999'}`,
-                  boxShadow: preference === 'bearish' ? '0 0 12px rgba(var(--accent-color-rgb), 0.4)' : '0 0 8px rgba(255,255,255,0.2)'
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: '3px',
-                  left: preference === 'bearish' ? '3px' : '29px',
-                  width: '20px',
-                  height: '20px',
-                  background: '#ffffff',
-                  borderRadius: '50%',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
-                  border: '1px solid #e0e0e0'
-                }} />
-              </div>
-              
-              <span style={{ 
-                fontSize: 'var(--font-size-sm)',
-                color: preference === 'mix' ? '#ffffff' : '#cccccc',
-                fontWeight: preference === 'mix' ? '700' : '500',
-                transition: 'all 0.3s ease',
-                textShadow: preference === 'mix' ? '0 0 8px var(--accent-color)' : 'none'
-              }}>
-                Mix it Up
-              </span>
-            </div>
-            
-            <div style={{ 
-              fontSize: 'var(--font-size-sm)',
-              color: '#ffffff',
-              fontWeight: '600',
-              padding: 'var(--space-3)',
-              background: preference === 'bearish' ? 'rgba(var(--accent-color-rgb), 0.15)' : 'rgba(255, 255, 255, 0.1)',
-              borderRadius: 'var(--border-radius)',
-              border: `1px solid ${preference === 'bearish' ? 'var(--accent-color)' : '#666666'}`,
-              textAlign: 'center',
-              textShadow: preference === 'bearish' ? '0 0 8px var(--accent-color)' : 'none',
-              marginBottom: 'var(--space-4)'
-            }}>
-              {preference === 'bearish' 
-                ? '🐻 Currently showing only Bearish NFTs'
-                : '🎨 Currently showing NFTs from all collections'
-              }
-            </div>
-            
-            {/* Go Button */}
-            <div style={{ textAlign: 'center' }}>
-              <button
-                onClick={handleGoClick}
-                style={{
-                  background: 'linear-gradient(135deg, var(--accent-color) 0%, #00d4aa 100%)',
-                  color: '#000000',
-                  border: '2px solid var(--accent-color)',
-                  borderRadius: '8px',
-                  padding: '12px 24px',
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 20px rgba(var(--accent-color-rgb), 0.5)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  minWidth: '80px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.08)';
-                  e.currentTarget.style.boxShadow = '0 6px 30px rgba(var(--accent-color-rgb), 0.7)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, #00ff88 0%, var(--accent-color) 100%)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(var(--accent-color-rgb), 0.5)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, var(--accent-color) 0%, #00d4aa 100%)';
-                }}
-              >
-                Go
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -1162,28 +955,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                 Why
               </span>
               
-              {/* Collections */}
-              <span
-                onClick={() => setShowCollectionsPopup(true)}
-                style={{
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
-                  fontWeight: '500',
-                  color: 'var(--color-grey-300)',
-                  transition: 'all var(--transition-base)',
-                  textDecoration: 'none'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--color-white)';
-                  e.currentTarget.style.textDecoration = 'underline';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--color-grey-300)';
-                  e.currentTarget.style.textDecoration = 'none';
-                }}
-              >
-                Collections
-              </span>
+
             </div>
           </div>
 
@@ -1808,8 +1580,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
       {/* Why Popup */}
       {showWhyPopup && <WhyPopup />}
       
-      {/* Collections Popup */}
-      {showCollectionsPopup && <CollectionsPopup />}
+
       
       {/* Lick Claiming Popup */}
       {showLickPopup && (
