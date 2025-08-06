@@ -35,16 +35,16 @@ class VotingPreloader {
 
     return new Promise((resolve) => {
       let attemptCount = 0;
-      const maxAttempts = 5; // Try 5 different gateways
+      const maxAttempts = 2; // Reduced to 2 for faster preload
       let currentUrl = fixImageUrl(imageUrl);
 
       const tryLoadImage = () => {
         const img = new Image();
         
         const timeout = setTimeout(() => {
-          console.log(`⏰ Timeout for attempt ${attemptCount + 1}: ${currentUrl.substring(0, 60)}...`);
+          console.log(`⏰ Preload timeout ${attemptCount + 1}: ${currentUrl.substring(0, 60)}...`);
           tryNextGateway();
-        }, 5000); // Increased timeout to 5 seconds
+        }, 1000); // Reduced to 1 second for ultra-fast gateway switching
 
         img.onload = () => {
           clearTimeout(timeout);

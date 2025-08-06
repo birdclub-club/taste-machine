@@ -54,6 +54,25 @@ export function usePrizeBreak() {
 
     console.log(`🎁 Prize break started after ${voteCount} votes - claiming rewards from smart contract...`);
 
+    // Safety timeout to prevent getting stuck in "It's Happening" state
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Prize break claiming timeout - forcing exit from "It\'s Happening" state');
+      setPrizeBreakState(prev => ({
+        ...prev,
+        isClaimingReward: false,
+        reward: {
+          rewardType: 0,
+          xpAmount: 10,
+          votesAmount: 0,
+          gugoAmount: 0,
+          licksAmount: 0,
+          timestamp: Date.now()
+        },
+        rewardDescription: 'Basic Reward',
+        rewardEmoji: '⭐'
+      }));
+    }, 10000); // 10 second timeout
+
     try {
       // Check if user is eligible for prize break
       const isEligible = await checkPrizeBreakEligibility();
@@ -65,6 +84,7 @@ export function usePrizeBreak() {
         const reward = await claimPrizeBreak();
         
         if (reward) {
+          clearTimeout(timeoutId); // Clear timeout on success
           const description = getRewardDescription(reward);
           const emoji = getRewardEmoji(reward);
           
@@ -82,6 +102,7 @@ export function usePrizeBreak() {
           // Animations will be triggered when user clicks "Claim Reward" button
           console.log(`🎁 Reward stored: ${reward.xpAmount} XP, ${reward.gugoAmount} GUGO, ${reward.licksAmount} Licks`);
         } else {
+          clearTimeout(timeoutId); // Clear timeout on no reward
           console.warn('⚠️ No reward received from smart contract');
           setPrizeBreakState(prev => ({
             ...prev,
@@ -89,6 +110,7 @@ export function usePrizeBreak() {
           }));
         }
       } else {
+        clearTimeout(timeoutId); // Clear timeout on ineligible
         console.log('ℹ️ User not eligible for prize break on smart contract');
         setPrizeBreakState(prev => ({
           ...prev,
@@ -96,6 +118,7 @@ export function usePrizeBreak() {
         }));
       }
     } catch (error) {
+      clearTimeout(timeoutId); // Clear timeout on error
       console.error('❌ Error claiming prize break reward:', error);
       setPrizeBreakState(prev => ({
         ...prev,

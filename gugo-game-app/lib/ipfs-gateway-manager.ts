@@ -31,15 +31,15 @@ class IPFSGatewayManager {
   }
 
   private initializeGateways() {
+    // 🚀 OPTIMIZED: Fastest gateways first, removed problematic ones
     const gatewayUrls = [
-      'https://ipfs.io/ipfs/',
-      'https://cloudflare-ipfs.com/ipfs/',
-      'https://gateway.pinata.cloud/ipfs/',
-      'https://dweb.link/ipfs/',
-      'https://ipfs.filebase.io/ipfs/',
-      'https://w3s.link/ipfs/',
-      'https://gateway.ipfs.io/ipfs/',
-      'https://hardbin.com/ipfs/'
+      'https://dweb.link/ipfs/',            // BEST for Final Bosu/Fugz (v1 hashes)
+      'https://ipfs.io/ipfs/',              // Most reliable for all types
+      'https://gateway.ipfs.io/ipfs/',      // Fast general purpose
+      'https://ipfs.filebase.io/ipfs/',     // Good backup
+      'https://w3s.link/ipfs/',             // Decent fallback
+      'https://hardbin.com/ipfs/'           // Last resort
+      // Removed: gateway.pinata.cloud due to CORS issues with Final Bosu
     ];
 
     this.gateways = gatewayUrls.map(url => ({
@@ -228,12 +228,19 @@ if (typeof window !== 'undefined') {
 
 export const ipfsGatewayManager = IPFSGatewayManager.getInstance();
 
-// 🔧 Enhanced IPFS URL fixer with adaptive gateway selection
+// 🔧 Enhanced IPFS URL fixer with collection-specific optimization
 export const fixImageUrl = (imageUrl: string): string => {
   if (!imageUrl) return '';
   
   if (imageUrl.startsWith('ipfs://')) {
     const ipfsHash = imageUrl.replace('ipfs://', '');
+    
+    // 🚀 SPEED HACK: Force dweb.link for Final Bosu/Fugz (v1 hashes starting with 'bafy')
+    if (ipfsHash.startsWith('bafybeie') || ipfsHash.startsWith('bafybeig')) {
+      console.log(`🎯 Using optimized gateway for Final Bosu/Fugz: ${ipfsHash.substring(0,12)}...`);
+      return `https://dweb.link/ipfs/${ipfsHash}`;
+    }
+    
     const bestGateway = ipfsGatewayManager.getBestGateway();
     return `${bestGateway}${ipfsHash}`;
   }

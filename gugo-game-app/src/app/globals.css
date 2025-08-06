@@ -62,6 +62,8 @@
   --transition-slow: 350ms ease;
 }
 
+/* Loading skeleton animation removed - using simple background */
+
 /* Reset and base styles */
 * {
   box-sizing: border-box;
@@ -626,5 +628,68 @@ body.wallet-connected {
   100% {
     left: -100%;
     right: 100%;
+  }
+}
+
+/* Burning GUGO Notification Animations */
+@keyframes fire-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 30px rgba(255, 107, 53, 0.8)) drop-shadow(0 0 60px rgba(255, 140, 0, 0.6)) drop-shadow(0 0 90px rgba(255, 165, 0, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 40px rgba(255, 107, 53, 1)) drop-shadow(0 0 80px rgba(255, 140, 0, 0.8)) drop-shadow(0 0 120px rgba(255, 165, 0, 0.6));
+    transform: scale(1.02);
+  }
+}
+
+@keyframes text-glow {
+  0%, 100% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(255, 107, 53, 0.6);
+  }
+  50% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 30px rgba(255, 107, 53, 0.9), 0 0 40px rgba(255, 140, 0, 0.4);
+  }
+}
+
+/* Subtler versions for refined notification */
+@keyframes fire-pulse-subtle {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 107, 53, 0.6)) drop-shadow(0 0 40px rgba(255, 140, 0, 0.4)) drop-shadow(0 0 60px rgba(255, 165, 0, 0.2));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(255, 107, 53, 0.7)) drop-shadow(0 0 50px rgba(255, 140, 0, 0.5)) drop-shadow(0 0 75px rgba(255, 165, 0, 0.3));
+    transform: scale(1.01);
+  }
+}
+
+@keyframes text-glow-subtle {
+  0%, 100% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 107, 53, 0.4);
+  }
+  50% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(255, 107, 53, 0.6), 0 0 25px rgba(255, 140, 0, 0.3);
+  }
+}
+
+/* Art Duck Notification Animations */
+@keyframes white-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 60px rgba(255, 255, 255, 0.2));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 50px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 75px rgba(255, 255, 255, 0.4));
+    transform: scale(1.01);
+  }
+}
+
+@keyframes text-glow-white {
+  0%, 100% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 25px rgba(255, 255, 255, 0.3);
   }
 }

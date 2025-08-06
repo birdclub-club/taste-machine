@@ -8,6 +8,7 @@ import NetworkStatus from '@/components/NetworkStatus';
 import { SessionPrompt } from '@/components/SessionPrompt';
 import WelcomePopup from '@/components/WelcomePopup';
 import Confetti from '@/components/Confetti';
+import CircularMarquee from '@/components/CircularMarquee';
 import { useVote } from '@/hooks/useVote';
 import { usePrizeBreak } from '@/hooks/usePrizeBreak';
 import { useSessionKey } from '@/hooks/useSessionKey';
@@ -21,6 +22,44 @@ import type { VotingSession, VoteSubmission } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 import { supabase } from '@lib/supabase';
 
+// 🎯 Circular marquee phrases for different prize types
+const GUGO_PHRASES = [
+  "Let it burn!",
+  "Burn. Burn. Burn. Burn.",
+  "Oh hell yeah!",
+  "Yessssssssssssssssss",
+  "Been waiting for this one.",
+  "Not a bad day at the Taste Machine",
+  "Cha ching!",
+  "Should probably tell some people about this.",
+  "Winner",
+  "Thanks for giving your opinions.",
+  "Look at art. Get GUGO",
+  "Hope that fire's hot."
+];
+
+const NON_GUGO_PHRASES = [
+  "This should come in handy.",
+  "alright alright alright",
+  "Here, put this in your bag.",
+  "Not bad at all.",
+  "Ok",
+  "Gib",
+  "For the love of art.",
+  "Damn. I like this place.",
+  "You could be looking at art and not winning stuff.",
+  "sweet sweet rewards"
+];
+
+// Random messages for prize break claiming state
+const PRIZE_BREAK_MESSAGES = [
+  "It's happening again",
+  "Prize incoming",
+  "This could be good", 
+  "Reward chance",
+  "?????"
+];
+
 // 🔢 Simple hash function for consistent placeholders
 const simpleHash = (str: string): number => {
   let hash = 0;
@@ -30,6 +69,16 @@ const simpleHash = (str: string): number => {
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
+};
+
+// 🔢 Format numbers with commas for thousands
+const formatNumber = (num: number): string => {
+  return num.toLocaleString();
+};
+
+// 🎲 Get random prize break message
+const getRandomPrizeMessage = (): string => {
+  return PRIZE_BREAK_MESSAGES[Math.floor(Math.random() * PRIZE_BREAK_MESSAGES.length)];
 };
 
 
@@ -101,6 +150,11 @@ export default function Page() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [freeVotesPrizeBreak, setFreeVotesPrizeBreak] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showDelayedPrize, setShowDelayedPrize] = useState(false);
+  const [showMarquee, setShowMarquee] = useState(false);
+  const [showBurningGugo, setShowBurningGugo] = useState(false);
+  const [showArtDuck, setShowArtDuck] = useState(false);
+  const [prizeBreakMessage, setPrizeBreakMessage] = useState<string>('');
   const [showSessionPrompt, setShowSessionPrompt] = useState<{
     isOpen: boolean;
     trigger: 'first-reward' | 'vote-purchase';
@@ -141,24 +195,66 @@ export default function Page() {
                      prizeBreakState.reward.gugoAmount > 0
     });
     
-    // DEMO MODE: Trigger confetti for ANY GUGO amount (removed isClaimingReward check)
-    if (prizeBreakState.isActive && 
-        prizeBreakState.reward && 
-        prizeBreakState.reward.gugoAmount > 0) {
-      console.log('🎉 GUGO prize detected! Starting confetti countdown...');
-      
-      // Immediate confetti for maximum excitement in demo!
-      const confettiTimer = setTimeout(() => {
-        console.log('🎊 🎊 🎊 DEMO CONFETTI FOR GUGO PRIZE:', prizeBreakState.reward!.gugoAmount, 'GUGO 🎊 🎊 🎊');
-        setShowConfetti(true);
-      }, 500); // Reduced delay to 0.5 seconds
+    // Handle prize notifications based on GUGO amount
+    if (prizeBreakState.isActive && prizeBreakState.reward) {
+      if (prizeBreakState.reward.gugoAmount > 0) {
+        // GUGO prizes: confetti + burning duck
+        console.log('🎉 GUGO prize detected! Starting confetti countdown...');
+        
+        // Immediate confetti for maximum excitement in demo!
+        const confettiTimer = setTimeout(() => {
+          console.log('🎊 🎊 🎊 DEMO CONFETTI FOR GUGO PRIZE:', prizeBreakState.reward!.gugoAmount, 'GUGO 🎊 🎊 🎊');
+          setShowConfetti(true);
+        }, 500); // Reduced delay to 0.5 seconds
 
-      return () => clearTimeout(confettiTimer);
+        // Also trigger the burning GUGO notification - appears behind modal
+        console.log('🔥 GUGO burning notification triggered!');
+        setShowBurningGugo(true);
+
+        return () => clearTimeout(confettiTimer);
+      } else {
+        // Non-GUGO prizes: art duck
+        console.log('🎨 Non-GUGO prize detected! Triggering art duck notification...');
+        setShowArtDuck(true);
+      }
     }
   }, [prizeBreakState.isActive, prizeBreakState.reward]);
 
+  // 🎲 Set random prize break message when prize break starts
+  useEffect(() => {
+    if (prizeBreakState.isActive && prizeBreakState.isClaimingReward) {
+      const randomMessage = getRandomPrizeMessage();
+      console.log('🎲 Selected random prize message:', randomMessage);
+      setPrizeBreakMessage(randomMessage);
+    }
+  }, [prizeBreakState.isActive, prizeBreakState.isClaimingReward]);
 
+  // 🎯 Handle delayed prize display and circular marquee
+  useEffect(() => {
+    if (prizeBreakState.isActive && prizeBreakState.reward) {
+      // Reset states first
+      setShowDelayedPrize(false);
+      setShowMarquee(false);
+      
+      // Show delayed prize after 1 second
+      const prizeTimer = setTimeout(() => {
+        setShowDelayedPrize(true);
+        
+        // Show marquee shortly after prize
+        const marqueeTimer = setTimeout(() => {
+          setShowMarquee(true);
+        }, 300);
+        
+        return () => clearTimeout(marqueeTimer);
+      }, 1000);
 
+      return () => clearTimeout(prizeTimer);
+    } else {
+      // Reset when prize break ends
+      setShowDelayedPrize(false);
+      setShowMarquee(false);
+    }
+  }, [prizeBreakState.isActive, prizeBreakState.reward]);
 
   // 📊 Update preloader status (only when changed)
   const updatePreloaderStatus = () => {
@@ -679,7 +775,9 @@ export default function Page() {
                 margin: '0 auto var(--space-4) auto',
                 fontSize: 'clamp(3rem, 6vw, 5rem)',
                 lineHeight: '1.1',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                position: 'relative',
+                zIndex: 1
               }}>
                 BEAUTY OVER METADATA
               </h1>
@@ -1388,6 +1486,174 @@ export default function Page() {
               )}
             </section>
 
+            {/* Burning GUGO Notification - appears behind modal, above VS sign */}
+            {showBurningGugo && (
+              <div 
+                style={{
+                  position: 'fixed',
+                  top: '30%', // Moved up more
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 500, // Behind modal (1000) but above content
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 'var(--space-3)', // Increased gap for two-line text
+                  animation: 'slide-up 0.6s ease-out'
+                }}
+              >
+                {/* Close X button - moved outside the content area */}
+                <button
+                  onClick={() => setShowBurningGugo(false)}
+                  style={{
+                    position: 'absolute',
+                    top: '-20px',
+                    right: '-20px',
+                    width: '32px',
+                    height: '32px',
+                    background: 'var(--color-black)',
+                    color: 'var(--color-white)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 'var(--font-size-lg)',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    zIndex: 10,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    transition: 'all 0.2s ease-out'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--color-grey-700)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--color-black)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  ×
+                </button>
+
+                {/* Text above image - two lines */}
+                <div style={{
+                  color: 'var(--color-white)',
+                  fontSize: 'var(--font-size-lg)',
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 107, 53, 0.4)',
+                  letterSpacing: '0.02em',
+                  animation: 'text-glow-subtle 3s ease-in-out infinite',
+                  lineHeight: '1.3'
+                }}>
+                  We're burning<br />GUGO fam!
+                </div>
+
+                {/* Duck image with toned down fiery glow */}
+                <div style={{
+                  position: 'relative',
+                  filter: 'drop-shadow(0 0 20px rgba(255, 107, 53, 0.6)) drop-shadow(0 0 40px rgba(255, 140, 0, 0.4)) drop-shadow(0 0 60px rgba(255, 165, 0, 0.2))',
+                  animation: 'fire-pulse-subtle 3s ease-in-out infinite'
+                }}>
+                  <img
+                    src="/GUGO-Duck-Burning-Bags.png"
+                    alt="Burning GUGO Duck"
+                    style={{
+                      width: '160px', // Made a bit bigger
+                      height: 'auto',
+                      maxWidth: '70vw' // Increased mobile size slightly
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Art Duck Notification - for non-GUGO prizes */}
+            {showArtDuck && (
+              <div 
+                style={{
+                  position: 'fixed',
+                  top: '30%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 500, // Behind modal (1000) but above content
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 'var(--space-3)',
+                  animation: 'slide-up 0.6s ease-out'
+                }}
+              >
+                {/* Close X button - moved outside the content area */}
+                <button
+                  onClick={() => setShowArtDuck(false)}
+                  style={{
+                    position: 'absolute',
+                    top: '-20px',
+                    right: '-20px',
+                    width: '32px',
+                    height: '32px',
+                    background: 'var(--color-black)',
+                    color: 'var(--color-white)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 'var(--font-size-lg)',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    zIndex: 10,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    transition: 'all 0.2s ease-out'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--color-grey-700)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--color-black)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  ×
+                </button>
+
+                {/* Text above image - two lines */}
+                <div style={{
+                  color: 'var(--color-white)',
+                  fontSize: 'var(--font-size-lg)',
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 255, 255, 0.4)',
+                  letterSpacing: '0.02em',
+                  animation: 'text-glow-white 3s ease-in-out infinite',
+                  lineHeight: '1.3'
+                }}>
+                  I'm here for the art.
+                </div>
+
+                {/* Duck image with white glow */}
+                <div style={{
+                  position: 'relative',
+                  filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 60px rgba(255, 255, 255, 0.2))',
+                  animation: 'white-pulse 3s ease-in-out infinite'
+                }}>
+                  <img
+                    src="/GUGO-Duck-Holding-NFTs.png"
+                    alt="Art Duck with NFTs"
+                    style={{
+                      width: '160px',
+                      height: 'auto',
+                      maxWidth: '70vw'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Prize Break Overlay */}
             {prizeBreakState.isActive && (
               <div 
@@ -1402,7 +1668,8 @@ export default function Page() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   zIndex: 1000,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  overflow: 'visible'
                 }}
                 onClick={async (e) => {
                   // Only dismiss if clicking the overlay background, not the modal content
@@ -1454,12 +1721,60 @@ export default function Page() {
                     minHeight: '400px',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    overflow: 'visible',
+                    position: 'relative'
                   }}
                   onClick={(e) => e.stopPropagation()} // Prevent overlay dismiss when clicking modal content
                 >
+                  {/* Duck shadow on left side */}
+                  <img 
+                    src="/Duck-Face-Shadows-1.png" 
+                    alt="Duck Shadow" 
+                    style={{
+                      position: 'absolute',
+                      left: '25%',
+                      top: 'calc(50% + 120px)',
+                      transform: 'translate(-50%, -50%)',
+                      width: '100px',
+                      height: 'auto',
+                      opacity: 0.5,
+                      zIndex: -1,
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  
+                  {/* Duck king shadow on right side */}
+                  <img 
+                    src="/Duck-head-king-shadow.png" 
+                    alt="Duck King Shadow" 
+                    style={{
+                      position: 'absolute',
+                      right: '25%',
+                      top: 'calc(50% + 110px)', // Moved up 10px more
+                      transform: 'translate(50%, -50%)',
+                      width: '120px',
+                      height: 'auto',
+                      opacity: 0.5,
+                      zIndex: -1,
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  
+                  {/* Full-width Linear Marquee */}
+                  {prizeBreakState.reward && (
+                    <CircularMarquee
+                      phrases={prizeBreakState.reward.gugoAmount > 0 ? GUGO_PHRASES : NON_GUGO_PHRASES}
+                      isVisible={showMarquee}
+                      type="linear"
+                      fontSize="0.9rem"
+                      color="var(--color-grey-400)"
+                      duration={20}
+                    />
+                  )}
+                  
                   {/* Top Section - Header */}
-                  <div style={{ flex: '0 0 auto' }}>
+                  <div style={{ flex: '0 0 auto', overflow: 'visible' }}>
                     {/* GUGO Duck Branding Image */}
                     <div style={{
                       display: 'flex',
@@ -1472,54 +1787,34 @@ export default function Page() {
                         style={{
                           width: '140px',
                           height: 'auto',
-                          filter: 'drop-shadow(0 4px 12px rgba(0, 255, 0, 0.3))'
+                          filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4))'
                         }}
                       />
                     </div>
 
-                    {/* Main title - context-aware */}
-                    <h1 style={{ 
-                      color: 'var(--color-green)', 
-                      margin: '0 0 var(--space-2) 0',
-                      fontSize: '2rem',
-                      fontWeight: '900',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      textShadow: '0 0 20px var(--color-green)'
-                    }}>
-                      {freeVotesPrizeBreak ? (
-                        'YOU WON!'
-                      ) : prizeBreakState.isClaimingReward ? (
-                        'PRIZE BREAK!'
-                      ) : (
-                        'YOU WON!'
-                      )}
-                    </h1>
-
-                    {/* Random congratulatory phrase in smaller text */}
-                    <div style={{ 
-                      color: 'var(--color-grey-300)', 
-                      margin: '0 0 var(--space-6) 0',
-                      fontSize: '0.9rem',
-                      fontWeight: '600',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.1em',
-                      opacity: 0.8
-                    }}>
-                      {freeVotesPrizeBreak ? (
-                        'FREE VOTES!'
-                      ) : prizeBreakState.isClaimingReward ? (
-                        'POSSIBLE PRIZE INCOMING'
-                      ) : prizeBreakState.reward ? (
-                        (() => {
-                          const phrases = ['CONGRATS!', 'HELL YES!', 'NICE!', 'COOL!', 'YES!', 'AWESOME!'];
-                          const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
-                          return randomPhrase;
-                        })()
-                      ) : (
-                        'AWESOME!'
-                      )}
+                    {/* Main title - context-aware with circular marquee */}
+                    <div style={{ position: 'relative', margin: '0 0 var(--space-2) 0', overflow: 'visible' }}>
+                      <h1 style={{ 
+                        color: 'var(--color-green)', 
+                        margin: '0',
+                        fontSize: '2rem',
+                        fontWeight: '900',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        textShadow: '0 0 20px var(--color-green)'
+                      }}>
+                        {freeVotesPrizeBreak ? (
+                          'YOU WON!'
+                        ) : prizeBreakState.isClaimingReward ? (
+                          prizeBreakMessage || 'It\'s Happening'
+                        ) : (
+                          'YOU WON!'
+                        )}
+                      </h1>
+                      
                     </div>
+
+
                   </div>
 
                   {/* Middle Section - Main Content */}
@@ -1576,7 +1871,7 @@ export default function Page() {
                             style={{
                               width: '100px',
                               height: 'auto',
-                              filter: 'drop-shadow(0 4px 12px rgba(0, 255, 0, 0.3))',
+                              filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4))',
                               animation: 'pulse 2s ease-in-out infinite'
                             }}
                           />
@@ -1611,37 +1906,44 @@ export default function Page() {
                             color: tierColors.primary,
                             textShadow: `0 0 30px ${tierColors.glow}`,
                             lineHeight: 1.2,
-                            animation: 'reward-reveal 0.8s ease-out',
+                            animation: showDelayedPrize ? 'reward-reveal 0.8s ease-out' : 'none',
                             padding: 'var(--space-6) 0',
                             minHeight: '80px',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: 'var(--space-2)'
+                            gap: 'var(--space-2)',
+                            opacity: showDelayedPrize ? 1 : 0,
+                            transform: showDelayedPrize ? 'translateY(0)' : 'translateY(20px)',
+                            transition: 'opacity 0.6s ease-out, transform 0.6s ease-out'
                           }}>
-                            {prizeBreakState.reward.xpAmount > 0 && (
-                              <div>+{prizeBreakState.reward.xpAmount} XP</div>
-                            )}
-                            {prizeBreakState.reward.votesAmount > 0 && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                <span>+{prizeBreakState.reward.votesAmount}</span>
-                                <img 
-                                  src="/lick-icon.png" 
-                                  alt="Licks" 
-                                  style={{ 
-                                    width: '40px', 
-                                    height: '40px',
-                                    filter: 'drop-shadow(0 0 15px var(--color-green))'
-                                  }} 
-                                />
-                              </div>
-                            )}
-                            {prizeBreakState.reward.gugoAmount > 0 && (
-                              <div>+{prizeBreakState.reward.gugoAmount} GUGO</div>
-                            )}
-                            {prizeBreakState.reward.licksAmount > 0 && (
-                              <div>+{prizeBreakState.reward.licksAmount} LICKS</div>
+                            {showDelayedPrize && (
+                              <>
+                                {prizeBreakState.reward.xpAmount > 0 && (
+                                  <div>+{formatNumber(prizeBreakState.reward.xpAmount)} XP</div>
+                                )}
+                                {prizeBreakState.reward.votesAmount > 0 && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                                    <span>+{formatNumber(prizeBreakState.reward.votesAmount)}</span>
+                                    <img 
+                                      src="/lick-icon.png" 
+                                      alt="Licks" 
+                                      style={{ 
+                                        width: '40px', 
+                                        height: '40px',
+                                        filter: 'drop-shadow(0 0 15px var(--color-green))'
+                                      }} 
+                                    />
+                                  </div>
+                                )}
+                                {prizeBreakState.reward.gugoAmount > 0 && (
+                                  <div>+{formatNumber(prizeBreakState.reward.gugoAmount)} GUGO</div>
+                                )}
+                                {prizeBreakState.reward.licksAmount > 0 && (
+                                  <div>+{formatNumber(prizeBreakState.reward.licksAmount)} LICKS</div>
+                                )}
+                              </>
                             )}
                           </div>
                         );
@@ -1721,9 +2023,9 @@ export default function Page() {
                       }}
                       style={{
                         padding: 'var(--space-3) var(--space-6)',
-                        background: 'var(--color-green)',
+                        background: 'var(--color-grey-300)',
                         color: 'var(--color-black)',
-                        border: '2px solid var(--color-green)',
+                        border: '2px solid var(--color-grey-300)',
                         borderRadius: 'var(--border-radius)',
                         fontSize: 'var(--font-size-base)',
                         fontWeight: '600',
@@ -1731,20 +2033,20 @@ export default function Page() {
                         transition: 'all 0.2s ease',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
+                        boxShadow: '0 4px 12px rgba(156, 163, 175, 0.3)',
                         minWidth: '160px'
                       }}
                       onMouseOver={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--color-green)';
+                        e.currentTarget.style.color = 'var(--color-grey-300)';
                         e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.4)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(156, 163, 175, 0.4)';
                       }}
                       onMouseOut={(e) => {
-                        e.currentTarget.style.background = 'var(--color-green)';
+                        e.currentTarget.style.background = 'var(--color-grey-300)';
                         e.currentTarget.style.color = 'var(--color-black)';
                         e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.3)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 163, 175, 0.3)';
                       }}
                     >
                       See more art
@@ -1765,7 +2067,7 @@ export default function Page() {
         bottom: 'var(--space-6)',
         left: 0,
         right: 0,
-        zIndex: 5,
+        zIndex: 1,
         pointerEvents: 'none'
       }}>
         <div className="bottom-tagline-wrapper" style={{

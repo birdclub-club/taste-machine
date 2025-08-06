@@ -72,19 +72,26 @@ export function useBatchedVoting() {
     processingRef.current = true;
     setIsProcessingBatch(true);
 
+    const unprocessedVotes = batchState.pendingVotes.filter(vote => !vote.processed);
+    let votesByUser: Record<string, BatchedVote[]> = {};
+
     try {
-      const unprocessedVotes = batchState.pendingVotes.filter(vote => !vote.processed);
-      
       if (unprocessedVotes.length === 0) {
         console.log('✅ No unprocessed votes in batch');
         return;
       }
 
-      console.log(`📦 Processing batch of ${unprocessedVotes.length} votes...`);
+      console.log(`🚀 BATCH PROCESSING START: ${unprocessedVotes.length} votes queued for Supabase`);
+      console.log(`📊 Batch details:`, unprocessedVotes.map(v => ({ 
+        type: v.voteData.vote_type, 
+        super: v.voteData.super_vote,
+        wallet: v.userWallet.substring(0,8) + '...',
+        timestamp: new Date(v.timestamp).toISOString()
+      })));
       const startTime = performance.now();
 
       // Group votes by user for efficient processing
-      const votesByUser = unprocessedVotes.reduce((groups, vote) => {
+      votesByUser = unprocessedVotes.reduce((groups, vote) => {
         if (!groups[vote.userWallet]) {
           groups[vote.userWallet] = [];
         }
@@ -94,6 +101,7 @@ export function useBatchedVoting() {
 
       // Process each user's votes
       for (const [userWallet, userVotes] of Object.entries(votesByUser)) {
+        console.log(`👤 Processing ${userVotes.length} votes for ${userWallet.substring(0,8)}...`);
         await processUserVoteBatch(userWallet, userVotes);
       }
 
@@ -105,7 +113,8 @@ export function useBatchedVoting() {
       }));
 
       const processingTime = performance.now() - startTime;
-      console.log(`✅ Batch processed ${unprocessedVotes.length} votes in ${Math.round(processingTime)}ms`);
+      console.log(`✅ BATCH PROCESSING COMPLETE: ${unprocessedVotes.length} votes sent to Supabase in ${Math.round(processingTime)}ms`);
+      console.log(`📈 Performance: ${Math.round(unprocessedVotes.length / (processingTime / 1000))} votes/second`);
 
       // Clean up old processed votes (keep last 50 for debugging)
       setBatchState(prev => ({
@@ -114,8 +123,14 @@ export function useBatchedVoting() {
       }));
 
     } catch (error) {
-      console.error('❌ Error processing vote batch:', error);
+      console.error('❌ BATCH PROCESSING FAILED:', error);
+      console.error('📋 Failed batch details:', {
+        totalVotes: unprocessedVotes.length,
+        users: Object.keys(votesByUser).length,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       // Don't throw - let individual votes be retried later
+      // Mark as failed for debugging but don't prevent UI from continuing
     } finally {
       setIsProcessingBatch(false);
       processingRef.current = false;
@@ -148,16 +163,17 @@ export function useBatchedVoting() {
       }));
 
       // Batch insert all votes
-      const { error: voteError } = await supabase
+      const { data: insertedVotes, error: voteError } = await supabase
         .from('votes')
-        .insert(voteRecords);
+        .insert(voteRecords)
+        .select('id');
 
       if (voteError) {
-        console.error(`❌ Error batch inserting votes for ${userWallet}:`, voteError);
-        return;
+        console.error(`❌ SUPABASE ERROR: Failed to insert ${voteRecords.length} votes for ${userWallet}:`, voteError);
+        throw voteError; // Throw to trigger retry logic
       }
 
-      console.log(`📊 Batch inserted ${voteRecords.length} votes for ${userWallet}`);
+      console.log(`✅ SUPABASE SUCCESS: Inserted ${voteRecords.length} votes for ${userWallet.substring(0,8)}... (IDs: ${insertedVotes?.map(v => v.id).join(', ')})`);
 
       // Process Elo updates in batch
       await processBatchEloUpdates(userVotes);
@@ -165,8 +181,9 @@ export function useBatchedVoting() {
       // Update user stats (total vote count, etc.)
       await updateUserStatsBatch(userWallet, userVotes.length);
 
-      // Deduct vote costs in batch
-      await deductVoteCostsBatch(userWallet, userVotes);
+      // NOTE: Vote costs already deducted immediately in useVote.ts for instant UI feedback
+      // Batch processing does NOT deduct votes again to prevent double charging
+      console.log(`ℹ️ Vote costs already deducted immediately - skipping batch deduction for ${userWallet.substring(0,8)}...`);
 
     } catch (error) {
       console.error(`❌ Error processing user vote batch for ${userWallet}:`, error);
@@ -333,42 +350,8 @@ export function useBatchedVoting() {
     }
   };
 
-  // 💳 Deduct vote costs in batch
-  const deductVoteCostsBatch = async (userWallet: string, votes: BatchedVote[]): Promise<void> => {
-    try {
-      const totalCost = votes.reduce((cost, vote) => {
-        return cost + (vote.voteData.super_vote ? 5 : 1);
-      }, 0);
-
-      const userId = await getOrCreateUser(userWallet);
-
-      // Get current available votes
-      const { data: userData } = await supabase
-        .from('users')
-        .select('available_votes')
-        .eq('id', userId)
-        .single();
-
-      // Calculate new vote count (ensure it doesn't go below 0)
-      const currentVotes = userData?.available_votes || 0;
-      const newVoteCount = Math.max(0, currentVotes - totalCost);
-
-      const { error } = await supabase
-        .from('users')
-        .update({
-          available_votes: newVoteCount
-        })
-        .eq('id', userId);
-
-      if (error) {
-        console.warn('⚠️ Failed to deduct vote costs in batch:', error);
-      } else {
-        console.log(`💳 Deducted ${totalCost} votes in batch`);
-      }
-    } catch (error) {
-      console.warn('⚠️ Error deducting vote costs in batch:', error);
-    }
-  };
+  // 💳 [REMOVED] Vote costs are deducted immediately in useVote.ts for instant UI feedback
+  // Batch processing does NOT deduct votes to prevent double charging
 
   // 👤 Get or create user record
   const getOrCreateUser = async (walletAddress: string): Promise<string> => {

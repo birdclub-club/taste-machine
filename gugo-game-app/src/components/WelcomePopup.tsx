@@ -151,7 +151,7 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
             </div>
             <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
-              <span>Jackpot and Price Raffles every week</span>
+              <span>Jackpot and Prize Raffles every week</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
@@ -168,7 +168,7 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
             fontWeight: '600',
             marginBottom: 'var(--space-3)'
           }}>
-            Ready to start voting?
+            Let's start voting?
           </h2>
         </div>
 
@@ -189,9 +189,9 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
             }}
             style={{
               padding: 'var(--space-3) var(--space-6)',
-              background: 'var(--accent-color)',
-              color: '#000000',
-              border: '2px solid var(--accent-color)',
+              background: 'var(--color-white)',
+              color: 'var(--color-black)',
+              border: '2px solid var(--color-white)',
               borderRadius: 'var(--border-radius)',
               fontSize: 'var(--font-size-base)',
               fontWeight: '700',
@@ -200,24 +200,24 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               minWidth: '200px',
-              boxShadow: '0 4px 20px rgba(var(--accent-color-rgb), 0.4)'
+              boxShadow: '0 4px 20px rgba(255, 255, 255, 0.3)'
             }}
             onMouseEnter={(e) => {
               const target = e.target as HTMLElement;
               target.style.background = 'transparent';
-              target.style.color = 'var(--accent-color)';
+              target.style.color = 'var(--color-white)';
               target.style.transform = 'translateY(-2px)';
-              target.style.boxShadow = '0 6px 25px rgba(var(--accent-color-rgb), 0.6)';
+              target.style.boxShadow = '0 6px 25px rgba(255, 255, 255, 0.5)';
             }}
             onMouseLeave={(e) => {
               const target = e.target as HTMLElement;
-              target.style.background = 'var(--accent-color)';
-              target.style.color = '#000000';
+              target.style.background = 'var(--color-white)';
+              target.style.color = 'var(--color-black)';
               target.style.transform = 'translateY(0)';
-              target.style.boxShadow = '0 4px 20px rgba(var(--accent-color-rgb), 0.4)';
+              target.style.boxShadow = '0 4px 20px rgba(255, 255, 255, 0.3)';
             }}
           >
-            Start Voting
+            Ready to Start Voting
           </button>
         </div>
 

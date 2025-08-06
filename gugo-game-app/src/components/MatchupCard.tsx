@@ -239,7 +239,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 hoveredNft === nft.id && !voteAnimationState.isAnimating ? '3px solid var(--color-black)' : '2px solid var(--color-grey-200)',
         borderRadius: 'var(--border-radius-lg)',
         overflow: 'hidden',
-        transition: 'box-shadow 0.1s ease-out, border 0.1s ease-out, transform 0.3s ease-out',
+        transition: 'transform 0.2s ease-out',
         transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)',
         boxShadow: isWinner && isFireVote ? 
                    '0 0 40px rgba(255, 107, 53, 0.9), 0 0 80px rgba(255, 140, 0, 0.6), 0 0 120px rgba(255, 165, 0, 0.4)' :
@@ -271,17 +271,17 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transition: 'transform var(--transition-slow)',
+              transition: 'transform 0.2s ease-out',
               transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'scale(1.05)' : 'scale(1)'
             }}
             alt={`NFT ${nft.id}`}
             onLoadStart={(e) => {
               const target = e.target as HTMLImageElement;
-              // Set 5-second timeout for image loading
+              // Set 1-second timeout for ultra-fast gateway switching
               const timeoutId = setTimeout(() => {
-                console.log(`⏰ Image loading timeout for NFT ${nft.id}, trying next gateway...`);
+                console.log(`⏰ Timeout for attempt ${target.dataset.retryCount || '0'}: ${nft.id.substring(0,8)}...`);
                 target.dispatchEvent(new Event('error'));
-              }, 5000);
+              }, 1000);
               target.dataset.loadTimeout = timeoutId.toString();
             }}
             onError={(e) => {
@@ -295,8 +295,8 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               
               const retryCount = parseInt(target.dataset.retryCount || '0');
               
-              // Prevent infinite loops - only try fallbacks 3 times per image
-              if (retryCount >= 3) {
+              // Prevent infinite loops - only try fallbacks 2 times per image (faster failure)
+              if (retryCount >= 2) {
                 console.log(`❌ All gateways failed for NFT ${nft.id} after ${retryCount} attempts, triggering session skip...`);
                 
                 // Always skip to next session - NEVER show placeholder images to users
@@ -310,14 +310,14 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 return;
               }
               
-              console.log(`❌ Image failed to load for NFT ${nft.id} (attempt ${retryCount + 1}):`, target.src);
+              console.log(`❌ Failed attempt ${retryCount + 1} for ${nft.id.substring(0,8)}...`);
               
               // Increment retry count
               target.dataset.retryCount = (retryCount + 1).toString();
               
               // Try next IPFS gateway before giving up
               const nextSrc = getNextIPFSGateway(target.src, nft.image);
-              console.log(`🔄 Trying next gateway:`, nextSrc);
+              console.log(`🔄 Trying gateway ${retryCount + 2}...`);
               target.src = nextSrc;
             }}
             onLoad={(e) => {
@@ -332,7 +332,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               const currentGateway = target.src.split('/ipfs/')[0] + '/ipfs/';
               ipfsGatewayManager.recordSuccess(currentGateway);
               
-              console.log(`✅ Image loaded successfully for NFT ${nft.id}:`, nft.image);
+              console.log(`✅ Loaded ${nft.id.substring(0,8)}...`);
             }}
           />
           
@@ -496,9 +496,9 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (onVote) {
+                  if (!isVoting && !voteAnimationState.isAnimating) {
                     console.log('🔥 Super vote triggered for NFT:', nft.id);
-                    onVote(nft.id, true); // true = super vote
+                    handleVoteWithAnimation(nft.id, true); // true = super vote
                   }
                 }}
                 style={{

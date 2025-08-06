@@ -624,19 +624,19 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
 
         <div style={{ textAlign: 'left', lineHeight: '1.6' }}>
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            If you're like us, you could scroll NFT art all day — and you've got thoughts. So we built a way to make them count.
+            If you're like us, you could scroll NFT art all day, so we built a way to make it count.
           </p>
           
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            Taste Machine is an experiment in whether visual appeal can shape value — alongside rarity, not beneath it.
+            We want to surface great art — not just rare art — and give it the visibility it deserves.
           </p>
           
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            You'll get free Licks every day — enough to play and start shaping the signal.
+            You'll get free Licks (votes) every day — enough to play and start shaping the signal.
           </p>
           
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            But if you want to earn more, vote more, and unlock bigger rewards, you'll need GUGO or ETH to buy additional Licks.
+            But if you want to earn more, vote more, and unlock bigger rewards, you'll need GUGO or ETH to buy additional Licks (about $0.02 USD each).
           </p>
           
           <p style={{ marginBottom: 'var(--space-5)', color: '#e5e5e5' }}>
@@ -644,6 +644,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
           </p>
 
           {/* Whitepaper Link */}
+          <div style={{ paddingTop: 'var(--space-4)' }}>
           <a
             href="https://docs.google.com/document/d/1Lp6qZ02UjyVDDDGf16GuBdUECcop87ciVP061IcJA3U/edit?usp=sharing"
             target="_blank"
@@ -654,20 +655,26 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
               gap: 'var(--space-2)',
               color: '#e5e5e5',
               textDecoration: 'none',
-              fontSize: 'var(--font-size-base)',
+                fontSize: 'var(--font-size-sm)',
               fontWeight: '400',
-              transition: 'color 0.2s ease'
+                transition: 'color 0.2s ease',
+                padding: 'var(--space-3) var(--space-4)',
+                borderRadius: 'var(--border-radius)',
+                border: '1px solid rgba(229, 229, 229, 0.2)'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = 'var(--color-white)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = '#e5e5e5';
+                e.currentTarget.style.borderColor = 'rgba(229, 229, 229, 0.2)';
             }}
           >
             <span>White Paper Overview</span>
             <span>↗</span>
           </a>
+          </div>
         </div>
       </div>
     </div>
@@ -790,13 +797,13 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
             marginBottom: 'var(--space-2)',
             textTransform: 'uppercase'
           }}>
-            Why
+            Why?
           </h2>
         </div>
 
         <div style={{ textAlign: 'left', lineHeight: '1.6' }}>
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5', fontSize: 'var(--font-size-lg)', lineHeight: '1.7' }}>
-            Because art deserves better than metadata.
+            Because we love art.
           </p>
           <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
             In a space obsessed with traits and rarity, we built a way to surface what actually looks good. You bring the eye — we bring the GUGO.
