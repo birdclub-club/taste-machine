@@ -953,16 +953,8 @@ export default function Page() {
                   textAlign: 'center',
                   maxWidth: '500px'
                 }}>
-                  <div style={{ 
-                    fontSize: 'var(--font-size-2xl)',
-                    fontWeight: '600',
-                    color: 'var(--color-black)',
-                    marginBottom: 'var(--space-3)'
-                  }}>
-                    Connect to Start Voting
-                  </div>
-                  <div className="text-caption" style={{ marginBottom: 'var(--space-6)' }}>
-                    Connect your wallet to participate in aesthetic voting and earn rewards.
+                  <div className="text-caption" style={{ marginBottom: 'var(--space-6)', fontSize: 'var(--font-size-lg)', color: 'var(--color-black)' }}>
+                    Connect your wallet to start voting, earning, and burning.
                   </div>
                   
                   {/* RainbowKit Connect Button */}

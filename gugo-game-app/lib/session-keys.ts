@@ -149,6 +149,7 @@ By signing this message, you enable a secure and seamless voting experience on T
 
 /**
  * Sign a message with the user's wallet to authorize a session
+ * Uses wagmi/viem for better wallet compatibility (AGW, MetaMask, etc.)
  */
 export async function authorizeSession(
   userAddress: string,
@@ -167,18 +168,28 @@ export async function authorizeSession(
     chainId
   );
   
-  // Use wallet to sign the authorization message
-  if (typeof window !== 'undefined' && window.ethereum) {
+  // Try to use wagmi/viem first for better wallet compatibility
+  if (typeof window !== 'undefined') {
     try {
-      const signature = await window.ethereum.request({
-        method: 'personal_sign',
-        params: [message, userAddress]
+      // Import wagmi dynamically to avoid SSR issues
+      const { signMessage } = await import('wagmi/actions');
+      const { config } = await import('./wagmi');
+      
+      console.log('🔑 Requesting session authorization signature from wallet...', {
+        wallet: 'wagmi',
+        userAddress,
+        messageLength: message.length
+      });
+      
+      const signature = await signMessage(config, {
+        message,
+        account: userAddress as `0x${string}`
       });
       
       const mainToken = tokenLimits.find(t => t.isMainToken) || tokenLimits[0];
       const mainAmount = mainToken ? ethers.formatEther(mainToken.maxAmount) : '0';
       
-      console.log('✅ Session authorized by user:', {
+      console.log('✅ Session authorized by user via wagmi:', {
         userAddress,
         sessionKey: sessionPublicKey,
         chainId,
@@ -189,9 +200,41 @@ export async function authorizeSession(
       });
       
       return signature;
-    } catch (error) {
-      console.error('❌ User rejected session authorization:', error);
-      throw new Error('Session authorization rejected');
+    } catch (wagmiError) {
+      console.log('⚠️ Wagmi signing failed, falling back to window.ethereum:', wagmiError);
+      
+      // Fallback to window.ethereum for older wallets
+      if (window.ethereum) {
+        try {
+          console.log('🔑 Requesting session authorization signature via window.ethereum...');
+          
+          const signature = await window.ethereum.request({
+            method: 'personal_sign',
+            params: [message, userAddress]
+          });
+          
+          const mainToken = tokenLimits.find(t => t.isMainToken) || tokenLimits[0];
+          const mainAmount = mainToken ? ethers.formatEther(mainToken.maxAmount) : '0';
+          
+          console.log('✅ Session authorized by user via window.ethereum:', {
+            userAddress,
+            sessionKey: sessionPublicKey,
+            chainId,
+            expiresAt: new Date(expiresAt).toISOString(),
+            mainTokenLimit: `${mainAmount} ${mainToken?.tokenSymbol}`,
+            totalTokens: tokenLimits.length,
+            signature: signature.substring(0, 10) + '...'
+          });
+          
+          return signature;
+        } catch (ethError) {
+          console.error('❌ User rejected session authorization via window.ethereum:', ethError);
+          throw new Error('Session authorization rejected');
+        }
+      } else {
+        console.error('❌ User rejected session authorization via wagmi:', wagmiError);
+        throw new Error('Session authorization rejected');
+      }
     }
   } else {
     throw new Error('No wallet available');

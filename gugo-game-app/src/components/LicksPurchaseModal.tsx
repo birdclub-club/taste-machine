@@ -20,9 +20,10 @@ interface PurchaseOption {
 export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: LicksPurchaseModalProps) {
   console.log('🛒 [FINAL] LicksPurchaseModal render - isOpen:', isOpen, 'at timestamp:', Date.now());
   console.log('🛒 [FINAL] LicksPurchaseModal props:', { isOpen, onClose: !!onClose, onPurchaseComplete: !!onPurchaseComplete });
-  const [selectedOption, setSelectedOption] = useState<string>('50');
+  const [selectedOption, setSelectedOption] = useState<string>('100');
   const [customAmount, setCustomAmount] = useState<string>('');
   const [isCustom, setIsCustom] = useState(false);
+  const [showPriceInETH, setShowPriceInETH] = useState(false);
 
   const { purchaseVotes, isPurchasing, purchaseError } = useSessionVotePurchase();
   const { 
@@ -32,8 +33,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
   // Purchase options
   const purchaseOptions: PurchaseOption[] = [
     { id: '10', licks: 10, label: '10' },
-    { id: '50', licks: 50, label: '50', isPopular: true },
-    { id: '100', licks: 100, label: '100' },
+    { id: '50', licks: 50, label: '50' },
+    { id: '100', licks: 100, label: '100', isPopular: true },
     { id: '500', licks: 500, label: '500' },
     { id: 'custom', licks: 0, label: 'Custom' }
   ];
@@ -41,12 +42,16 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
   // Pricing constants
   const PRICE_PER_LICK_USD = 0.02; // $0.02 per lick
   const GUGO_PRICE_USD = 0.005; // $0.005 per GUGO (real market rate - 500 Licks = 2,000 GUGO)
+  const ETH_PRICE_USD = 3000; // $3000 per ETH (approximate market rate)
 
   // Calculate costs
   const calculateCosts = (lickCount: number) => {
     const costUSD = lickCount * PRICE_PER_LICK_USD;
     const costGUGO = costUSD / GUGO_PRICE_USD;
-    return { costUSD, costGUGO };
+    const costETHRaw = costUSD / ETH_PRICE_USD;
+    // Round ETH to 6 decimal places for display and ensure minimum value
+    const costETH = Math.max(costETHRaw, 0.000001);
+    return { costUSD, costGUGO, costETH };
   };
 
   // Get the number of licks for current selection
@@ -60,7 +65,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
   };
 
   const currentLickCount = getCurrentLickCount();
-  const { costUSD, costGUGO } = calculateCosts(currentLickCount);
+  const { costUSD, costGUGO, costETH } = calculateCosts(currentLickCount);
 
   // Handle option selection
   const handleOptionSelect = (optionId: string) => {
@@ -90,9 +95,12 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
     }
 
     try {
-      console.log(`🛒 Purchasing ${lickCount} Licks for ${costGUGO.toFixed(2)} GUGO`);
+      const paymentMethod = showPriceInETH ? 'ETH' : 'GUGO';
+      const costDisplay = showPriceInETH ? `${costETH.toFixed(6)} ETH` : `${costGUGO.toFixed(2)} GUGO`;
       
-      const result = await purchaseVotes(lickCount, PRICE_PER_LICK_USD);
+      console.log(`🛒 Purchasing ${lickCount} Licks for ${costDisplay}`);
+      
+      const result = await purchaseVotes(lickCount, PRICE_PER_LICK_USD, paymentMethod);
       
       if (result.success) {
         console.log('✅ Purchase successful!', result);
@@ -109,7 +117,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
   // Reset on close
   useEffect(() => {
     if (!isOpen) {
-      setSelectedOption('50');
+      setSelectedOption('100');
       setIsCustom(false);
       setCustomAmount('');
     }
@@ -163,8 +171,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               src="/lick-icon.png"
               alt="Licks"
               style={{
-                width: '20px',
-                height: '20px'
+                width: '32px',
+                height: '32px'
               }}
             />
             <h2 style={{
@@ -192,7 +200,64 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
           </button>
         </div>
 
-
+        {/* Price Toggle */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          marginBottom: 'var(--space-4)',
+          gap: 'var(--space-2)'
+        }}>
+          <div style={{
+            display: 'flex',
+            background: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: 'var(--border-radius)',
+            padding: '2px'
+          }}>
+            <button
+              onClick={() => setShowPriceInETH(false)}
+              style={{
+                padding: 'var(--space-1) var(--space-3)',
+                background: !showPriceInETH ? '#444' : 'transparent',
+                color: 'var(--color-white)',
+                border: 'none',
+                borderRadius: 'var(--border-radius-sm)',
+                fontSize: 'var(--font-size-xs)',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              GUGO
+            </button>
+            <button
+              onClick={() => setShowPriceInETH(true)}
+              style={{
+                padding: 'var(--space-1) var(--space-3)',
+                background: showPriceInETH ? '#444' : 'transparent',
+                color: 'var(--color-white)',
+                border: 'none',
+                borderRadius: 'var(--border-radius-sm)',
+                fontSize: 'var(--font-size-xs)',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              ETH
+            </button>
+          </div>
+          
+          <div style={{
+            fontSize: 'var(--font-size-xs)',
+            color: '#999999',
+            textAlign: 'center',
+            fontStyle: 'italic'
+          }}>
+            {showPriceInETH ? 'Pay with testnet ETH' : 'Pay with GUGO tokens'}
+          </div>
+        </div>
 
         {/* Purchase Options */}
         <div style={{
@@ -260,7 +325,14 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                 marginBottom: 'var(--space-1)'
               }}>
                 {option.id === 'custom' ? (
-                  <span style={{ fontSize: 'var(--font-size-sm)' }}>✏️</span>
+                  <img
+                    src="/lick-icon.png"
+                    alt="Custom"
+                    style={{
+                      width: '18px',
+                      height: '18px'
+                    }}
+                  />
                 ) : (
                   <>
                     <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: '600' }}>{option.licks}</span>
@@ -268,8 +340,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                       src="/lick-icon.png"
                       alt="Licks"
                       style={{
-                        width: '12px',
-                        height: '12px'
+                        width: '18px',
+                        height: '18px'
                       }}
                     />
                   </>
@@ -282,7 +354,9 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                 lineHeight: '1.2'
               }}>
                 {option.id === 'custom' ? 'Custom' : 
-                 `${calculateCosts(option.licks).costGUGO.toLocaleString()} GUGO`}
+                 showPriceInETH 
+                   ? `${calculateCosts(option.licks).costETH.toFixed(6)} ETH`
+                   : `${calculateCosts(option.licks).costGUGO.toLocaleString()} GUGO`}
               </div>
             </button>
           ))}
@@ -357,13 +431,15 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                   src="/lick-icon.png"
                   alt="Licks"
                   style={{
-                    width: '14px',
-                    height: '14px'
+                    width: '20px',
+                    height: '20px'
                   }}
                 />
               </div>
               <span style={{ color: 'var(--color-white)', fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
-                {costGUGO.toLocaleString()} GUGO
+                {showPriceInETH 
+                  ? `${costETH.toFixed(6)} ETH` 
+                  : `${costGUGO.toLocaleString()} GUGO`}
               </span>
             </div>
             

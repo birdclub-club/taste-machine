@@ -164,6 +164,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
     console.log('🛒 [DEBUG] showPurchaseModal state changed to:', showPurchaseModal);
   }, [showPurchaseModal]);
   const multiplierRef = useRef<HTMLSpanElement>(null);
+  const walletDropdownRef = useRef<HTMLDivElement>(null);
 
   // Fun congratulations words to rotate through
   const congratsWords = ['Nice!', 'Ok!', 'Yep!', 'Cool', 'NBD', 'Solid', 'Yes!'];
@@ -254,6 +255,23 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
     console.log('🔄 StatusBar mounted - resetting Lick claim state for demo');
     setHasClaimedToday(false);
   }, []);
+
+  // Click outside handler for wallet dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (walletDropdownRef.current && !walletDropdownRef.current.contains(event.target as Node)) {
+        setShowWalletDropdown(false);
+      }
+    };
+
+    if (showWalletDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showWalletDropdown]);
 
   // Debug: Log state changes
   useEffect(() => {
@@ -1159,7 +1177,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                 </div>
 
                 {/* Wallet Connection */}
-                <div style={{ position: 'relative' }}>
+                <div ref={walletDropdownRef} style={{ position: 'relative' }}>
                   <button
                     onClick={() => setShowWalletDropdown(!showWalletDropdown)}
                     style={{

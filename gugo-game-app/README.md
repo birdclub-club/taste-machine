@@ -17,9 +17,10 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 
 ### **🎨 Swiss Minimalist Design**
 - **Clean Interface**: Inspired by 60s/70s Swiss graphic design principles
-- **Dark Theme**: Sophisticated gradients with Abstract Chain green accents
+- **Dark Theme**: Consistent `#1a1a1a` background with Abstract Chain green accents
 - **Professional Status Bar**: Real-time balances and wallet connection
-- **Dot Grid Background**: Subtle pattern with opacity variations
+- **Green Dot Grid**: Subtle pattern with 28px spacing and medium green dots
+- **Background Consistency**: Welcome modal matches site background perfectly
 
 ### **📱 Mobile-First Experience**
 - **Responsive Layout**: Side-by-side on desktop, stacked on mobile  
@@ -34,6 +35,14 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **Copy Confirmation**: Visual feedback for all copy actions
 - **Smart "No" Button**: Appears after 5 seconds with smooth fade-in animation
 
+### **🦆 Enhanced Prize Experience**
+- **Duck Notifications**: Context-aware duck animations for different prize types
+  - **Burning Duck**: Appears for GUGO prizes with fire glow effect
+  - **Art Duck**: Appears for non-GUGO prizes with white glow effect
+- **Linear Marquee**: Infinite scrolling text effects with prize-specific phrases
+- **Delayed Prize Reveal**: 1-second delay for dramatic prize unveiling
+- **Random Messages**: Dynamic "It's Happening" variations for anticipation
+
 ### **🎯 Core Gameplay**
 - **NFT Aesthetic Voting** - Vote on matchups between NFTs
 - **💰 Token Economy** - FGUGO tokens for voting and rewards  
@@ -41,8 +50,11 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **🔥 Super Vote System** - Premium fire votes with 2x Elo impact (costs 5 votes)
 - **📊 Elo Rating System** - Dynamic aesthetic rankings
 - **🔗 Abstract Global Wallet** - Seamless onboarding with AGW
-- **🎮 Welcome Experience** - Onboarding popup with collection choice (Bearish vs Mix it Up)
-- **🎛️ Collections Menu** - Toggle between focused Bearish collection or mixed NFT experience
+- **🎮 Enhanced Welcome Experience** - Comprehensive onboarding with detailed mission explanation
+  - **Clear Value Proposition**: "Where beauty matters — and metadata doesn't"
+  - **Detailed Explanation**: On-chain aesthetic scoring and voting logic
+  - **Simple CTA**: Clean "Ready" button for immediate engagement
+- **🔗 Simplified Wallet Connection** - Streamlined prompt: "Connect your wallet to start voting, earning, and burning"
 - **🛍️ Streamlined Purchase Flow** - Professional Licks purchase with session key integration
 - **⚡ Session Keys** - Gasless transactions with detailed authorization messages
 
@@ -108,12 +120,14 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 
 ## 🎮 How to Play
 
-1. **Connect Wallet** - Connect your Abstract Global Wallet
-2. **Vote on Matchups** - Choose between NFT pairs or wait for the "No" button (appears after 5 seconds)
-3. **Super Votes** - Use fire buttons for premium votes (costs 5 votes, 2x Elo impact)
-4. **Earn Rewards** - Get XP and tokens for voting
-5. **Prize Breaks** - Rewards every 10 votes + free vote compensation during system issues
-6. **Climb Rankings** - Build your aesthetic score with enhanced Elo system
+1. **Welcome Experience** - Learn about Taste Machine's mission through comprehensive onboarding
+2. **Connect Wallet** - Simple prompt: "Connect your wallet to start voting, earning, and burning"
+3. **Vote on Matchups** - Choose between NFT pairs or wait for the "No" button (appears after 5 seconds)
+4. **Super Votes** - Use fire buttons for premium votes (costs 5 votes, 2x Elo impact)
+5. **Earn Rewards** - Get XP and tokens for voting with enhanced prize notifications
+6. **Prize Breaks** - Rewards every 10 votes with duck animations and marquee effects
+7. **Experience Burning** - Watch your GUGO prizes trigger burning duck notifications
+8. **Climb Rankings** - Build your aesthetic score with enhanced Elo system
 
 ### **🔥 Super Vote System**
 - **Fire Buttons**: Premium voting option with flame emoji
@@ -121,8 +135,15 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **Impact**: 2x Elo rating change for both NFTs
 - **Purpose**: Express strong aesthetic preferences
 
-### **🎁 Enhanced Rewards**
-- **Regular Prize Breaks**: Every 10 votes
+### **🎁 Enhanced Rewards & Notifications**
+- **Regular Prize Breaks**: Every 10 votes with dramatic reveal timing
+- **Duck Notifications**: Context-aware animations based on prize type
+  - **GUGO Prizes**: Burning duck with fire effects and "We're burning GUGO fam!" message
+  - **Non-GUGO Prizes**: Art duck with white glow and "I'm here for the art." message
+- **Infinite Marquee**: Linear scrolling text with prize-specific phrases
+  - **GUGO Phrases**: "Let it burn!", "Burn. Burn. Burn. Burn.", "Oh hell yeah!"
+  - **Non-GUGO Phrases**: "This should come in handy.", "For the love of art.", "Gib"
+- **Random Prize Messages**: Dynamic "It's happening again", "Prize incoming", "This could be good"
 - **Free Vote Compensation**: 10 votes awarded during image loading issues
 - **Automatic Recovery**: System attempts to fix issues during prize breaks
 
@@ -141,6 +162,8 @@ The game follows a mobile-first, component-based architecture with Swiss design 
 │   ├── MatchupCard.tsx # NFT voting interface with smart "No" button timing
 │   ├── TokenBalance.tsx # Balance checking and display
 │   ├── WalletConnect.tsx # Wallet integration
+│   ├── WelcomePopup.tsx # Enhanced onboarding with comprehensive mission explanation
+│   ├── CircularMarquee.tsx # Linear scrolling text effects for prize celebrations
 │   └── PurchaseAlert.tsx # Elegant modal for vote purchase prompts
 ├── /src/hooks/         # Custom React hooks for game logic
 │   ├── useVote.ts      # Vote submission with super vote support
@@ -156,9 +179,11 @@ The game follows a mobile-first, component-based architecture with Swiss design 
 ### **Component Highlights**
 - **StatusBar**: drip.haus-inspired design with balance tracking
 - **MatchupCard**: Interactive NFT cards with smart timing and hover effects
+- **WelcomePopup**: Comprehensive onboarding with consistent background styling
+- **CircularMarquee**: Infinite scrolling text effects with phrase categories
 - **PurchaseAlert**: Elegant modal for insufficient vote scenarios
 - **IPFS Gateway Manager**: Bulletproof image loading with health tracking
-- **Enhanced Prize Breaks**: Free vote compensation system
+- **Enhanced Prize Notifications**: Duck animations with context-aware messaging
 - **Responsive Design**: Mobile-first with touch gesture support
 - **CSS Variables**: Consistent color palette and spacing system
 
@@ -322,6 +347,13 @@ node scripts/update-gugo-price.js 0.25
 ## 🔧 Recent Fixes & Improvements
 
 ### **Latest Updates (August 2025)**
+- **✅ Enhanced Welcome Experience**: Comprehensive onboarding with detailed mission explanation
+- **✅ Simplified Wallet Connection**: Streamlined prompt focusing on core value proposition
+- **✅ Duck Notification System**: Context-aware animations for different prize types
+- **✅ Infinite Marquee Effects**: Linear scrolling text with prize-specific phrase categories
+- **✅ Background Consistency**: Welcome modal matches main site's green dot pattern
+- **✅ Prize Reveal Timing**: 1-second delay for dramatic effect with random messages
+- **✅ Number Formatting**: Comma formatting for large prize amounts (1,000+)
 - **✅ Fixed**: "Failed to fetch" error in Licks purchase flow
 - **✅ Enhanced**: Purchase retry mechanism with exponential backoff (3 attempts)
 - **✅ Improved**: Balance refresh logic with 5-retry system and delay handling

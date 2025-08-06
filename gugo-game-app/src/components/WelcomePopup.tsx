@@ -33,7 +33,7 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
     >
       <div 
         style={{
-          background: 'linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%)', // Medium-dark gradient for readability
+          background: '#1a1a1a', // Same dark background as main site
           borderRadius: 'var(--border-radius-lg)',
           padding: 'var(--space-6)',
           textAlign: 'center',
@@ -42,40 +42,23 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
           boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)',
           border: '2px solid var(--accent-color)',
           position: 'relative',
-          overflow: 'hidden' // For halftone dots
+          overflow: 'hidden'
         }}
         onClick={(e) => {
           // Prevent clicks inside modal from closing it
           e.stopPropagation();
         }}
       >
-        {/* Halftone dots around edges */}
+        {/* Green dot grid background - same as main site */}
         <div style={{
           position: 'absolute',
-          top: '10px',
-          left: '10px',
-          right: '10px',
-          bottom: '10px',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           pointerEvents: 'none',
-          background: `
-            radial-gradient(circle at 20px 20px, var(--accent-color) 2px, transparent 2px),
-            radial-gradient(circle at 40px 35px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
-            radial-gradient(circle at 15px 50px, var(--accent-color) 1px, transparent 1px),
-            radial-gradient(circle at 35px 15px, rgba(0,0,0,0.1) 1px, transparent 1px),
-            radial-gradient(circle at calc(100% - 20px) 20px, var(--accent-color) 2px, transparent 2px),
-            radial-gradient(circle at calc(100% - 40px) 35px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
-            radial-gradient(circle at calc(100% - 15px) 50px, var(--accent-color) 1px, transparent 1px),
-            radial-gradient(circle at calc(100% - 35px) 15px, rgba(0,0,0,0.1) 1px, transparent 1px),
-            radial-gradient(circle at 20px calc(100% - 20px), var(--accent-color) 2px, transparent 2px),
-            radial-gradient(circle at 40px calc(100% - 35px), rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
-            radial-gradient(circle at 15px calc(100% - 50px), var(--accent-color) 1px, transparent 1px),
-            radial-gradient(circle at 35px calc(100% - 15px), rgba(0,0,0,0.1) 1px, transparent 1px),
-            radial-gradient(circle at calc(100% - 20px) calc(100% - 20px), var(--accent-color) 2px, transparent 2px),
-            radial-gradient(circle at calc(100% - 40px) calc(100% - 35px), rgba(0,0,0,0.15) 1.5px, transparent 1.5px),
-            radial-gradient(circle at calc(100% - 15px) calc(100% - 50px), var(--accent-color) 1px, transparent 1px),
-            radial-gradient(circle at calc(100% - 35px) calc(100% - 15px), rgba(0,0,0,0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px, 60px 60px, 60px 60px, 60px 60px',
+          backgroundImage: 'radial-gradient(var(--color-green-medium) 1.5px, transparent 1.5px)',
+          backgroundSize: '28px 28px',
           opacity: 0.6,
           borderRadius: 'var(--border-radius-lg)'
         }} />
@@ -122,11 +105,23 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
           zIndex: 1
         }}>
           <p style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--font-size-lg)' }}>
-            Where beauty matters and metadata doesn't.
+            Where beauty matters — and metadata doesn't.
           </p>
           
           <p style={{ marginBottom: 'var(--space-4)' }}>
-            You vote, you earn GUGO, and we burn the rest. Let's find out what actually looks good.
+            Thanks for showing up. We're building an on-chain aesthetic score for NFTs, and we need your eye. The more people vote, the clearer the signal becomes.
+          </p>
+
+          <p style={{ marginBottom: 'var(--space-4)' }}>
+            Each NFT you see is chosen by logic that prioritizes variety, balance, and freshness — as the machine starts learning what looks good.
+          </p>
+
+          <p style={{ marginBottom: 'var(--space-4)' }}>
+            You vote. You earn GUGO. And whatever you win? We burn the same amount.
+          </p>
+
+          <p style={{ marginBottom: 'var(--space-4)', fontWeight: '600' }}>
+            Here's how it works:
           </p>
 
           {/* Bullet Points */}
@@ -139,11 +134,7 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
           }}>
             <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
-              <span>Whatever you win, we burn the same amount.</span>
-            </div>
-            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
-              <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
-              <span>10 free votes daily (with multipliers)</span>
+              <span>10 free Licks daily (with multipliers)</span>
             </div>
             <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
@@ -151,25 +142,13 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
             </div>
             <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
-              <span>Jackpot and Prize Raffles every week</span>
+              <span>Weekly jackpots & raffles</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
-              <span>Free to play, earn more with GUGO</span>
+              <span>Free to play — earn more with GUGO</span>
             </div>
           </div>
-        </div>
-
-        {/* Call to Action */}
-        <div style={{ marginBottom: 'var(--space-4)', position: 'relative', zIndex: 1 }}>
-          <h2 style={{ 
-            color: '#ffffff', // White text for dark background
-            fontSize: 'var(--font-size-lg)',
-            fontWeight: '600',
-            marginBottom: 'var(--space-3)'
-          }}>
-            Let's start voting?
-          </h2>
         </div>
 
         {/* Start Button */}
@@ -217,7 +196,7 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
               target.style.boxShadow = '0 4px 20px rgba(255, 255, 255, 0.3)';
             }}
           >
-            Ready to Start Voting
+            Ready
           </button>
         </div>
 
