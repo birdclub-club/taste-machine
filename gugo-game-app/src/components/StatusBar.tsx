@@ -438,8 +438,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
             src="/lick-icon.png"
             alt="Lick"
             style={{
-              width: '36px', // Bigger icon size
-              height: '36px', // Bigger icon size
+              width: '54px', // Bigger icon size (1.5x from 36px)
+              height: '54px', // Bigger icon size (1.5x from 36px)
               flexShrink: 0
             }}
           />
@@ -1056,8 +1056,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                       src="/lick-icon.png"
                         alt="Licks"
                       style={{
-                        width: '22px',
-                          height: '22px',
+                        width: '33px',
+                          height: '33px',
                           transition: 'transform 0.2s ease'
                         }}
                         onMouseEnter={(e) => {
