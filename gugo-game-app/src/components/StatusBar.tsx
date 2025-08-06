@@ -440,7 +440,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
             style={{
               width: '54px', // Bigger icon size (1.5x from 36px)
               height: '54px', // Bigger icon size (1.5x from 36px)
-              flexShrink: 0
+              flexShrink: 0,
+              marginTop: '5px'
             }}
           />
           {popupStage !== 'initial' && (
@@ -1058,7 +1059,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                       style={{
                         width: '33px',
                           height: '33px',
-                          transition: 'transform 0.2s ease'
+                          transition: 'transform 0.2s ease',
+                          marginTop: '5px'
                         }}
                         onMouseEnter={(e) => {
                           if (canClaim) {
