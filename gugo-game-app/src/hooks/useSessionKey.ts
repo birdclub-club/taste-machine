@@ -22,7 +22,7 @@ export interface SessionStatus {
 }
 
 export function useSessionKey() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>({
     hasActiveSession: false,
     sessionData: null,
@@ -61,6 +61,11 @@ export function useSessionKey() {
     });
   };
 
+  // Check if current wallet is AGW
+  const isAGW = () => {
+    return connector?.name?.toLowerCase().includes('abstract') || false;
+  };
+
   // Create a new session
   const createSession = async (): Promise<boolean> => {
     if (!address || !isConnected) {
@@ -72,24 +77,23 @@ export function useSessionKey() {
     setSessionError(null);
 
     try {
-      console.log('🔑 Creating new gaming session...');
+      console.log('🔑 Creating new gaming session...', {
+        wallet: connector?.name,
+        isAGW: isAGW()
+      });
       
       // Clear any existing session first
       clearSessionKey();
       
-      // Create new session (this will prompt user to sign)
-      const sessionData = await createGamingSession(address);
-      
-      console.log('✅ Gaming session created successfully:', {
-        sessionKey: sessionData.sessionPublicKey,
-        expiresAt: new Date(sessionData.expiresAt).toISOString(),
-        actions: sessionData.actionsAllowed
-      });
-      
-      // Update session status
-      updateSessionStatus();
-      
-      return true;
+      if (isAGW()) {
+        // Use AGW's native session system
+        console.log('🚀 Using AGW native session creation...');
+        return await createAGWSession();
+      } else {
+        // Use custom session key system for MetaMask/other wallets
+        console.log('🔐 Using custom session key system for non-AGW wallet...');
+        return await createCustomSession();
+      }
 
     } catch (error: any) {
       console.error('❌ Failed to create session:', error);
@@ -103,6 +107,93 @@ export function useSessionKey() {
       return false;
     } finally {
       setIsCreatingSession(false);
+    }
+  };
+
+  // Create AGW native session
+  const createAGWSession = async (): Promise<boolean> => {
+    try {
+      console.log('🎯 Attempting to use AGW native createSession...');
+      
+      // Try to import AGW's createSession
+      const { createSession: agwCreateSession } = await import('@abstract-foundation/agw-react');
+      
+      console.log('✅ AGW createSession imported successfully');
+      
+      // Create AGW session with our required actions
+      const sessionConfig = {
+        signer: address as `0x${string}`,
+        actions: [
+          // Define the actions we need for Taste Machine
+          'writeContract', // For vote purchases and prize claims
+          'signMessage'    // For general authorization
+        ],
+        duration: 2 * 60 * 60 * 1000, // 2 hours in milliseconds
+      };
+      
+      console.log('🔄 Creating AGW session with config:', sessionConfig);
+      
+      const agwSession = await agwCreateSession(sessionConfig);
+      
+      if (agwSession) {
+        console.log('✅ AGW session created successfully:', agwSession);
+        
+        // Store AGW session data in our format for compatibility
+        const compatibleSessionData = {
+          sessionPublicKey: agwSession.sessionId || 'agw-native',
+          sessionPrivateKey: 'agw-managed', // AGW manages this internally
+          userAddress: address,
+          expiresAt: Date.now() + (2 * 60 * 60 * 1000),
+          maxSpendAmount: '1000000000000000000', // 1 ETH equivalent
+          actionsAllowed: ['CLAIM_PRIZE_BREAK', 'BUY_VOTES', 'CLAIM_FREE_VOTES', 'CAST_VOTE'],
+          nonce: 0,
+          signature: 'agw-native-session',
+          chainId: 1755, // Abstract Chain ID
+          isAGWNative: true // Flag to identify AGW sessions
+        };
+        
+        // Store in session storage for consistency
+        sessionStorage.setItem('taste-machine-session', JSON.stringify(compatibleSessionData));
+        
+        // Update session status
+        updateSessionStatus();
+        
+        return true;
+      } else {
+        throw new Error('AGW session creation returned null');
+      }
+      
+    } catch (agwError: any) {
+      console.error('❌ AGW native session creation failed:', agwError);
+      console.log('🔄 Falling back to custom session system...');
+      
+      // Fallback to custom session system
+      return await createCustomSession();
+    }
+  };
+
+  // Create custom session (for MetaMask and other wallets)
+  const createCustomSession = async (): Promise<boolean> => {
+    try {
+      console.log('🔐 Creating custom session key...');
+      
+      // Create new session (this will prompt user to sign)
+      const sessionData = await createGamingSession(address);
+      
+      console.log('✅ Custom gaming session created successfully:', {
+        sessionKey: sessionData.sessionPublicKey,
+        expiresAt: new Date(sessionData.expiresAt).toISOString(),
+        actions: sessionData.actionsAllowed
+      });
+      
+      // Update session status
+      updateSessionStatus();
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Custom session creation failed:', error);
+      throw error;
     }
   };
 
