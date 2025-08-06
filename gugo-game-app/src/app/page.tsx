@@ -2129,7 +2129,8 @@ export default function Page() {
                   height: '30px',
                   flexShrink: 0,
                   filter: 'brightness(0) saturate(100%) invert(50%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(75%) contrast(100%)',
-                  opacity: 0.8
+                  opacity: 0.8,
+                  marginTop: '3px'
                 }} 
               />
             </span>
