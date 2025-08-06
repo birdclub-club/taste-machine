@@ -8,6 +8,7 @@ import { useSessionKey } from '../hooks/useSessionKey';
 import { useCollectionPreference } from '../hooks/useCollectionPreference';
 import { SessionAction } from '../../lib/session-keys';
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import FavoritesGallery from './FavoritesGallery';
 import { canClaimFreeVotes, claimFreeVotes } from '../../lib/auth';
 import { LicksPurchaseModal } from './LicksPurchaseModal';
 
@@ -152,6 +153,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
   const [floatingNotificationAmount, setFloatingNotificationAmount] = useState(0);
   const [showXpFloatingNotification, setShowXpFloatingNotification] = useState(false);
   const [xpFloatingNotificationAmount, setXpFloatingNotificationAmount] = useState(0);
+  const [showFavoritesGallery, setShowFavoritesGallery] = useState(false);
   const [congratsWord, setCongratsWord] = useState('Nice!');
   const [unclaimedRewards, setUnclaimedRewards] = useState<any[]>([]);
   const [claimingRewards, setClaimingRewards] = useState(false);
@@ -1554,6 +1556,50 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                           )}
                         </div>
 
+                        {/* Favorites Gallery Section */}
+                        <div style={{ 
+                          marginBottom: 'var(--space-3)',
+                          paddingBottom: 'var(--space-3)',
+                          borderBottom: '1px solid #444444'
+                        }}>
+                          <button
+                            onClick={() => {
+                              console.log('🌟 Opening Favorites Gallery...');
+                              setShowFavoritesGallery(true);
+                              setShowWalletDropdown(false);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: 'var(--space-3)',
+                              background: 'linear-gradient(135deg, #32a852, #4ade80)',
+                              border: 'none',
+                              borderRadius: 'var(--border-radius-sm)',
+                              cursor: 'pointer',
+                              fontSize: 'var(--font-size-sm)',
+                              color: '#000',
+                              fontWeight: '700',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              transition: 'all var(--transition-base)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 'var(--space-2)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(50, 168, 82, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <span>🌟</span>
+                            Favorites Gallery
+                          </button>
+                        </div>
+
                         <button
                           onClick={() => {
                             disconnect();
@@ -1704,6 +1750,12 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
             refreshWithRetry();
           }, 2000); // 2 second initial delay
         }}
+      />
+
+      {/* Favorites Gallery Modal */}
+      <FavoritesGallery
+        isOpen={showFavoritesGallery}
+        onClose={() => setShowFavoritesGallery(false)}
       />
     </>
   );

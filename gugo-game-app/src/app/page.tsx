@@ -22,6 +22,7 @@ import type { VotingSession, VoteSubmission } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 import { supabase } from '@lib/supabase';
 import { useActivityCounter } from '@/hooks/useActivityCounter';
+import { useFavorites } from '@/hooks/useFavorites';
 
 // 🎯 Circular marquee phrases for different prize types
 const GUGO_PHRASES = [
@@ -181,6 +182,7 @@ export default function Page() {
   } = useCollectionPreference();
   const statusBarRef = useRef<StatusBarRef>(null);
   const { licksToday, isLoading: isLoadingActivity } = useActivityCounter();
+  const { addToFavorites } = useFavorites();
   
   // Current blockchain - can be made dynamic in the future
   const currentChain = "Abstract";
@@ -477,6 +479,22 @@ export default function Page() {
       // Update vote count
       setUserVoteCount(result.voteCount);
       
+      // 🌟 Track FIRE votes for favorites
+      if (superVote) {
+        const favoriteNft = votingSession.vote_type === 'slider' 
+          ? votingSession.nft 
+          : (winnerId === votingSession.nft1.id ? votingSession.nft1 : votingSession.nft2);
+        
+        console.log('🔥 Adding FIRE vote to favorites:', favoriteNft.id);
+        addToFavorites(
+          favoriteNft.id,
+          'fire',
+          favoriteNft.token_id,
+          favoriteNft.collection_name,
+          favoriteNft.image_url
+        );
+      }
+      
       // Refresh user data to update Licks balance in status bar
       statusBarRef.current?.refreshUserData();
       
@@ -560,6 +578,18 @@ export default function Page() {
   };
 
   const handleSliderVote = async (sliderValue: number, superVote: boolean = false) => {
+    // 🌟 Track maximum slider votes for favorites (100 = max love)
+    if (sliderValue === 100 && votingSession?.nft) {
+      console.log('💯 Adding max slider vote to favorites:', votingSession.nft.id);
+      addToFavorites(
+        votingSession.nft.id,
+        'slider_max',
+        votingSession.nft.token_id,
+        votingSession.nft.collection_name,
+        votingSession.nft.image_url
+      );
+    }
+    
     await handleVote(sliderValue.toString(), superVote);
   };
 
