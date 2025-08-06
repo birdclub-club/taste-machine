@@ -157,7 +157,8 @@ export async function authorizeSession(
   expiresAt: number,
   tokenLimits: TokenLimit[],
   actionsAllowed: SessionAction[],
-  chainId: number
+  chainId: number,
+  connector?: any // Optional connector to use specific wallet
 ): Promise<string> {
   const message = createSessionAuthMessage(
     userAddress, 
@@ -171,7 +172,10 @@ export async function authorizeSession(
   // Try to use wagmi/viem first for better wallet compatibility
   if (typeof window !== 'undefined') {
     try {
-      console.log('🔄 Starting wagmi session authorization process...');
+      console.log('🔄 Starting wagmi session authorization process...', {
+        hasConnector: !!connector,
+        connectorName: connector?.name
+      });
       
       // Import wagmi dynamically to avoid SSR issues
       console.log('📦 Importing wagmi modules...');
@@ -179,6 +183,44 @@ export async function authorizeSession(
       const { config } = await import('./wagmi');
       
       console.log('✅ Wagmi modules imported successfully');
+      
+      // If we have a specific connector (AGW), try to get its provider first
+      if (connector) {
+        console.log('🎯 Using specific connector for signing:', connector.name);
+        
+        try {
+          const connectorProvider = await connector.getProvider();
+          if (connectorProvider && connectorProvider.request) {
+            console.log('✅ Got connector provider, using direct signing...');
+            
+            const signature = await connectorProvider.request({
+              method: 'personal_sign',
+              params: [message, userAddress]
+            });
+            
+            console.log('✅ Signature received from connector provider:', signature.substring(0, 10) + '...');
+            
+            const mainToken = tokenLimits.find(t => t.isMainToken) || tokenLimits[0];
+            const mainAmount = mainToken ? ethers.formatEther(mainToken.maxAmount) : '0';
+            
+            console.log('✅ Session authorized by user via connector:', {
+              userAddress,
+              sessionKey: sessionPublicKey,
+              chainId,
+              connectorName: connector.name,
+              expiresAt: new Date(expiresAt).toISOString(),
+              mainTokenLimit: `${mainAmount} ${mainToken?.tokenSymbol}`,
+              totalTokens: tokenLimits.length,
+              signature: signature.substring(0, 10) + '...'
+            });
+            
+            return signature;
+          }
+        } catch (connectorError) {
+          console.log('⚠️ Connector provider signing failed, falling back to wagmi signMessage:', connectorError);
+        }
+      }
+      
       console.log('🔑 Requesting session authorization signature from wallet...', {
         wallet: 'wagmi',
         userAddress,
@@ -191,7 +233,8 @@ export async function authorizeSession(
       // Add timeout to prevent infinite hanging
       const signaturePromise = signMessage(config, {
         message,
-        account: userAddress as `0x${string}`
+        account: userAddress as `0x${string}`,
+        connector: connector // Pass the connector to wagmi if available
       });
       
       const timeoutPromise = new Promise((_, reject) => {
@@ -461,7 +504,7 @@ export function verifySessionTransaction(
 /**
  * Create a new gaming session with network-specific token limits
  */
-export async function createGamingSession(userAddress: string, chainId?: number): Promise<SessionKeyData> {
+export async function createGamingSession(userAddress: string, chainId?: number, connector?: any): Promise<SessionKeyData> {
   // Detect current chain ID if not provided
   const currentChainId = chainId || await getCurrentChainId();
   
@@ -500,7 +543,8 @@ export async function createGamingSession(userAddress: string, chainId?: number)
     expiresAt,
     tokenLimits,
     actionsAllowed,
-    currentChainId
+    currentChainId,
+    connector
   );
   
   // Create session data

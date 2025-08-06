@@ -142,7 +142,7 @@ export function useSessionKey() {
       console.log('🔐 Creating custom session key...');
       
       // Create new session (this will prompt user to sign)
-      const sessionData = await createGamingSession(address);
+      const sessionData = await createGamingSession(address, undefined, connector);
       
       console.log('✅ Custom gaming session created successfully:', {
         sessionKey: sessionData.sessionPublicKey,
