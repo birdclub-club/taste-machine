@@ -738,7 +738,8 @@ export default function Page() {
     <div style={{ 
       minHeight: '100vh',
       background: '#1a1a1a',
-      position: 'relative'
+      position: 'relative',
+      width: '100%'
     }}>
       {/* Clean Dot Grid Background */}
       <div className="dot-grid"></div>
