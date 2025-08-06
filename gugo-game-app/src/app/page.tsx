@@ -2114,7 +2114,7 @@ export default function Page() {
               gap: 'var(--space-2)',
               opacity: 0.8 
             }}>
-              On-chain Taste Activity Today: 
+              Taste Activity Today: 
               <span style={{ 
                 color: 'var(--color-green)', 
                 fontWeight: '600'
