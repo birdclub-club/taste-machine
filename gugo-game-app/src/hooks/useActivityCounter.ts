@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const BOOST_MULTIPLIER = 10;
+const BOOST_MULTIPLIER = 5;
 const SIMULATION_INTERVAL = 1500; // 1.5 seconds
 const MIN_INCREMENT = 0;
 const MAX_INCREMENT = 2;
@@ -26,7 +26,7 @@ export function useActivityCounter() {
         
         if (data.error) {
           setError(data.error);
-          setLicksToday(480); // Fallback to a reasonable number (48 * 10)
+          setLicksToday(240); // Fallback to a reasonable number (48 * 5)
         } else {
           const boostedCount = data.count * BOOST_MULTIPLIER;
           setLicksToday(boostedCount);
@@ -35,7 +35,7 @@ export function useActivityCounter() {
       } catch (err) {
         console.error('❌ Failed to fetch daily vote count:', err);
         setError('Failed to load activity data');
-        setLicksToday(480); // Fallback
+        setLicksToday(240); // Fallback
       } finally {
         setIsLoading(false);
       }
