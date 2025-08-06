@@ -1,5 +1,5 @@
 // Smart Contract Constants
-export const GUGO_VOTE_MANAGER_ADDRESS = process.env.NEXT_PUBLIC_VOTE_MANAGER_CONTRACT || '0xF714af6b79143b3A412eBe421BFbaC4f7D4e4B13';
+export const GUGO_VOTE_MANAGER_ADDRESS = process.env.NEXT_PUBLIC_VOTE_MANAGER_CONTRACT || '0x0325DFB05963cC413934587821BA91f460091135';
 
 // Smart Contract ABI - Complete voting and prize break functions
 export const GUGO_VOTE_MANAGER_ABI = [
@@ -24,6 +24,21 @@ export const GUGO_VOTE_MANAGER_ABI = [
     "name": "superVote", 
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // Purchase functions
+  {
+    "inputs": [{"internalType": "uint256", "name": "voteCount", "type": "uint256"}],
+    "name": "purchaseVotesWithGUGO",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "voteCount", "type": "uint256"}],
+    "name": "purchaseVotesWithETH",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   },
   // Prize break functions
@@ -78,6 +93,17 @@ export const GUGO_VOTE_MANAGER_ABI = [
     ],
     "name": "VoteCast",
     "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "voteCount", "type": "uint256"},
+      {"indexed": false, "internalType": "uint256", "name": "cost", "type": "uint256"},
+      {"indexed": false, "internalType": "string", "name": "token", "type": "string"}
+    ],
+    "name": "VotesPurchased",
+    "type": "event"
   }
 ] as const;
 
@@ -115,4 +141,3 @@ export const COINGECKO_API_BASE = 'https://api.coingecko.com/api/v3';
 export const OPENSEA_API_BASE = 'https://api.opensea.io/api/v1';
 
 // Collection IDs
-export const BEARISH_COLLECTION_ID = 'bearish'; // CoinGecko collection ID

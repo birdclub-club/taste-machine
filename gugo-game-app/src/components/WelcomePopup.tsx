@@ -262,4 +262,3 @@ export default function WelcomePopup({ isOpen, onCollectionChoice }: WelcomePopu
       </div>
     </div>
   );
-}

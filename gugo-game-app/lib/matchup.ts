@@ -408,5 +408,3 @@ export async function fetchMatchup() {
     nft2: session.nft2
   };
 }
-
-// 🗑️ Old createRandomMatchups function removed - we now use dynamic selection

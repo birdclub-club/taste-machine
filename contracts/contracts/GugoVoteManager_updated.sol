@@ -313,44 +313,41 @@ contract GugoVoteManager is Ownable, ReentrancyGuard {
         uint256 votesAmount = 0;
         uint256 gugoAmount = 0;
         
-        // Prize Break Lottery with enhanced GUGO accessibility
-        if (roll < 30) {
-            // 30% - Base XP (reduced from 35%)
+        // 🎁 TREASURY-SCALED Prize Break Structure (Every 10 Votes)
+        // Calculate total GUGO odds based on current treasury balance
+        uint256 totalGugoOdds = _getTotalGugoOdds();
+        
+        if (roll < 50) {
+            // 50% - Base XP (+10 XP) - Every Prize Break
             rewardType = RewardType.BASE_XP;
-            xpAmount = baseXPAmount + user.pendingXP; // Base XP + accumulated XP
-        } else if (roll < 37) {
-            // 7% - Big XP (Base + 20 bonus)
-            rewardType = RewardType.BIG_XP;
-            xpAmount = baseXPAmount + 20 + user.pendingXP;
-        } else if (roll < 47) {
-            // 10% - XP & Votes (+10 XP + 10 Votes)
-            rewardType = RewardType.XP_VOTES_10;
-            xpAmount = baseXPAmount + 10 + user.pendingXP;
-            votesAmount = 10;
-        } else if (roll < 55) {
-            // 8% - XP & Votes (+5 XP + 20 Votes)
-            rewardType = RewardType.XP_VOTES_5;
-            xpAmount = baseXPAmount + 5 + user.pendingXP;
-            votesAmount = 20;
+            xpAmount = 10 + user.pendingXP;
         } else if (roll < 60) {
-            // 5% - Vote Bonus (+0 XP + 30 Votes)
-            rewardType = RewardType.VOTE_BONUS;
-            xpAmount = user.pendingXP; // Only accumulated XP
-            votesAmount = 30;
-        } else if (roll < 78) {
-            // 18% - GUGO Tier 1 (Most common GUGO reward - ~$2 USD)
-            rewardType = RewardType.GUGO_TIER_1;
-            gugoAmount = _calculateGugoReward(1);
-            xpAmount = user.pendingXP; // Only accumulated XP
-        } else if (roll < 90) {
-            // 12% - GUGO Tier 2 (Enhanced accessibility - ~$4-5 USD)
-            rewardType = RewardType.GUGO_TIER_2;
-            gugoAmount = _calculateGugoReward(2);
-            xpAmount = user.pendingXP; // Only accumulated XP
+            // 10% - Big XP (+20 XP) - Occasional boost
+            rewardType = RewardType.BIG_XP;
+            xpAmount = 20 + user.pendingXP;
+        } else if (roll < 70) {
+            // 10% - XP + Votes (+10 XP + 10 Votes) - Loop enhancer
+            rewardType = RewardType.XP_VOTES_10;
+            xpAmount = 10 + user.pendingXP;
+            votesAmount = 10;
+        } else if (roll < (100 - totalGugoOdds)) {
+            // Remaining % - Other rewards (votes only, more XP, visual flare)
+            uint256 otherRoll = randomSeed % 100;
+            if (otherRoll < 50) {
+                // Votes Only (+30 Votes) - Pure quantity
+                rewardType = RewardType.VOTE_BONUS;
+                xpAmount = user.pendingXP;
+                votesAmount = 30;
+            } else {
+                // More XP + Votes (+5 XP + 20 Votes) - Utility boost
+                rewardType = RewardType.XP_VOTES_5;
+                xpAmount = 5 + user.pendingXP;
+                votesAmount = 20;
+            }
         } else {
-            // 10% - Higher GUGO Tiers 3-5 (distributed based on treasury)
-            (rewardType, gugoAmount) = _getHigherGugoReward(randomSeed);
-            xpAmount = user.pendingXP; // Only accumulated XP
+            // GUGO Prizes - Treasury-scaled odds and tiers
+            (rewardType, gugoAmount) = _getGugoReward(randomSeed);
+            xpAmount = user.pendingXP; // Only accumulated XP for GUGO rewards
         }
         
         // Apply rewards
@@ -379,114 +376,151 @@ contract GugoVoteManager is Ownable, ReentrancyGuard {
         emit PrizeBreakClaimed(msg.sender, rewardType, xpAmount, votesAmount, gugoAmount, user.xp);
     }
     
-    function _getHigherGugoReward(uint256 randomSeed) internal view returns (RewardType rewardType, uint256 gugoAmount) {
-        // Dynamic tier unlocking based on treasury balance
-        uint256 unlockedTiers = _getUnlockedGugoTiers();
-        
-        // Ensure we have at least tier 3 unlocked for higher rewards
-        if (unlockedTiers < 3) {
-            // Fallback to tier 2 if tier 3+ not available
-            rewardType = RewardType.GUGO_TIER_2;
-            gugoAmount = _calculateGugoReward(2);
-            return (rewardType, gugoAmount);
-        }
-        
-        // Map roll to available higher tiers (3-9)
-        uint256 availableHigherTiers = unlockedTiers - 2; // Subtract tiers 1 & 2
-        uint256 tierRoll = randomSeed % availableHigherTiers;
-        uint256 selectedTier = 3 + tierRoll;
-        
-        // Convert tier number to RewardType enum and calculate amount
-        if (selectedTier == 3) {
-            rewardType = RewardType.GUGO_TIER_3;
-        } else if (selectedTier == 4) {
-            rewardType = RewardType.GUGO_TIER_4;
-        } else if (selectedTier == 5) {
-            rewardType = RewardType.GUGO_TIER_5;
-        } else if (selectedTier == 6) {
-            rewardType = RewardType.GUGO_TIER_6;
-        } else if (selectedTier == 7) {
-            rewardType = RewardType.GUGO_TIER_7;
-        } else if (selectedTier == 8) {
-            rewardType = RewardType.GUGO_TIER_8;
-        } else if (selectedTier == 9) {
-            rewardType = RewardType.GUGO_TIER_9;
+
+    
+    function _getTotalGugoOdds() internal view returns (uint256) {
+        // 🏦 Treasury-Scaled GUGO Odds System
+        if (prizeBreakTreasury >= 500000 * 1e18) {
+            return 20; // 500k+ GUGO: 20%+ total GUGO odds
+        } else if (prizeBreakTreasury >= 250000 * 1e18) {
+            return 18; // 250k-500k GUGO: 18% total GUGO odds
+        } else if (prizeBreakTreasury >= 100000 * 1e18) {
+            return 15; // 100k-250k GUGO: 15% total GUGO odds
+        } else if (prizeBreakTreasury >= 50000 * 1e18) {
+            return 12; // 50k-100k GUGO: 12% total GUGO odds
+        } else if (prizeBreakTreasury >= 20000 * 1e18) {
+            return 9;  // 20k-50k GUGO: 9% total GUGO odds
+        } else if (prizeBreakTreasury >= 5000 * 1e18) {
+            return 6;  // 5k-20k GUGO: 6% total GUGO odds
         } else {
-            // Fallback to highest available tier
-            rewardType = RewardType.GUGO_TIER_5;
-            selectedTier = 5;
+            return 0;  // < 5k GUGO: 0% GUGO odds
+        }
+    }
+    
+    function _getGugoReward(uint256 randomSeed) internal view returns (RewardType, uint256) {
+        // Always maintain 6% odds for 600 GUGO (feels like value return)
+        uint256 gugoRoll = randomSeed % 100;
+        
+        if (gugoRoll < 30 && prizeBreakTreasury >= 5000 * 1e18) {
+            // 6% - 600 GUGO (consistent across all treasury tiers)
+            return (RewardType.GUGO_TIER_1, 600 * 1e18);
         }
         
-        gugoAmount = _calculateGugoReward(selectedTier);
+        // Distribute remaining GUGO odds among higher tiers based on treasury
+        uint256 totalGugoOdds = _getTotalGugoOdds();
+        uint256 remainingOdds = totalGugoOdds - 6; // Subtract 600 GUGO odds
+        
+        if (remainingOdds == 0) {
+            // Only 600 GUGO unlocked, fallback
+            return (RewardType.GUGO_TIER_1, 600 * 1e18);
+        }
+        
+        // Map remaining odds to higher tiers
+        uint256 higherRoll = randomSeed % remainingOdds;
+        
+        if (higherRoll < 3 && prizeBreakTreasury >= 20000 * 1e18) {
+            // 3% - 1500 GUGO
+            return (RewardType.GUGO_TIER_2, 1500 * 1e18);
+        } else if (higherRoll < 4 && prizeBreakTreasury >= 50000 * 1e18) {
+            // 1.5% - 3000 GUGO
+            return (RewardType.GUGO_TIER_3, 3000 * 1e18);
+        } else if (higherRoll < 5 && prizeBreakTreasury >= 100000 * 1e18) {
+            // 0.5% - 5000 GUGO
+            return (RewardType.GUGO_TIER_4, 5000 * 1e18);
+        } else if (higherRoll < 6 && prizeBreakTreasury >= 250000 * 1e18) {
+            // Very rare - 10,000 GUGO
+            return (RewardType.GUGO_TIER_5, 10000 * 1e18);
+        } else if (higherRoll < 7 && prizeBreakTreasury >= 500000 * 1e18) {
+            // Ultra rare - 25,000 GUGO
+            return (RewardType.GUGO_TIER_6, 25000 * 1e18);
+        }
+        
+        // Fallback to 600 GUGO
+        return (RewardType.GUGO_TIER_1, 600 * 1e18);
+    }
+    
+    function _isGugoTierUnlocked(uint256 tier) internal view returns (bool) {
+        // Legacy function for compatibility
+        if (tier == 1) return prizeBreakTreasury >= 5000 * 1e18;
+        if (tier == 2) return prizeBreakTreasury >= 20000 * 1e18;
+        if (tier == 3) return prizeBreakTreasury >= 50000 * 1e18;
+        if (tier == 4) return prizeBreakTreasury >= 100000 * 1e18;
+        if (tier == 5) return prizeBreakTreasury >= 250000 * 1e18;
+        if (tier == 6) return prizeBreakTreasury >= 500000 * 1e18;
+        return false;
     }
     
     function _getUnlockedGugoTiers() internal view returns (uint256) {
-        // Progressive tier unlocking based on prize break treasury
-        // Focus on adding more tiers rather than increasing existing ones
+        // Legacy function - returns highest unlocked tier
+        if (_isGugoTierUnlocked(6)) return 6;
+        if (_isGugoTierUnlocked(5)) return 5;
+        if (_isGugoTierUnlocked(4)) return 4;
+        if (_isGugoTierUnlocked(3)) return 3;
+        if (_isGugoTierUnlocked(2)) return 2;
+        if (_isGugoTierUnlocked(1)) return 1;
+        return 0; // No GUGO prizes unlocked (treasury < 5k GUGO)
+    }
+    
+    function _getHigherGugoReward(uint256 randomSeed) internal view returns (RewardType, uint256) {
+        uint256 unlockedTiers = _getUnlockedGugoTiers();
         
-        if (prizeBreakTreasury >= 100000 * 1e18) return 9;     // 9 tiers - Ultra rewards
-        if (prizeBreakTreasury >= 50000 * 1e18) return 8;      // 8 tiers - Mega rewards  
-        if (prizeBreakTreasury >= 25000 * 1e18) return 7;      // 7 tiers - Super rewards
-        if (prizeBreakTreasury >= 10000 * 1e18) return 6;      // 6 tiers - Premium expansion
-        if (prizeBreakTreasury >= 5000 * 1e18) return 5;       // 5 tiers - All original tiers
-        if (prizeBreakTreasury >= 2000 * 1e18) return 4;       // 4 tiers unlocked
-        if (prizeBreakTreasury >= 1000 * 1e18) return 3;       // 3 tiers unlocked  
-        if (prizeBreakTreasury >= 500 * 1e18) return 2;        // 2 tiers unlocked
-        if (prizeBreakTreasury >= 100 * 1e18) return 1;        // 1 tier unlocked
-        return 0; // No GUGO rewards available
+        // Only award higher tiers if treasury has enough
+        if (unlockedTiers <= 3) {
+            // Fallback to Tier 3 if no higher tiers unlocked
+            return (RewardType.GUGO_TIER_3, 3000 * 1e18);
+        }
+        
+        // Distribute among available higher tiers (4-9)
+        uint256 availableHigherTiers = unlockedTiers - 3; // Subtract Tiers 1-3
+        uint256 tierRoll = randomSeed % availableHigherTiers;
+        uint256 selectedTier = 4 + tierRoll; // Start from Tier 4
+        
+        // Map to reward types and amounts
+        if (selectedTier == 4) {
+            return (RewardType.GUGO_TIER_4, 5000 * 1e18);   // 5K GUGO (~$17)
+        } else if (selectedTier == 5) {
+            return (RewardType.GUGO_TIER_5, 10000 * 1e18);  // 10K GUGO (~$34)
+        } else if (selectedTier == 6) {
+            return (RewardType.GUGO_TIER_6, 25000 * 1e18);  // 25K GUGO (~$85)
+        } else if (selectedTier == 7) {
+            return (RewardType.GUGO_TIER_7, 50000 * 1e18);  // 50K GUGO (~$170)
+        } else if (selectedTier == 8) {
+            return (RewardType.GUGO_TIER_8, 100000 * 1e18); // 100K GUGO (~$340)
+        } else if (selectedTier == 9) {
+            return (RewardType.GUGO_TIER_9, 250000 * 1e18); // 250K GUGO (~$850)
+        }
+        
+        // Fallback to highest available tier
+        return (RewardType.GUGO_TIER_3, 3000 * 1e18);
     }
     
     function _calculateGugoReward(uint256 tier) internal view returns (uint256) {
         // Treasury safety check - get available funds for prizes
         uint256 availableFunds = _getAvailablePrizeFunds();
         
+        // Use original whitepaper prize amounts - fixed GUGO amounts per tier
+        uint256 targetAmount;
+        
+        // 🎁 OFFICIAL GUGO Prize Amounts (Fixed from prize structure)
         if (tier == 1) {
-            // Tier 1: Target $2 USD equivalent (~10 GUGO tokens)
-            uint256 targetAmount = 10 * 1e18;
-            return _applySafetyScaling(targetAmount, availableFunds, 1);
+            // Tier 1: 600 GUGO (~$2.00)
+            targetAmount = 600 * 1e18;
+        } else if (tier == 2) {
+            // Tier 2: 1500 GUGO (~$5.10)
+            targetAmount = 1500 * 1e18;
+        } else if (tier == 3) {
+            // Tier 3: 3000 GUGO (~$10.20)
+            targetAmount = 3000 * 1e18;
+        } else if (tier >= 4 && tier <= 6) {
+            // Tier 4-6: 5000-25,000 GUGO (locked unless treasury > certain levels)
+            // Scales based on treasury balance
+            uint256 baseAmount = 5000 + (tier - 4) * 10000; // 5K, 15K, 25K
+            targetAmount = baseAmount * 1e18;
+        } else {
+            return 0; // Invalid tier
         }
         
-        if (tier == 2) {
-            // Tier 2: Target $5 USD equivalent (~25 GUGO tokens)
-            uint256 targetAmount = 25 * 1e18;
-            return _applySafetyScaling(targetAmount, availableFunds, 2);
-        }
-        
-        // Higher tiers use dynamic treasury-based rewards with safety scaling
-        uint256 baseReward = prizeBreakTreasury / 400; // 0.25% of treasury as base for higher tiers
-        
-        if (tier == 3) {
-            uint256 targetAmount = baseReward / 5;        // Tier 3: 0.05%
-            return _applySafetyScaling(targetAmount, availableFunds, 3);
-        }
-        if (tier == 4) {
-            uint256 targetAmount = baseReward / 2;        // Tier 4: 0.125%
-            return _applySafetyScaling(targetAmount, availableFunds, 4);
-        }
-        if (tier == 5) {
-            uint256 targetAmount = baseReward;            // Tier 5: 0.25%
-            return _applySafetyScaling(targetAmount, availableFunds, 5);
-        }
-        
-        // Extended tiers for massive treasuries (exponentially increasing rewards)
-        if (tier == 6) {
-            uint256 targetAmount = baseReward * 2;        // Tier 6: 0.5% (~$100-300)
-            return _applySafetyScaling(targetAmount, availableFunds, 6);
-        }
-        if (tier == 7) {
-            uint256 targetAmount = baseReward * 4;        // Tier 7: 1% (~$200-600)
-            return _applySafetyScaling(targetAmount, availableFunds, 7);
-        }
-        if (tier == 8) {
-            uint256 targetAmount = baseReward * 8;        // Tier 8: 2% (~$400-1200)
-            return _applySafetyScaling(targetAmount, availableFunds, 8);
-        }
-        if (tier == 9) {
-            uint256 targetAmount = baseReward * 16;       // Tier 9: 4% (~$800-2400)
-            return _applySafetyScaling(targetAmount, availableFunds, 9);
-        }
-        
-        return 0;
+        return _applySafetyScaling(targetAmount, availableFunds, tier);
     }
     
     function _applySafetyScaling(uint256 targetAmount, uint256 availableFunds, uint256 tier) internal pure returns (uint256) {
@@ -586,7 +620,7 @@ contract GugoVoteManager is Ownable, ReentrancyGuard {
     
     function getUserStats(address user) external view returns (
         uint256 xp,
-        uint256 userTotalVotes,
+        uint256 totalVotesGlobal,
         uint256 winningVotes,
         uint256 streak,
         uint256 pendingXP,
@@ -599,7 +633,7 @@ contract GugoVoteManager is Ownable, ReentrancyGuard {
     
     function getNFTStats(uint256 tokenId) external view returns (
         uint256 eloRating,
-        uint256 nftTotalVotes,
+        uint256 totalVotesGlobal,
         uint256 wins,
         uint256 losses,
         bool isActive

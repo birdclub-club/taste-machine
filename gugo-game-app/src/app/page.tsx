@@ -7,6 +7,7 @@ import PurchaseAlert from '@/components/PurchaseAlert';
 import NetworkStatus from '@/components/NetworkStatus';
 import { SessionPrompt } from '@/components/SessionPrompt';
 import WelcomePopup from '@/components/WelcomePopup';
+import Confetti from '@/components/Confetti';
 import { useVote } from '@/hooks/useVote';
 import { usePrizeBreak } from '@/hooks/usePrizeBreak';
 import { useSessionKey } from '@/hooks/useSessionKey';
@@ -97,6 +98,7 @@ export default function Page() {
   const [imageFailureCount, setImageFailureCount] = useState(0);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [freeVotesPrizeBreak, setFreeVotesPrizeBreak] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
   const [showSessionPrompt, setShowSessionPrompt] = useState<{
     isOpen: boolean;
     trigger: 'first-reward' | 'vote-purchase';
@@ -123,6 +125,34 @@ export default function Page() {
   
   // Current blockchain - can be made dynamic in the future
   const currentChain = "Abstract";
+
+  // 🎉 Trigger confetti for GUGO prizes - DEMO MODE: AGGRESSIVE CONFETTI!
+  useEffect(() => {
+    console.log('🎊 Confetti effect check:', {
+      isActive: prizeBreakState.isActive,
+      hasReward: !!prizeBreakState.reward,
+      gugoAmount: prizeBreakState.reward?.gugoAmount || 0,
+      isClaimingReward: prizeBreakState.isClaimingReward,
+      shouldTrigger: prizeBreakState.isActive && 
+                     prizeBreakState.reward && 
+                     prizeBreakState.reward.gugoAmount > 0
+    });
+    
+    // DEMO MODE: Trigger confetti for ANY GUGO amount (removed isClaimingReward check)
+    if (prizeBreakState.isActive && 
+        prizeBreakState.reward && 
+        prizeBreakState.reward.gugoAmount > 0) {
+      console.log('🎉 GUGO prize detected! Starting confetti countdown...');
+      
+      // Immediate confetti for maximum excitement in demo!
+      const confettiTimer = setTimeout(() => {
+        console.log('🎊 🎊 🎊 DEMO CONFETTI FOR GUGO PRIZE:', prizeBreakState.reward!.gugoAmount, 'GUGO 🎊 🎊 🎊');
+        setShowConfetti(true);
+      }, 500); // Reduced delay to 0.5 seconds
+
+      return () => clearTimeout(confettiTimer);
+    }
+  }, [prizeBreakState.isActive, prizeBreakState.reward]);
 
 
 
@@ -1763,6 +1793,16 @@ export default function Page() {
         isOpen={shouldShowWelcome}
         onCollectionChoice={handleCollectionChoice}
       />
+
+      {/* 🎉 Confetti for GUGO Prizes */}
+      {showConfetti && (
+        <Confetti
+          onComplete={() => {
+            console.log('🎊 Confetti animation completed, cleaning up...');
+            setShowConfetti(false);
+          }}
+        />
+      )}
     </div>
   );
 }

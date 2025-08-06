@@ -77,4 +77,3 @@ export function matchesCollectionPreference(
   }
   
   return nftCollectionName === 'BEARISH'; // Default to BEARISH only
-}

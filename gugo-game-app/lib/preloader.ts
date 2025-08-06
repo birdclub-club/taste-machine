@@ -822,4 +822,5 @@ class VotingPreloader {
   }
 }
 
+// Export singleton instance
 export const votingPreloader = VotingPreloader.getInstance();

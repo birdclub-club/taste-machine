@@ -209,21 +209,51 @@ export function useVote() {
     const loserElo = winner === 'a' ? nftB.current_elo : nftA.current_elo;
     const voteType = isSuperVote ? 'super' : 'standard';
 
-    // Calculate new Elo ratings using Supabase function
-    const { data: eloResult, error: eloError } = await supabase
-      .rpc('calculate_elo_update', {
-        winner_elo: winnerElo,
-        loser_elo: loserElo,
-        vote_type: voteType
+    // Calculate new Elo ratings using Supabase function with fallback
+    let winner_new_elo, loser_new_elo;
+    
+    try {
+      const { data: eloResult, error: eloError } = await supabase
+        .rpc('calculate_elo_update', {
+          winner_elo: winnerElo,
+          loser_elo: loserElo,
+          vote_type: voteType
+        });
+
+      if (eloError || !eloResult || !Array.isArray(eloResult) || eloResult.length === 0) {
+        console.warn('⚠️ Supabase Elo function failed, using JavaScript fallback:', eloError || 'No result returned');
+        throw new Error('Supabase function failed');
+      }
+
+      ({ winner_new_elo, loser_new_elo } = eloResult[0]);
+      console.log('✅ Elo calculated via Supabase function');
+      
+    } catch (functionError) {
+      // JavaScript fallback for Elo calculation
+      console.log('🔄 Using JavaScript Elo calculation fallback...');
+      
+      const kFactor = voteType === 'super' ? 64 : 32; // Double K-factor for super votes
+      
+      // Calculate expected scores
+      const expectedWinner = 1.0 / (1.0 + Math.pow(10.0, (loserElo - winnerElo) / 400.0));
+      const expectedLoser = 1.0 - expectedWinner;
+      
+      // Calculate Elo changes
+      const winnerChange = Math.round(kFactor * (1.0 - expectedWinner));
+      const loserChange = Math.round(kFactor * (0.0 - expectedLoser));
+      
+      // Apply changes
+      winner_new_elo = winnerElo + winnerChange;
+      loser_new_elo = loserElo + loserChange;
+      
+      console.log('✅ Elo calculated via JavaScript fallback:', {
+        kFactor,
+        winnerChange,
+        loserChange,
+        winner_new_elo,
+        loser_new_elo
       });
-
-    if (eloError || !eloResult || !Array.isArray(eloResult) || eloResult.length === 0) {
-      console.error('❌ Elo calculation error:', eloError || 'No result returned');
-      console.error('❌ Raw eloResult:', eloResult);
-      throw new Error('Failed to calculate new Elo ratings');
     }
-
-    const { winner_new_elo, loser_new_elo } = eloResult[0];
 
     // Map back to NFT A and B ratings
     let new_rating_a, new_rating_b;
@@ -520,4 +550,3 @@ export function useVote() {
     isVoting,
     checkSuperVoteEligibility // Export for UI use
   };
-}
