@@ -552,3 +552,4 @@ export function useSessionVotePurchase() {
     // Utilities
     canUseSession: () => hasValidSession(SessionAction.BUY_VOTES)
   };
+}

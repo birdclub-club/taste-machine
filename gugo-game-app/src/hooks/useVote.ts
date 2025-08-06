@@ -550,3 +550,4 @@ export function useVote() {
     isVoting,
     checkSuperVoteEligibility // Export for UI use
   };
+}
