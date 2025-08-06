@@ -1076,7 +1076,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                         <div
                           style={{
                             position: 'absolute',
-                            top: '-2px',
+                            top: '3px', // Moved down 5px from -2px
                             right: '-2px',
                             width: '8px',
                             height: '8px',
