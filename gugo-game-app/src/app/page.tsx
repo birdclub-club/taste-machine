@@ -2121,26 +2121,15 @@ export default function Page() {
               }}>
                 {isLoadingActivity ? '...' : licksToday.toLocaleString()}
               </span>
-              <span style={{
-                width: '12px',
-                height: '12px',
-                background: 'var(--color-green)',
-                borderRadius: '50%',
-                display: 'inline-block',
-                position: 'relative',
-                flexShrink: 0
-              }}>
-                <span style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '6px',
-                  height: '6px',
-                  background: 'white',
-                  borderRadius: '50%'
-                }} />
-              </span>
+              <img 
+                src="/lick-icon.png" 
+                alt="Licks" 
+                style={{ 
+                  width: '14px', 
+                  height: '14px',
+                  flexShrink: 0
+                }} 
+              />
             </span>
           </div>
         </div>
