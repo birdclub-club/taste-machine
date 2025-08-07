@@ -1410,7 +1410,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                             marginBottom: 'var(--space-2)',
                             color: 'var(--color-grey-300)'
                           }}>
-                            Gaming Session
+                            Secure Session
                           </div>
                           
                           {isSessionActive ? (
@@ -1514,11 +1514,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                                 color: 'var(--color-grey-400)',
                                 marginBottom: 'var(--space-2)'
                               }}>
-                                Create a secure session to play without signing every action.
-                                <br />
-                                <strong style={{ color: 'var(--color-green)' }}>
-                                  Spend up to 500,000 {isConnected && address ? 'FGUGO' : 'GUGO'} seamlessly!
-                                </strong>
+                                Start a secure session so you don't have to sign every time you vote, buy, or win.
                               </div>
                               
                               <button
@@ -1539,7 +1535,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                                   letterSpacing: '0.05em'
                                 }}
                               >
-                                {isCreatingSession ? 'Creating Session...' : 'Create Gaming Session'}
+                                {isCreatingSession ? 'Creating Session...' : 'CREATE SESSION'}
                               </button>
                               
                               {sessionError && (
@@ -1595,7 +1591,6 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                               e.currentTarget.style.boxShadow = 'none';
                             }}
                           >
-                            <span>🌟</span>
                             Favorites Gallery
                           </button>
                         </div>
