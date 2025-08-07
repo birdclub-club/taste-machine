@@ -838,6 +838,30 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
 
   return (
     <>
+      {/* CSS for gold shimmer animation */}
+      <style>{`
+        @keyframes goldShimmer {
+          0% {
+            left: -100%;
+            opacity: 0;
+          }
+          8% {
+            opacity: 1;
+          }
+          25% {
+            left: 100%;
+            opacity: 1;
+          }
+          33% {
+            opacity: 0;
+          }
+          100% {
+            left: 100%;
+            opacity: 0;
+          }
+        }
+      `}</style>
+      
       <div style={{
         background: '#2a2a2a',
         borderBottom: '1px solid #333333',
@@ -1567,7 +1591,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                             style={{
                               width: '100%',
                               padding: 'var(--space-3)',
-                              background: 'linear-gradient(135deg, #32a852, #4ade80)',
+                              background: 'linear-gradient(135deg, #d4af37, #ffd700, #ffed4e)',
                               border: 'none',
                               borderRadius: 'var(--border-radius-sm)',
                               cursor: 'pointer',
@@ -1580,17 +1604,33 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: 'var(--space-2)'
+                              gap: 'var(--space-2)',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              boxShadow: '0 2px 8px rgba(212, 175, 55, 0.3)'
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(50, 168, 82, 0.4)';
+                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(212, 175, 55, 0.6)';
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = 'none';
+                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(212, 175, 55, 0.3)';
                             }}
                           >
+                            {/* Shimmer reflection effect */}
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: '-100%',
+                                width: '100%',
+                                height: '100%',
+                                background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
+                                animation: 'goldShimmer 3s infinite linear',
+                                pointerEvents: 'none'
+                              }}
+                            />
                             Favorites Gallery
                           </button>
                         </div>
