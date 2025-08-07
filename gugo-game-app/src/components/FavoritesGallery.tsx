@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFavorites } from '@/hooks/useFavorites';
-import { fixImageUrl, getNextIPFSGateway } from '@/lib/ipfs-gateway-manager';
+import { fixImageUrl, getNextIPFSGateway } from '../../lib/ipfs-gateway-manager';
 
 interface FavoritesGalleryProps {
   isOpen: boolean;
