@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       tokenId, 
       collectionName, 
       imageUrl, 
+      collectionAddress,
       voteType = 'fire' 
     } = body;
 
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`⭐ Adding to favorites: ${nftId} for ${walletAddress}`);
 
+    // Temporarily exclude collection_address until migration is run
     const { data, error } = await supabase
       .rpc('add_to_favorites', {
         p_wallet_address: walletAddress,
@@ -69,6 +71,7 @@ export async function POST(request: NextRequest) {
         p_token_id: tokenId,
         p_collection_name: collectionName,
         p_image_url: imageUrl,
+        // p_collection_address: collectionAddress, // TODO: Enable after running migration
         p_vote_type: voteType
       });
 
