@@ -57,6 +57,8 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **🔗 Simplified Wallet Connection** - Streamlined prompt: "Connect your wallet to start voting, earning, and burning"
 - **🛍️ Streamlined Purchase Flow** - Professional Licks purchase with session key integration
 - **⚡ Session Keys** - Gasless transactions with detailed authorization messages
+- **⭐ Favorites Gallery** - Track and manage your most loved NFTs with pricing data
+- **📊 Real-time Activity Counter** - Live "Taste Activity Today" with dynamic growth simulation
 
 ### **🛡️ Robust Infrastructure**
 - **Intelligent IPFS Gateway Management** - Adaptive selection from 8+ gateways with health tracking
@@ -135,6 +137,22 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **Impact**: 2x Elo rating change for both NFTs
 - **Purpose**: Express strong aesthetic preferences
 
+### **⭐ Favorites Gallery System**
+- **Automatic Collection**: Fire votes and 100% slider votes automatically add NFTs to favorites
+- **Smart Gallery**: Access via gold shimmer button in wallet dropdown
+- **Rich Metadata**: Display collection names, Token IDs, and vote types
+- **Magic Eden Integration**: Direct links to collection and NFT pages
+- **Price Discovery**: Toggle to show/hide current listing prices
+- **Easy Management**: Remove favorites with dedicated buttons
+- **Visual Excellence**: Clean grid layout with responsive design
+
+### **📊 Real-time Activity Counter**
+- **Live Data**: Fetches daily vote count from Supabase database
+- **Boost Multiplier**: 5x multiplier for enhanced engagement metrics
+- **Simulated Growth**: Believable real-time increases every 1.5 seconds
+- **Visual Design**: Integrated with main interface, includes Lick icon
+- **Data Source**: `SELECT COUNT(*) FROM votes WHERE created_at::date = CURRENT_DATE`
+
 ### **🎁 Enhanced Rewards & Notifications**
 - **Regular Prize Breaks**: Every 10 votes with dramatic reveal timing
 - **Duck Notifications**: Context-aware animations based on prize type
@@ -154,34 +172,46 @@ The game follows a mobile-first, component-based architecture with Swiss design 
 ```
 /gugo-game-app
 ├── /src/app/           # Next.js App Router with main voting interface
-│   ├── globals.css     # Swiss design system & CSS variables
-│   ├── page.tsx        # Main voting experience with graceful failure handling
+│   ├── /api/           # API routes for data and external services
+│   │   ├── daily-vote-count/ # Real-time activity counter data source
+│   │   ├── favorites/    # Favorites management endpoints
+│   │   └── nft-price/    # NFT pricing data from external APIs
+│   ├── globals.css     # Swiss design system & CSS variables with dot grid
+│   ├── page.tsx        # Main voting experience with favorites integration
 │   └── layout.tsx      # App layout and providers
 ├── /src/components/    # Reusable React components
-│   ├── StatusBar.tsx   # Top navigation with real-time balances
+│   ├── StatusBar.tsx   # Top navigation with gold shimmer Favorites button
 │   ├── MatchupCard.tsx # NFT voting interface with smart "No" button timing
 │   ├── TokenBalance.tsx # Balance checking and display
 │   ├── WalletConnect.tsx # Wallet integration
 │   ├── WelcomePopup.tsx # Enhanced onboarding with comprehensive mission explanation
 │   ├── CircularMarquee.tsx # Linear scrolling text effects for prize celebrations
+│   ├── FavoritesGallery.tsx # Professional favorites management modal
 │   └── PurchaseAlert.tsx # Elegant modal for vote purchase prompts
 ├── /src/hooks/         # Custom React hooks for game logic
 │   ├── useVote.ts      # Vote submission with super vote support
-│   └── usePrizeBreak.ts # Enhanced prize break with free vote integration
+│   ├── usePrizeBreak.ts # Enhanced prize break with free vote integration
+│   ├── useFavorites.ts # Favorites management and state
+│   └── useActivityCounter.ts # Real-time activity counter with growth simulation
 ├── /lib/              # Utilities and core systems
 │   ├── supabase.ts     # Database client
 │   ├── preloader.ts    # Advanced session preloading with IPFS health tracking
 │   ├── matchup.ts      # Matchup generation with unrevealed NFT filtering
 │   └── ipfs-gateway-manager.ts # 🌐 Intelligent IPFS gateway system
+├── /migrations/        # Database schema updates
+│   ├── 15-add-favorites-system.sql # Initial favorites implementation
+│   └── 16-add-collection-address-to-favorites.sql # Enhanced favorites metadata
 └── /public/           # Static assets (logos, icons)
 ```
 
 ### **Component Highlights**
-- **StatusBar**: drip.haus-inspired design with balance tracking
+- **StatusBar**: drip.haus-inspired design with balance tracking and gold shimmer Favorites button
 - **MatchupCard**: Interactive NFT cards with smart timing and hover effects
 - **WelcomePopup**: Comprehensive onboarding with consistent background styling
 - **CircularMarquee**: Infinite scrolling text effects with phrase categories
 - **PurchaseAlert**: Elegant modal for insufficient vote scenarios
+- **FavoritesGallery**: Professional modal with NFT grid, pricing data, and Magic Eden integration
+- **ActivityCounter**: Real-time taste activity display with live data and growth simulation
 - **IPFS Gateway Manager**: Bulletproof image loading with health tracking
 - **Enhanced Prize Notifications**: Duck animations with context-aware messaging
 - **Responsive Design**: Mobile-first with touch gesture support
@@ -347,6 +377,23 @@ node scripts/update-gugo-price.js 0.25
 ## 🔧 Recent Fixes & Improvements
 
 ### **Latest Updates (August 2025)**
+- **✅ Favorites Gallery System**: Complete NFT favorites tracking with Magic Eden integration
+  - **Automatic Collection**: Fire votes and 100% slider votes auto-add to favorites
+  - **Price Discovery**: Toggle to show/hide current NFT listing prices
+  - **Rich Metadata**: Collection names, Token IDs, vote types, and direct links
+  - **Gold Shimmer Button**: Premium styling with 3-second animation cycle
+- **✅ Real-time Activity Counter**: Live "Taste Activity Today" with 5x boost multiplier
+  - **Live Database**: Fetches daily vote count from Supabase with growth simulation
+  - **Visual Integration**: Inline display with Lick icon and real-time updates
+- **✅ Enhanced UI Polish**: 
+  - **Gold Shimmer Effects**: Premium button styling with keyframe animations
+  - **Dot Grid Background**: Extended to cover entire scrollable area
+  - **Status Bar Enhancements**: Adjusted red dot positioning and icon sizing
+  - **Prize Display**: Color-matched Lick icons and "Congrats!" text for non-GUGO awards
+- **✅ Database Schema Updates**: 
+  - **Favorites Table**: Added collection_address column for Magic Eden integration
+  - **Safe Migrations**: Incremental SQL updates with IF NOT EXISTS logic
+  - **RPC Functions**: Enhanced favorites management with proper security
 - **✅ Enhanced Welcome Experience**: Comprehensive onboarding with detailed mission explanation
 - **✅ Simplified Wallet Connection**: Streamlined prompt focusing on core value proposition
 - **✅ Duck Notification System**: Context-aware animations for different prize types
