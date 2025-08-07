@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface WelcomePopupProps {
   isOpen: boolean;
@@ -8,6 +8,25 @@ interface WelcomePopupProps {
 }
 
 export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
+  const [nftCount, setNftCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchNftCount();
+    }
+  }, [isOpen]);
+
+  const fetchNftCount = async () => {
+    try {
+      const response = await fetch('/api/check-nft-count');
+      const data = await response.json();
+      if (data.success) {
+        setNftCount(data.nftCount);
+      }
+    } catch (error) {
+      console.error('Failed to fetch NFT count:', error);
+    }
+  };
   if (!isOpen) return null;
 
   return (
@@ -144,9 +163,13 @@ export default function WelcomePopup({ isOpen, onAccept }: WelcomePopupProps) {
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
               <span>Weekly jackpots & raffles</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center' }}>
               <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
               <span>Free to play — earn more with GUGO</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: 'var(--accent-color)', marginRight: 'var(--space-2)' }}>•</span>
+              <span>Collecting votes for {nftCount ? nftCount.toLocaleString() : '...'} NFTs</span>
             </div>
           </div>
         </div>

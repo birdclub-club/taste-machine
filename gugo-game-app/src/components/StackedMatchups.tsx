@@ -11,6 +11,7 @@ interface StackedMatchupsProps {
   onImageFailure?: () => void;
   isVoting?: boolean;
   preference?: string;
+  totalNftCount?: number | null;
 }
 
 interface StackedSession {
@@ -28,7 +29,8 @@ export default function StackedMatchups({
   onNoVote, 
   onImageFailure, 
   isVoting = false,
-  preference 
+  preference,
+  totalNftCount 
 }: StackedMatchupsProps) {
   const [matchupStack, setMatchupStack] = useState<StackedSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -174,7 +176,7 @@ export default function StackedMatchups({
         color: 'var(--color-white)',
         fontSize: 'var(--font-size-lg)'
       }}>
-        🔄 Loading matchups...
+        🔄 Loading matchups from {totalNftCount ? totalNftCount.toLocaleString() : '...'} NFTs...
       </div>
     );
   }

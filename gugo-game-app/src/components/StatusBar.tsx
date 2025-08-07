@@ -11,6 +11,7 @@ import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 're
 import FavoritesGallery from './FavoritesGallery';
 import { canClaimFreeVotes, claimFreeVotes } from '../../lib/auth';
 import { LicksPurchaseModal } from './LicksPurchaseModal';
+import Leaderboard from './Leaderboard';
 
 interface StatusBarProps {
   onConnectWallet: () => void;
@@ -154,6 +155,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
   const [showXpFloatingNotification, setShowXpFloatingNotification] = useState(false);
   const [xpFloatingNotificationAmount, setXpFloatingNotificationAmount] = useState(0);
   const [showFavoritesGallery, setShowFavoritesGallery] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [congratsWord, setCongratsWord] = useState('Nice!');
   const [unclaimedRewards, setUnclaimedRewards] = useState<any[]>([]);
   const [claimingRewards, setClaimingRewards] = useState(false);
@@ -1007,6 +1009,28 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                 Why
               </span>
               
+              {/* Leaderboard */}
+              <span
+                onClick={() => setShowLeaderboard(true)}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-xs)',
+                  fontWeight: '500',
+                  color: 'var(--color-grey-300)',
+                  transition: 'all var(--transition-base)',
+                  textDecoration: 'none'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--color-white)';
+                  e.currentTarget.style.textDecoration = 'underline';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-grey-300)';
+                  e.currentTarget.style.textDecoration = 'none';
+                }}
+              >
+                Leaderboard
+              </span>
 
             </div>
           </div>
@@ -1791,6 +1815,12 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
       <FavoritesGallery
         isOpen={showFavoritesGallery}
         onClose={() => setShowFavoritesGallery(false)}
+      />
+
+      {/* Leaderboard Modal */}
+      <Leaderboard
+        isOpen={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
       />
     </>
   );

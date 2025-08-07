@@ -144,6 +144,7 @@ export default function Page() {
     seenNFTs: 0, 
     maxSeenNFTs: 50 
   });
+  const [totalNftCount, setTotalNftCount] = useState<number | null>(null);
   const [currentSliderValue, setCurrentSliderValue] = useState(0);
   const [showPurchaseAlert, setShowPurchaseAlert] = useState(false);
   const [sliderFireGlow, setSliderFireGlow] = useState(false);
@@ -349,7 +350,22 @@ export default function Page() {
     // Show background immediately
     setBackgroundLoaded(true);
     setLoading(false); // Stop the initial loading state
+    
+    // Fetch total NFT count for display
+    fetchTotalNftCount();
   }, []);
+
+  const fetchTotalNftCount = async () => {
+    try {
+      const response = await fetch('/api/check-nft-count');
+      const data = await response.json();
+      if (data.success) {
+        setTotalNftCount(data.nftCount);
+      }
+    } catch (error) {
+      console.error('Failed to fetch total NFT count:', error);
+    }
+  };
 
   // 🔥 Initialize preloader on mount (after background is shown)
   useEffect(() => {
@@ -880,7 +896,7 @@ export default function Page() {
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }}></div>
-                  <span>Loading matchups</span>
+                  <span>Loading matchups from {totalNftCount ? totalNftCount.toLocaleString() : '...'} NFTs</span>
                 </div>
               ) : maintenanceMode ? (
                 <div className="slide-up" style={{
