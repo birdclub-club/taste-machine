@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.favorites (
     token_id TEXT,
     collection_name TEXT,
     image_url TEXT,
+    collection_address TEXT,
     vote_type TEXT NOT NULL CHECK (vote_type IN ('fire', 'slider_max')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
@@ -53,6 +54,7 @@ CREATE OR REPLACE FUNCTION add_to_favorites(
     p_token_id TEXT DEFAULT NULL,
     p_collection_name TEXT DEFAULT NULL,
     p_image_url TEXT DEFAULT NULL,
+    p_collection_address TEXT DEFAULT NULL,
     p_vote_type TEXT DEFAULT 'fire'
 )
 RETURNS UUID AS $$
@@ -65,6 +67,7 @@ BEGIN
         token_id,
         collection_name,
         image_url,
+        collection_address,
         vote_type
     ) VALUES (
         p_wallet_address,
@@ -72,6 +75,7 @@ BEGIN
         p_token_id,
         p_collection_name,
         p_image_url,
+        p_collection_address,
         p_vote_type
     )
     ON CONFLICT (wallet_address, nft_id) 
@@ -92,6 +96,7 @@ RETURNS TABLE (
     token_id TEXT,
     collection_name TEXT,
     image_url TEXT,
+    collection_address TEXT,
     vote_type TEXT,
     created_at TIMESTAMP WITH TIME ZONE
 ) AS $$
@@ -103,6 +108,7 @@ BEGIN
         f.token_id,
         f.collection_name,
         f.image_url,
+        f.collection_address,
         f.vote_type,
         f.created_at
     FROM public.favorites f

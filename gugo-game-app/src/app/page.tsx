@@ -18,7 +18,7 @@ import { fetchVotingSession } from '@lib/matchup';
 import { votingPreloader } from '@lib/preloader';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import type { VotingSession, VoteSubmission } from '@/types/voting';
+import type { VotingSession, VoteSubmission, SliderVote } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 import { supabase } from '@lib/supabase';
 import { useActivityCounter } from '@/hooks/useActivityCounter';
@@ -580,15 +580,16 @@ export default function Page() {
 
   const handleSliderVote = async (sliderValue: number, superVote: boolean = false) => {
     // 🌟 Track maximum slider votes for favorites (100 = max love)
-    if (sliderValue === 100 && votingSession?.nft) {
-      console.log('💯 Adding max slider vote to favorites:', votingSession.nft.id);
+    if (sliderValue === 100 && votingSession?.vote_type === 'slider') {
+      const sliderSession = votingSession as SliderVote;
+      console.log('💯 Adding max slider vote to favorites:', sliderSession.nft.id);
       addToFavorites(
-        votingSession.nft.id,
+        sliderSession.nft.id,
         'slider_max',
-        votingSession.nft.token_id,
-        votingSession.nft.collection_name,
-        votingSession.nft.image,
-        votingSession.nft.collection_address
+        sliderSession.nft.token_id,
+        sliderSession.nft.collection_name,
+        sliderSession.nft.image,
+        sliderSession.nft.collection_address
       );
     }
     
@@ -1833,11 +1834,12 @@ export default function Page() {
                         textShadow: '0 0 20px var(--color-green)'
                       }}>
                         {freeVotesPrizeBreak ? (
-                          'YOU WON!'
+                          'Congrats!'
                         ) : prizeBreakState.isClaimingReward ? (
                           prizeBreakMessage || 'It\'s Happening'
                         ) : (
-                          'YOU WON!'
+                          // Show "YOU WON!" only for GUGO awards, "Congrats!" for others
+                          (prizeBreakState.reward?.gugoAmount || 0) > 0 ? 'YOU WON!' : 'Congrats!'
                         )}
                       </h1>
                       

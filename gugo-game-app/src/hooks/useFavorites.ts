@@ -7,6 +7,7 @@ interface Favorite {
   token_id?: string;
   collection_name?: string;
   image_url?: string;
+  collection_address?: string;
   vote_type: 'fire' | 'slider_max';
   created_at: string;
 }
@@ -65,7 +66,8 @@ export function useFavorites() {
     voteType: 'fire' | 'slider_max',
     tokenId?: string,
     collectionName?: string,
-    imageUrl?: string
+    imageUrl?: string,
+    collectionAddress?: string
   ) => {
     if (!address) {
       console.error('❌ No wallet connected');
@@ -82,6 +84,7 @@ export function useFavorites() {
           tokenId,
           collectionName,
           imageUrl,
+          collectionAddress,
           voteType
         })
       });
