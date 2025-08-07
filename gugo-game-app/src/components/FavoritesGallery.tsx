@@ -15,12 +15,9 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
     if (isOpen && favorites.length > 0) {
       console.log('🖼️ FavoritesGallery opened with favorites:', favorites);
       favorites.forEach(fav => {
-        console.log(`📸 Favorite ${fav.id}:`, {
-          token_id: fav.token_id,
-          collection: fav.collection_name,
-          image_url: fav.image_url,
-          vote_type: fav.vote_type
-        });
+        console.log(`📸 Favorite ${fav.id}:`, fav);
+        console.log(`🔗 Image URL for ${fav.id}: "${fav.image_url}"`);
+        console.log(`📝 Token ID: ${fav.token_id}, Collection: ${fav.collection_name}`);
       });
     }
   }, [isOpen, favorites]);
