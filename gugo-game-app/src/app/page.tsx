@@ -491,7 +491,8 @@ export default function Page() {
           'fire',
           favoriteNft.token_id,
           favoriteNft.collection_name,
-          favoriteNft.image_url
+          favoriteNft.image,
+          favoriteNft.collection_address
         );
       }
       
@@ -586,7 +587,8 @@ export default function Page() {
         'slider_max',
         votingSession.nft.token_id,
         votingSession.nft.collection_name,
-        votingSession.nft.image_url
+        votingSession.nft.image,
+        votingSession.nft.collection_address
       );
     }
     
@@ -1873,7 +1875,7 @@ export default function Page() {
                             style={{ 
                               width: '90px', // 1.5x from 60px
                               height: '90px', // 1.5x from 60px
-                              filter: 'brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) hue-rotate(180deg) brightness(119%) contrast(91%) drop-shadow(0 0 20px var(--color-green))',
+                              filter: 'brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) hue-rotate(90deg) brightness(119%) contrast(91%) drop-shadow(0 0 20px var(--color-green))',
                               marginTop: '10px'
                             }} 
                           />
@@ -1963,12 +1965,13 @@ export default function Page() {
                                         filter: (() => {
                                           // Convert tier color to hue-rotate value
                                           const getHueRotateForColor = (colorVar: string) => {
-                                            if (colorVar.includes('green')) return 'hue-rotate(90deg)';
-                                            if (colorVar.includes('orange') || colorVar.includes('yellow')) return 'hue-rotate(45deg)';
-                                            if (colorVar.includes('blue') || colorVar.includes('cyan')) return 'hue-rotate(180deg)';
-                                            if (colorVar.includes('purple') || colorVar.includes('magenta')) return 'hue-rotate(270deg)';
-                                            if (colorVar.includes('red')) return 'hue-rotate(0deg)';
-                                            return 'hue-rotate(180deg)'; // Default to blue/cyan
+                                            // Handle hex colors and CSS color names
+                                            if (colorVar.includes('green') || colorVar === '#10B981') return 'hue-rotate(90deg)'; // Green/Emerald
+                                            if (colorVar.includes('orange') || colorVar.includes('yellow') || colorVar === '#F59E0B' || colorVar === '#F97316' || colorVar === '#FFD700') return 'hue-rotate(45deg)'; // Orange/Amber/Gold
+                                            if (colorVar.includes('blue') || colorVar.includes('cyan') || colorVar === '#3B82F6' || colorVar === '#06B6D4') return 'hue-rotate(180deg)'; // Blue/Cyan
+                                            if (colorVar.includes('purple') || colorVar.includes('magenta') || colorVar === '#8B5CF6' || colorVar === '#EC4899') return 'hue-rotate(270deg)'; // Purple/Pink
+                                            if (colorVar.includes('red') || colorVar === '#EF4444') return 'hue-rotate(0deg)'; // Red
+                                            return 'hue-rotate(45deg)'; // Default to orange for Licks
                                           };
                                           const hueRotate = getHueRotateForColor(tierColors.primary);
                                           return `brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) ${hueRotate} brightness(119%) contrast(91%) drop-shadow(0 0 15px ${tierColors.glow})`;
