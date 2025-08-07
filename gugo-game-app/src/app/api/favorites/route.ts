@@ -63,7 +63,33 @@ export async function POST(request: NextRequest) {
 
     console.log(`⭐ Adding to favorites: ${nftId} for ${walletAddress}`);
 
-    // Temporarily exclude collection_address until migration is run
+    // Ensure user exists in users table before adding favorite
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('wallet_address', walletAddress)
+      .single();
+
+    if (!existingUser) {
+      console.log(`👤 Creating user record for ${walletAddress}`);
+      const { error: createUserError } = await supabase
+        .from('users')
+        .insert({
+          wallet_address: walletAddress,
+          wallet_type: 'unknown', // Will be updated on first vote/interaction
+          xp: 0,
+          total_votes: 0
+        });
+
+      if (createUserError) {
+        console.error('❌ Failed to create user:', createUserError);
+        return NextResponse.json({ 
+          error: 'Failed to create user record',
+          details: createUserError.message 
+        }, { status: 500 });
+      }
+    }
+
     const { data, error } = await supabase
       .rpc('add_to_favorites', {
         p_wallet_address: walletAddress,
@@ -71,7 +97,7 @@ export async function POST(request: NextRequest) {
         p_token_id: tokenId,
         p_collection_name: collectionName,
         p_image_url: imageUrl,
-        // p_collection_address: collectionAddress, // TODO: Enable after running migration
+        p_collection_address: collectionAddress,
         p_vote_type: voteType
       });
 
