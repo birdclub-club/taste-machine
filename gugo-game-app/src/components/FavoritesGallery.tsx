@@ -10,6 +10,21 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
   const { favorites, isLoading, error, removeFromFavorites } = useFavorites();
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
+  // Debug: Log favorites data when modal opens
+  React.useEffect(() => {
+    if (isOpen && favorites.length > 0) {
+      console.log('🖼️ FavoritesGallery opened with favorites:', favorites);
+      favorites.forEach(fav => {
+        console.log(`📸 Favorite ${fav.id}:`, {
+          token_id: fav.token_id,
+          collection: fav.collection_name,
+          image_url: fav.image_url,
+          vote_type: fav.vote_type
+        });
+      });
+    }
+  }, [isOpen, favorites]);
+
   const getCollectionMagicEdenUrl = (collectionName: string) => {
     const slug = collectionName.toLowerCase().replace(/\s+/g, '-');
     return `https://magiceden.io/collections/ethereum/${slug}`;
@@ -276,8 +291,11 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                             height: '100%',
                             objectFit: 'cover'
                           }}
+                          onLoad={() => {
+                            console.log(`✅ Image loaded successfully for favorite ${favorite.id}:`, favorite.image_url);
+                          }}
                           onError={() => {
-                            console.log(`❌ Image failed to load for favorite ${favorite.id}`);
+                            console.log(`❌ Image failed to load for favorite ${favorite.id}:`, favorite.image_url);
                             setImageErrors(prev => new Set(prev).add(favorite.id));
                           }}
                         />
