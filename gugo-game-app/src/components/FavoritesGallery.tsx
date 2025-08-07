@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFavorites } from '@/hooks/useFavorites';
 
 interface FavoritesGalleryProps {
@@ -8,6 +8,32 @@ interface FavoritesGalleryProps {
 
 export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryProps) {
   const { favorites, isLoading, error, removeFromFavorites } = useFavorites();
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+
+  // Load images when gallery opens
+  useEffect(() => {
+    if (isOpen && favorites.length > 0) {
+      favorites.forEach(favorite => {
+        if (favorite.image_url && !loadedImages.has(favorite.id)) {
+          const img = new Image();
+          img.onload = () => {
+            setLoadedImages(prev => new Set(prev).add(favorite.id));
+          };
+          img.src = favorite.image_url;
+        }
+      });
+    }
+  }, [isOpen, favorites, loadedImages]);
+
+  const getCollectionMagicEdenUrl = (collectionName: string) => {
+    const slug = collectionName.toLowerCase().replace(/\s+/g, '-');
+    return `https://magiceden.io/collections/ethereum/${slug}`;
+  };
+
+  const getTokenMagicEdenUrl = (collectionName: string, tokenId: string) => {
+    const slug = collectionName.toLowerCase().replace(/\s+/g, '-');
+    return `https://magiceden.io/item-details/ethereum/${slug}/${tokenId}`;
+  };
 
   if (!isOpen) return null;
 
@@ -33,7 +59,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
     }}>
       <div style={{
         background: '#1a1a1a',
-        border: '2px solid var(--color-green)',
+        border: '1px solid var(--color-grey-600)',
         borderRadius: 'var(--border-radius-lg)',
         width: '100%',
         maxWidth: '1200px',
@@ -55,10 +81,9 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
               margin: 0,
               fontSize: 'var(--font-size-2xl)',
               fontWeight: '900',
-              color: 'var(--color-white)',
-              textShadow: '0 0 20px var(--color-green)'
+              color: 'var(--color-white)'
             }}>
-              🌟 Favorites Gallery
+              Favorites Gallery
             </h2>
             <p style={{
               margin: 'var(--space-2) 0 0 0',
@@ -258,19 +283,37 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                       overflow: 'hidden'
                     }}>
                       {favorite.image_url ? (
-                        <img
-                          src={favorite.image_url}
-                          alt={`NFT ${favorite.token_id || favorite.nft_id}`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover'
-                          }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
+                        <>
+                          {!loadedImages.has(favorite.id) && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              color: 'var(--color-grey-500)'
+                            }}>
+                              Loading...
+                            </div>
+                          )}
+                          <img
+                            src={favorite.image_url}
+                            alt={`NFT ${favorite.token_id || favorite.nft_id}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              opacity: loadedImages.has(favorite.id) ? 1 : 0,
+                              transition: 'opacity 0.3s ease'
+                            }}
+                            onLoad={() => {
+                              setLoadedImages(prev => new Set(prev).add(favorite.id));
+                            }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        </>
                       ) : (
                         <div style={{
                           width: '100%',
@@ -304,25 +347,57 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
 
                     {/* Info */}
                     <div style={{ padding: 'var(--space-4)' }}>
-                      {/* Token ID - Prominent */}
-                      <div style={{
-                        fontSize: 'var(--font-size-xl)',
-                        fontWeight: '900',
-                        color: 'var(--color-white)',
-                        marginBottom: 'var(--space-2)',
-                        fontFamily: 'monospace'
-                      }}>
+                      {/* Token ID - Prominent and Clickable */}
+                      <div 
+                        style={{
+                          fontSize: 'var(--font-size-xl)',
+                          fontWeight: '900',
+                          color: 'var(--color-white)',
+                          marginBottom: 'var(--space-2)',
+                          fontFamily: 'monospace',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          transition: 'color var(--transition-base)'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (favorite.collection_name && favorite.token_id) {
+                            window.open(getTokenMagicEdenUrl(favorite.collection_name, favorite.token_id), '_blank');
+                          }
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = 'var(--color-green)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = 'var(--color-white)';
+                        }}
+                      >
                         #{favorite.token_id || 'Unknown'}
                       </div>
                       
-                      {/* Collection */}
+                      {/* Collection - Clickable */}
                       {favorite.collection_name && (
-                        <div style={{
-                          fontSize: 'var(--font-size-sm)',
-                          color: 'var(--color-green)',
-                          fontWeight: '600',
-                          marginBottom: 'var(--space-2)'
-                        }}>
+                        <div 
+                          style={{
+                            fontSize: 'var(--font-size-sm)',
+                            color: 'var(--color-green)',
+                            fontWeight: '600',
+                            marginBottom: 'var(--space-2)',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            transition: 'opacity var(--transition-base)'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(getCollectionMagicEdenUrl(favorite.collection_name), '_blank');
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '0.8';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                          }}
+                        >
                           {favorite.collection_name}
                         </div>
                       )}
@@ -336,22 +411,22 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         Added {new Date(favorite.created_at).toLocaleDateString()}
                       </div>
                       
-                      {/* Remove Button */}
+                      {/* Remove Button - Smaller */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRemoveFavorite(favorite.nft_id);
                         }}
                         style={{
-                          width: '100%',
-                          padding: 'var(--space-2)',
+                          padding: 'var(--space-1) var(--space-2)',
                           background: 'transparent',
                           border: '1px solid #dc2626',
                           borderRadius: 'var(--border-radius-sm)',
                           color: '#dc2626',
-                          fontSize: 'var(--font-size-xs)',
+                          fontSize: '10px',
                           cursor: 'pointer',
-                          transition: 'all var(--transition-base)'
+                          transition: 'all var(--transition-base)',
+                          alignSelf: 'flex-start'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#dc2626';
@@ -362,7 +437,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                           e.currentTarget.style.color = '#dc2626';
                         }}
                       >
-                        Remove from Favorites
+                        Remove
                       </button>
                     </div>
                   </div>
