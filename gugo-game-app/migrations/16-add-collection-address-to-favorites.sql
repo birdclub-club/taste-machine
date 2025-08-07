@@ -59,8 +59,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Update the get_user_favorites function to return collection_address
-CREATE OR REPLACE FUNCTION get_user_favorites(p_wallet_address TEXT)
+-- Drop and recreate the get_user_favorites function to return collection_address
+DROP FUNCTION IF EXISTS get_user_favorites(text);
+
+CREATE FUNCTION get_user_favorites(p_wallet_address TEXT)
 RETURNS TABLE (
     id UUID,
     nft_id TEXT,
