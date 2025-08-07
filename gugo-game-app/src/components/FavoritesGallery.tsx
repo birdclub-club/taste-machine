@@ -10,15 +10,10 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
   const { favorites, isLoading, error, removeFromFavorites } = useFavorites();
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
-  // Debug: Log favorites data when modal opens
+  // Debug: Log favorites data when modal opens (remove after testing)
   React.useEffect(() => {
     if (isOpen && favorites.length > 0) {
-      console.log('🖼️ FavoritesGallery opened with favorites:', favorites);
-      favorites.forEach(fav => {
-        console.log(`📸 Favorite ${fav.id}:`, fav);
-        console.log(`🔗 Image URL for ${fav.id}: "${fav.image_url}"`);
-        console.log(`📝 Token ID: ${fav.token_id}, Collection: ${fav.collection_name}`);
-      });
+      console.log('🖼️ FavoritesGallery opened with favorites:', favorites.length, 'items');
     }
   }, [isOpen, favorites]);
 
@@ -183,7 +178,10 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                   background: '#2a2a2a',
                   padding: 'var(--space-3)',
                   borderRadius: 'var(--border-radius)',
-                  border: '1px solid #444'
+                  border: '1px solid #444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
                 }}>
                   <div style={{
                     fontSize: 'var(--font-size-lg)',
@@ -197,7 +195,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                     color: 'var(--color-grey-400)',
                     textTransform: 'uppercase'
                   }}>
-                    Total Favorites
+                    Total
                   </div>
                 </div>
                 
@@ -205,7 +203,10 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                   background: '#2a2a2a',
                   padding: 'var(--space-3)',
                   borderRadius: 'var(--border-radius)',
-                  border: '1px solid #444'
+                  border: '1px solid #444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
                 }}>
                   <div style={{
                     fontSize: 'var(--font-size-lg)',
@@ -219,7 +220,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                     color: 'var(--color-grey-400)',
                     textTransform: 'uppercase'
                   }}>
-                    Fire Votes
+                    Fire
                   </div>
                 </div>
                 
@@ -227,7 +228,10 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                   background: '#2a2a2a',
                   padding: 'var(--space-3)',
                   borderRadius: 'var(--border-radius)',
-                  border: '1px solid #444'
+                  border: '1px solid #444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
                 }}>
                   <div style={{
                     fontSize: 'var(--font-size-lg)',
@@ -241,7 +245,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                     color: 'var(--color-grey-400)',
                     textTransform: 'uppercase'
                   }}>
-                    Max Slider
+                    Slides
                   </div>
                 </div>
               </div>
@@ -323,23 +327,30 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         fontWeight: '700',
                         textTransform: 'uppercase'
                       }}>
-                        {favorite.vote_type === 'fire' ? '🔥 FIRE' : '💯 MAX'}
+                        {favorite.vote_type === 'fire' ? 'FIRE' : 'MAX'}
                       </div>
                     </div>
 
                     {/* Info */}
-                    <div style={{ padding: 'var(--space-4)' }}>
-                      {/* Token ID - Prominent and Clickable */}
+                    <div style={{ 
+                      padding: 'var(--space-4)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      height: '100%',
+                      position: 'relative'
+                    }}>
+                      {/* Token ID - Right-aligned, matchup-style */}
                       <div 
                         style={{
-                          fontSize: 'var(--font-size-xl)',
+                          fontSize: '2.5rem',
                           fontWeight: '900',
                           color: 'var(--color-white)',
                           marginBottom: 'var(--space-2)',
                           fontFamily: 'monospace',
                           cursor: 'pointer',
-                          textDecoration: 'underline',
-                          transition: 'color var(--transition-base)'
+                          transition: 'color var(--transition-base)',
+                          textAlign: 'right',
+                          opacity: 0.8
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -349,15 +360,17 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.color = 'var(--color-green)';
+                          e.currentTarget.style.opacity = '1';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.color = 'var(--color-white)';
+                          e.currentTarget.style.opacity = '0.8';
                         }}
                       >
                         #{favorite.token_id || 'Unknown'}
                       </div>
                       
-                      {/* Collection - Clickable */}
+                      {/* Collection - Clickable, no underline */}
                       {favorite.collection_name && (
                         <div 
                           style={{
@@ -366,7 +379,6 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                             fontWeight: '600',
                             marginBottom: 'var(--space-2)',
                             cursor: 'pointer',
-                            textDecoration: 'underline',
                             transition: 'opacity var(--transition-base)'
                           }}
                           onClick={(e) => {
@@ -384,15 +396,6 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         </div>
                       )}
                       
-                      {/* Date */}
-                      <div style={{
-                        fontSize: 'var(--font-size-xs)',
-                        color: 'var(--color-grey-400)',
-                        marginBottom: 'var(--space-3)'
-                      }}>
-                        Added {new Date(favorite.created_at).toLocaleDateString()}
-                      </div>
-                      
                       {/* Remove Button - Smaller */}
                       <button
                         onClick={(e) => {
@@ -408,7 +411,8 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                           fontSize: '10px',
                           cursor: 'pointer',
                           transition: 'all var(--transition-base)',
-                          alignSelf: 'flex-start'
+                          alignSelf: 'flex-start',
+                          marginTop: 'auto'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#dc2626';
@@ -421,6 +425,17 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                       >
                         Remove
                       </button>
+
+                      {/* Date - Bottom right */}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 'var(--space-4)',
+                        right: 'var(--space-4)',
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--color-grey-400)'
+                      }}>
+                        {new Date(favorite.created_at).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
                 ))}
