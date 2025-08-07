@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useFavorites } from '@/hooks/useFavorites';
-import { fixImageUrl, getNextIPFSGateway } from '../../lib/ipfs-gateway-manager';
 
 interface FavoritesGalleryProps {
   isOpen: boolean;
@@ -9,49 +8,7 @@ interface FavoritesGalleryProps {
 
 export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryProps) {
   const { favorites, isLoading, error, removeFromFavorites } = useFavorites();
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
-
-  // Load images when gallery opens
-  useEffect(() => {
-    if (isOpen && favorites.length > 0) {
-      console.log('🖼️ Loading images for favorites:', favorites.map(f => ({ id: f.id, url: f.image_url })));
-      favorites.forEach(favorite => {
-        if (favorite.image_url && !loadedImages.has(favorite.id) && !imageErrors.has(favorite.id)) {
-          const originalUrl = favorite.image_url;
-          const fixedUrl = fixImageUrl(originalUrl);
-          console.log(`📸 Starting to load image for ${favorite.id}:`, { original: originalUrl, fixed: fixedUrl });
-          
-          const img = new Image();
-          img.onload = () => {
-            console.log(`✅ Image loaded successfully for ${favorite.id}`);
-            setLoadedImages(prev => new Set(prev).add(favorite.id));
-          };
-          img.onerror = (e) => {
-            console.error(`❌ Failed to load image for ${favorite.id}:`, fixedUrl, e);
-            // Try next gateway
-            const nextUrl = getNextIPFSGateway(fixedUrl, originalUrl);
-            if (nextUrl !== fixedUrl) {
-              console.log(`🔄 Trying next gateway for ${favorite.id}:`, nextUrl);
-              const retryImg = new Image();
-              retryImg.onload = () => {
-                console.log(`✅ Image loaded with retry for ${favorite.id}`);
-                setLoadedImages(prev => new Set(prev).add(favorite.id));
-              };
-              retryImg.onerror = () => {
-                console.error(`❌ All gateways failed for ${favorite.id}`);
-                setImageErrors(prev => new Set(prev).add(favorite.id));
-              };
-              retryImg.src = nextUrl;
-            } else {
-              setImageErrors(prev => new Set(prev).add(favorite.id));
-            }
-          };
-          img.src = fixedUrl;
-        }
-      });
-    }
-  }, [isOpen, favorites, loadedImages, imageErrors]);
 
   const getCollectionMagicEdenUrl = (collectionName: string) => {
     const slug = collectionName.toLowerCase().replace(/\s+/g, '-');
@@ -310,74 +267,20 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                       position: 'relative',
                       overflow: 'hidden'
                     }}>
-                      {favorite.image_url ? (
-                        <>
-                          {!loadedImages.has(favorite.id) && !imageErrors.has(favorite.id) && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '50%',
-                              left: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              color: 'var(--color-grey-500)',
-                              textAlign: 'center'
-                            }}>
-                              <div style={{
-                                width: '30px',
-                                height: '30px',
-                                border: '3px solid #333',
-                                borderTop: '3px solid var(--color-green)',
-                                borderRadius: '50%',
-                                animation: 'spin 1s linear infinite',
-                                margin: '0 auto 8px'
-                              }}></div>
-                              Loading...
-                            </div>
-                          )}
-                          
-                          {imageErrors.has(favorite.id) ? (
-                            <div style={{
-                              width: '100%',
-                              height: '100%',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'var(--color-grey-500)',
-                              textAlign: 'center'
-                            }}>
-                              <div style={{ fontSize: '3rem', marginBottom: '8px' }}>🖼️</div>
-                              <div style={{ fontSize: '12px' }}>Image unavailable</div>
-                            </div>
-                          ) : (
-                            <img
-                              src={fixImageUrl(favorite.image_url)}
-                              alt={`NFT ${favorite.token_id || favorite.nft_id}`}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                                opacity: loadedImages.has(favorite.id) ? 1 : 0,
-                                transition: 'opacity 0.3s ease'
-                              }}
-                              onLoad={() => {
-                                setLoadedImages(prev => new Set(prev).add(favorite.id));
-                              }}
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                const currentSrc = target.src;
-                                const nextSrc = getNextIPFSGateway(currentSrc, favorite.image_url || '');
-                                
-                                if (nextSrc !== currentSrc && !nextSrc.includes('picsum.photos')) {
-                                  console.log(`🔄 Retrying image load for ${favorite.id}:`, nextSrc);
-                                  target.src = nextSrc;
-                                } else {
-                                  console.error(`❌ Image failed to load for ${favorite.id}`);
-                                  setImageErrors(prev => new Set(prev).add(favorite.id));
-                                }
-                              }}
-                            />
-                          )}
-                        </>
+                      {favorite.image_url && !imageErrors.has(favorite.id) ? (
+                        <img
+                          src={favorite.image_url}
+                          alt={`NFT ${favorite.token_id || favorite.nft_id}`}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                          onError={() => {
+                            console.log(`❌ Image failed to load for favorite ${favorite.id}`);
+                            setImageErrors(prev => new Set(prev).add(favorite.id));
+                          }}
+                        />
                       ) : (
                         <div style={{
                           width: '100%',
