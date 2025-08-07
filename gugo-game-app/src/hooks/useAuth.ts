@@ -33,9 +33,22 @@ export const useAuth = (): UseAuthReturn => {
         console.error('❌ getOrCreateUser returned null');
         setError('Failed to create or fetch user');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error in fetchUser:', err);
-      setError('Authentication error');
+      
+      // Check if it's a user cancellation (don't show error for normal user actions)
+      if (
+        err?.code === 4001 || // User rejected request
+        err?.message?.toLowerCase().includes('user rejected') ||
+        err?.message?.toLowerCase().includes('user denied') ||
+        err?.message?.toLowerCase().includes('user cancelled')
+      ) {
+        console.log('👋 User cancelled wallet operation - clearing auth state');
+        setUser(null);
+        setError(null); // Don't show error for user cancellations
+      } else {
+        setError('Authentication error');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,8 +66,13 @@ export const useAuth = (): UseAuthReturn => {
     console.log('  - address:', address);
     console.log('  - connector:', connector?.name);
     
-    if (isConnected && address) {
-      console.log('✅ Wallet connected, fetching user...');
+    // If we have an address AND a connector, treat as connected
+    // This handles timing issues where isConnected might be false initially
+    if (address && connector) {
+      console.log('✅ Wallet connected (address + connector), fetching user...');
+      fetchUser(address);
+    } else if (isConnected && address) {
+      console.log('✅ Wallet connected (isConnected + address), fetching user...');
       fetchUser(address);
     } else {
       console.log('❌ Wallet not connected, clearing user state');
@@ -62,7 +80,7 @@ export const useAuth = (): UseAuthReturn => {
       setLoading(false);
       setError(null);
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, connector]);
 
   return {
     user,

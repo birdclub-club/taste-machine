@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Taste Machine Treasury Seeding</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px;">
+    <h1>🎯 Taste Machine Treasury Seeding</h1>
+    
+    <div id="status" style="margin: 20px 0; padding: 15px; border-radius: 8px; background: #f0f0f0;"></div>
+    
+    <div style="margin: 20px 0;">
+        <label>Amount to Seed:</label>
+        <input type="number" id="seedAmount" value="100000" style="width: 120px; padding: 5px; margin: 0 10px;">
+        <span>FGUGO</span>
+    </div>
+    
+    <button onclick="connectWallet()" id="connectBtn" style="padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        Connect MetaMask
+    </button>
+    
+    <button onclick="seedTreasury()" id="seedBtn" style="padding: 10px 20px; margin: 5px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;" disabled>
+        Seed Treasury
+    </button>
+    
+    <div id="details" style="margin-top: 20px; font-size: 14px; color: #666;"></div>
+
+    <script>
+        const FGUGO_TOKEN = "0x3eAd960365697E1809683617af9390ABC9C24E56";
+        const TASTE_MACHINE = "0xF714af6b79143b3A412eBe421BFbaC4f7D4e4B13";
+        
+        const ERC20_ABI = [
+            "function balanceOf(address owner) view returns (uint256)",
+            "function approve(address spender, uint256 amount) returns (bool)",
+            "function allowance(address owner, address spender) view returns (uint256)"
+        ];
+        
+        const TREASURY_ABI = [
+            "function depositToPrizeBreakTreasury(uint256 amount) external",
+            "function getTreasuryInfo() view returns (tuple(uint256 prizeBreakBalance, uint256 weeklyRaffleBalance, uint8 unlockedTiers))"
+        ];
+        
+        let provider, signer, fgugoContract, treasuryContract;
+        
+        async function connectWallet() {
+            try {
+                if (!window.ethereum) {
+                    alert("Please install MetaMask!");
+                    return;
+                }
+                
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                
+                const network = await provider.getNetwork();
+                if (network.chainId !== 11124) {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x2B74' }],
+                    });
+                }
+                
+                fgugoContract = new ethers.Contract(FGUGO_TOKEN, ERC20_ABI, signer);
+                treasuryContract = new ethers.Contract(TASTE_MACHINE, TREASURY_ABI, signer);
+                
+                const address = await signer.getAddress();
+                const balance = await fgugoContract.balanceOf(address);
+                const formattedBalance = ethers.utils.formatEther(balance);
+                
+                document.getElementById('status').innerHTML = `
+                    ✅ Connected: ${address}<br>
+                    💰 FGUGO Balance: ${parseFloat(formattedBalance).toLocaleString()} FGUGO
+                `;
+                document.getElementById('seedBtn').disabled = false;
+                
+            } catch (error) {
+                document.getElementById('status').innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        async function seedTreasury() {
+            try {
+                const amount = document.getElementById('seedAmount').value;
+                const amountWei = ethers.utils.parseEther(amount);
+                
+                document.getElementById('status').innerHTML = "⏳ Seeding treasury...";
+                
+                // Step 1: Approve
+                const approveTx = await fgugoContract.approve(TASTE_MACHINE, amountWei);
+                document.getElementById('status').innerHTML = `⏳ Approving... Tx: ${approveTx.hash}`;
+                await approveTx.wait();
+                
+                // Step 2: Deposit
+                const depositTx = await treasuryContract.depositToPrizeBreakTreasury(amountWei);
+                document.getElementById('status').innerHTML = `⏳ Depositing... Tx: ${depositTx.hash}`;
+                await depositTx.wait();
+                
+                // Check treasury
+                const treasuryInfo = await treasuryContract.getTreasuryInfo();
+                const treasuryBalance = ethers.utils.formatEther(treasuryInfo.prizeBreakBalance);
+                
+                document.getElementById('status').innerHTML = `
+                    ✅ Treasury Seeded Successfully!<br>
+                    💰 Deposited: ${parseFloat(amount).toLocaleString()} FGUGO<br>
+                    🎁 Treasury Balance: ${parseFloat(treasuryBalance).toLocaleString()} FGUGO<br>
+                    🎯 Unlocked Tiers: ${treasuryInfo.unlockedTiers}
+                `;
+                
+            } catch (error) {
+                document.getElementById('status').innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

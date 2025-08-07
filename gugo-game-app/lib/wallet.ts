@@ -52,7 +52,7 @@ export const isAbstractWalletAvailable = (): boolean => {
 
 // Add Abstract Chain to MetaMask
 export const addAbstractChainToMetamask = async (): Promise<boolean> => {
-  if (!isMetamaskInstalled()) {
+  if (!isMetamaskInstalled() || !window.ethereum) {
     throw new Error('MetaMask is not installed');
   }
 
@@ -89,7 +89,7 @@ export const addAbstractChainToMetamask = async (): Promise<boolean> => {
 
 // Connect to Metamask (fallback wallet)
 export const connectMetamask = async (): Promise<WalletInfo | null> => {
-  if (!isMetamaskInstalled()) {
+  if (!isMetamaskInstalled() || !window.ethereum) {
     throw new Error('MetaMask is not installed. Please install MetaMask to continue.');
   }
 
@@ -174,9 +174,4 @@ export const getWalletBalance = async (address: string, provider?: BrowserProvid
   }
 };
 
-// Type declaration for window.ethereum
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-} 
+ 

@@ -560,7 +560,7 @@ async function fetchFromReservoirV7(contractAddress) {
   
   let allTokens = [];
   let continuation = null;
-  let maxPages = 50; // Increased limit to get full collection
+  let maxPages = 100; // Increased limit to get full collection (4690 NFTs / 50 per page = ~94 pages)
   let pageCount = 0;
   
   do {

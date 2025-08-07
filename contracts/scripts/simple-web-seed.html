@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎯 Taste Machine Treasury Seeding</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { margin: 20px 0; padding: 15px; border-radius: 8px; background: #e3f2fd; border-left: 4px solid #2196f3; }
+        .success { background: #e8f5e8; border-left-color: #4caf50; }
+        .error { background: #ffebee; border-left-color: #f44336; }
+        button { padding: 12px 24px; margin: 10px 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .primary { background: #2196f3; color: white; }
+        .success-btn { background: #4caf50; color: white; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 0 10px; width: 120px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Taste Machine Treasury Seeding</h1>
+        <p>Seed the prize break treasury with FGUGO tokens to enable rewards.</p>
+        
+        <div id="status" class="status">Ready to connect wallet...</div>
+        
+        <div style="margin: 20px 0;">
+            <label><strong>Amount to Seed:</strong></label>
+            <input type="number" id="seedAmount" value="100000" min="1000" max="1000000">
+            <span>FGUGO</span>
+        </div>
+        
+        <button onclick="connectWallet()" id="connectBtn" class="primary">
+            🦊 Connect MetaMask
+        </button>
+        
+        <button onclick="seedTreasury()" id="seedBtn" class="success-btn" disabled>
+            💰 Seed Treasury
+        </button>
+        
+        <div style="margin-top: 30px; font-size: 14px; color: #666; border-top: 1px solid #eee; padding-top: 20px;">
+            <strong>Contract Details:</strong><br>
+            • FGUGO Token: <code>0x3eAd960365697E1809683617af9390ABC9C24E56</code><br>
+            • Taste Machine: <code>0xF714af6b79143b3A412eBe421BFbaC4f7D4e4B13</code><br>
+            • Network: Abstract Testnet (Chain ID: 11124)
+        </div>
+    </div>
+
+    <script>
+        const FGUGO_TOKEN = "0x3eAd960365697E1809683617af9390ABC9C24E56";
+        const TASTE_MACHINE = "0xF714af6b79143b3A412eBe421BFbaC4f7D4e4B13";
+        const ABSTRACT_TESTNET_ID = "0x2B74"; // 11124 in hex
+        
+        let userAccount = null;
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        async function connectWallet() {
+            try {
+                if (!window.ethereum) {
+                    updateStatus('❌ MetaMask not found! Please install MetaMask.', 'error');
+                    return;
+                }
+                
+                updateStatus('🔄 Connecting to MetaMask...', 'info');
+                
+                // Request account access
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+                
+                if (accounts.length === 0) {
+                    updateStatus('❌ No accounts found. Please unlock MetaMask.', 'error');
+                    return;
+                }
+                
+                userAccount = accounts[0];
+                
+                // Check if on correct network
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                
+                if (chainId !== ABSTRACT_TESTNET_ID) {
+                    updateStatus('🔄 Switching to Abstract Testnet...', 'info');
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: ABSTRACT_TESTNET_ID }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            // Network not added, add it
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: ABSTRACT_TESTNET_ID,
+                                    chainName: 'Abstract Testnet',
+                                    nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                                    rpcUrls: ['https://api.testnet.abs.xyz'],
+                                    blockExplorerUrls: ['https://explorer.testnet.abs.xyz']
+                                }]
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+                
+                // Check FGUGO balance using direct RPC call
+                const balanceHex = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: FGUGO_TOKEN,
+                        data: '0x70a08231' + userAccount.slice(2).padStart(64, '0') // balanceOf(address)
+                    }, 'latest']
+                });
+                
+                const balance = parseInt(balanceHex, 16) / Math.pow(10, 18); // Convert from wei to ether
+                
+                updateStatus(`
+                    ✅ <strong>Connected Successfully!</strong><br>
+                    👤 Address: ${userAccount}<br>
+                    💰 FGUGO Balance: ${balance.toLocaleString()} FGUGO<br>
+                    🌐 Network: Abstract Testnet
+                `, 'success');
+                
+                document.getElementById('seedBtn').disabled = false;
+                document.getElementById('connectBtn').innerHTML = '✅ Connected';
+                document.getElementById('connectBtn').disabled = true;
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                updateStatus(`❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function seedTreasury() {
+            try {
+                const amount = document.getElementById('seedAmount').value;
+                const amountWei = BigInt(amount) * BigInt(10**18); // Convert to wei
+                const amountHex = '0x' + amountWei.toString(16);
+                
+                updateStatus('🔄 Step 1: Approving FGUGO spending...', 'info');
+                
+                // Step 1: Approve - approve(address spender, uint256 amount)
+                const approveTx = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: userAccount,
+                        to: FGUGO_TOKEN,
+                        data: '0x095ea7b3' + 
+                              TASTE_MACHINE.slice(2).padStart(64, '0') + 
+                              amountWei.toString(16).padStart(64, '0')
+                    }]
+                });
+                
+                updateStatus(`🔄 Approval submitted: ${approveTx}<br>Waiting for confirmation...`, 'info');
+                
+                // Wait a bit for confirmation
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                updateStatus('🔄 Step 2: Depositing to Treasury...', 'info');
+                
+                // Step 2: Deposit - depositToPrizeBreakTreasury(uint256 amount)
+                const depositTx = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        from: userAccount,
+                        to: TASTE_MACHINE,
+                        data: '0xa045442c' + amountWei.toString(16).padStart(64, '0') // function selector + amount
+                    }]
+                });
+                
+                updateStatus(`
+                    ✅ <strong>Treasury Seeded Successfully! 🎉</strong><br>
+                    💰 Deposited: ${parseInt(amount).toLocaleString()} FGUGO<br>
+                    📝 Deposit Transaction: ${depositTx}<br>
+                    🎮 Prize break rewards are now active!
+                `, 'success');
+                
+            } catch (error) {
+                console.error('Seeding error:', error);
+                updateStatus(`❌ Seeding failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-connect if already connected
+        if (window.ethereum && window.ethereum.selectedAddress) {
+            connectWallet();
+        }
+    </script>
+</body>
+</html>

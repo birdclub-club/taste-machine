@@ -1,5 +1,12 @@
 import { BrowserProvider, Contract, formatUnits, formatEther } from 'ethers';
 
+// Extend window interface for ethereum provider
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
 // FGUGO token contract on Abstract Testnet (Fake GUGO for development)
 const GUGO_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_GUGO_CONTRACT || '0x3eAd960365697E1809683617af9390ABC9C24E56';
 
@@ -164,7 +171,7 @@ export const fetchGugoPrice = async (): Promise<number> => {
     console.error('❌ Error fetching GUGO price:', error);
     
     // Conservative fallback that should be updated
-    const fallbackPrice = 0.2; // $0.2 fallback
+    const fallbackPrice = 0.005; // $0.005 fallback
     console.log(`🔄 Using fallback GUGO price: $${fallbackPrice}`);
     console.log('⚠️ This should be updated with real market data');
     
@@ -282,10 +289,57 @@ export const calculateMinimumRequirements = async (): Promise<MinimumRequirement
   }
 };
 
-// Create Abstract Chain provider
-const createAbstractProvider = (): BrowserProvider => {
+// Create provider - prioritize user's wallet provider over direct RPC
+const createProvider = async (): Promise<BrowserProvider> => {
+  // First, try to use the user's connected wallet (MetaMask, etc.)
+  if (typeof window !== 'undefined' && window.ethereum) {
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      
+      // Check if connected to Abstract Testnet (Chain ID: 11124)
+      if (network.chainId === BigInt(11124)) {
+        console.log('✅ Using wallet provider on Abstract Testnet');
+        return provider;
+      } else {
+        console.log(`⚠️ Wallet connected to chain ${network.chainId}, need Abstract Testnet (11124)`);
+        // Try to switch to Abstract Testnet
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x2B74' }], // 11124 in hex
+          });
+          console.log('✅ Switched to Abstract Testnet');
+          return new BrowserProvider(window.ethereum);
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            // Chain not added to wallet, add it
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x2B74',
+                chainName: 'Abstract Testnet',
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                rpcUrls: ['https://api.testnet.abs.xyz'],
+                blockExplorerUrls: ['https://explorer.testnet.abs.xyz']
+              }]
+            });
+            return new BrowserProvider(window.ethereum);
+          } else {
+            throw switchError;
+          }
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Error using wallet provider, falling back to direct RPC:', error);
+    }
+  }
+  
+  // Fallback: Create custom provider for direct RPC calls
   const chain = process.env.NEXT_PUBLIC_CHAIN || 'testnet';
   const rpcUrl = ABSTRACT_RPC_URLS[chain as keyof typeof ABSTRACT_RPC_URLS];
+  
+  console.log('🔄 Using direct RPC provider:', rpcUrl);
   
   return new BrowserProvider({
     request: async ({ method, params }: any) => {
@@ -319,7 +373,7 @@ export const getAbstractEthBalance = async (walletAddress: string): Promise<Toke
   try {
     console.log('⚡ Checking Abstract ETH balance for:', walletAddress);
     
-    const provider = createAbstractProvider();
+    const provider = await createProvider();
     const balance = await provider.getBalance(walletAddress);
     
     // Format the balance for human reading (ETH has 18 decimals)
@@ -352,7 +406,7 @@ export const getGugoTokenBalance = async (walletAddress: string): Promise<TokenB
   try {
     console.log('🪙 Checking GUGO token balance for:', walletAddress);
     
-    const provider = createAbstractProvider();
+    const provider = await createProvider();
     
     console.log('🌐 Using Abstract Chain:', process.env.NEXT_PUBLIC_CHAIN || 'testnet');
 
@@ -483,7 +537,7 @@ export const hasRequiredTokensForGame = async (walletAddress: string): Promise<b
 // Get token info without balance (useful for displaying token details)
 export const getGugoTokenInfo = async (): Promise<Omit<TokenBalance, 'balance' | 'formattedBalance' | 'hasTokens'> | null> => {
   try {
-    const provider = createAbstractProvider();
+    const provider = await createProvider();
     const contract = new Contract(GUGO_CONTRACT_ADDRESS, ERC20_ABI, provider);
     
     const [decimals, symbol, name] = await Promise.all([

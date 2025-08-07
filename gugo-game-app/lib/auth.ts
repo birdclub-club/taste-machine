@@ -8,6 +8,7 @@ export interface User {
   updated_at: string;
   xp: number;
   total_votes: number;
+  available_votes: number;
   last_free_vote_claim: string | null;
   username: string | null;
   avatar_url: string | null;
@@ -75,6 +76,7 @@ export const getOrCreateUserDirect = async (
       wallet_type: walletType,
       xp: 0,
       total_votes: 0,
+      available_votes: 100, // Start with 100 votes for demo
       last_free_vote_claim: null,
       username: null,
       avatar_url: null
@@ -145,6 +147,7 @@ export const getOrCreateUser = async (
       wallet_type: walletType,
       xp: 0,
       total_votes: 0,
+      available_votes: 100, // Start with 100 votes for demo
       last_free_vote_claim: null,
       username: null,
       avatar_url: null
@@ -205,6 +208,11 @@ export const updateUser = async (
 
 // Check if user can claim free votes (once per 24 hours)
 export const canClaimFreeVotes = (user: User): boolean => {
+  // 🎭 DEMO MODE: Always allow claims for demonstration purposes
+  // Comment out the line below and uncomment the production logic for live deployment
+  return true;
+  
+  /* PRODUCTION LOGIC (uncomment for live):
   if (!user.last_free_vote_claim) {
     return true; // Never claimed before
   }
@@ -215,19 +223,32 @@ export const canClaimFreeVotes = (user: User): boolean => {
   const hoursDiff = timeDiff / (1000 * 3600);
   
   return hoursDiff >= 24;
+  */
 };
 
-// Claim free votes (update last claim timestamp)
-export const claimFreeVotes = async (walletAddress: string): Promise<boolean> => {
+// Claim free votes (update last claim timestamp and award votes)
+export const claimFreeVotes = async (walletAddress: string, votesToAward: number = 10): Promise<boolean> => {
   try {
     // Set wallet context for RLS
     await setWalletContext(walletAddress);
 
+    // 🎭 DEMO MODE: Award actual votes and update timestamp
+    // First get current votes, then update
+    const { data: currentUser } = await supabase
+      .from('users')
+      .select('available_votes')
+      .eq('wallet_address', walletAddress)
+      .single();
+    
+    const currentVotes = currentUser?.available_votes || 0;
+    const newVoteTotal = currentVotes + votesToAward;
+    
     const { error } = await supabase
       .from('users')
       .update({
         last_free_vote_claim: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        available_votes: newVoteTotal
       })
       .eq('wallet_address', walletAddress);
 
@@ -236,7 +257,7 @@ export const claimFreeVotes = async (walletAddress: string): Promise<boolean> =>
       return false;
     }
 
-    console.log('Free votes claimed successfully');
+    console.log(`🎁 Free votes claimed successfully! Awarded ${votesToAward} Licks.`);
     return true;
   } catch (error) {
     console.error('Error claiming free votes:', error);

@@ -41,10 +41,10 @@ export const TESTNET_CONFIG: NetworkConfig = {
   // IMPORTANT: Use real GUGO market price for consistency
   // These prices should be updated regularly based on live market data
   ethPriceUSD: BigInt("320000000000"),  // $3200 * 1e8 (live market price)
-  gugoPriceUSD: BigInt("15000000"),     // $0.15 * 1e8 (live GUGO price - update with real data)
+  gugoPriceUSD: BigInt("500000"),       // $0.005 * 1e8 (real market rate - 500 Licks = 2,000 GUGO)
   
   // Game mechanics (identical to mainnet)
-  votePriceCents: 4,        // $0.04 per vote
+  votePriceCents: 2,        // $0.02 per vote (updated from $0.04)
   minimumVotes: 10,         // 10 vote minimum
   dailyFreeVotes: 3,        // 3 free votes per day
 };
@@ -63,10 +63,10 @@ export const MAINNET_CONFIG: NetworkConfig = {
   
   // Mainnet pricing (live market values)
   ethPriceUSD: BigInt("320000000000"),  // $3200 * 1e8 (live market price)
-  gugoPriceUSD: BigInt("50000000"),     // $0.50 * 1e8 (live GUGO price)
+  gugoPriceUSD: BigInt("500000"),       // $0.005 * 1e8 (real market rate - 500 Licks = 2,000 GUGO)
   
   // Game mechanics (identical to testnet)
-  votePriceCents: 4,        // $0.04 per vote
+  votePriceCents: 2,        // $0.02 per vote (updated from $0.04)
   minimumVotes: 10,         // 10 vote minimum  
   dailyFreeVotes: 3,        // 3 free votes per day
 };
@@ -93,8 +93,13 @@ export function getCurrentNetworkConfig(): NetworkConfig {
 // MIGRATION UTILITIES
 export function getVoteCosts(config: NetworkConfig) {
   const costUSD = config.votePriceCents * config.minimumVotes; // cents
-  const costETH = (BigInt(costUSD) * BigInt(1e18)) / (config.ethPriceUSD / BigInt(1e6));
-  const costGUGO = (BigInt(costUSD) * BigInt(1e18)) / (config.gugoPriceUSD / BigInt(1e6));
+  
+  // Prevent division by zero
+  const ethDenominator = config.ethPriceUSD / BigInt(1e6);
+  const gugoDenominator = config.gugoPriceUSD / BigInt(1e6);
+  
+  const costETH = ethDenominator > 0 ? (BigInt(costUSD) * BigInt(1e18)) / ethDenominator : BigInt(0);
+  const costGUGO = gugoDenominator > 0 ? (BigInt(costUSD) * BigInt(1e18)) / gugoDenominator : BigInt(0);
   
   return {
     usd: costUSD / 100, // dollars
@@ -145,4 +150,3 @@ export function logNetworkInfo(config: NetworkConfig) {
   console.log(`\n💰 Economics (${config.minimumVotes} votes = $${costs.usd}):`);
   console.log(`  - ETH: ${(Number(costs.eth) / 1e18).toFixed(6)} ETH`);
   console.log(`  - ${config.gugoTokenSymbol}: ${(Number(costs.gugo) / 1e18).toFixed(2)} ${config.gugoTokenSymbol}`);
-} 
