@@ -14,6 +14,8 @@ Taste Machine is a fully functional NFT aesthetic voting game built during the G
 - **Live Application**: https://taste-machine.vercel.app 🚀
 - **Smart Contract**: `0xF714af6b79143b3A412eBe421BFbaC4f7D4e4B13` (Abstract Testnet)
 - **NFT Database**: 46,615 NFTs across 8+ collections
+- **FIRE-First Leaderboard**: ✅ Advanced POA scoring with FIRE vote priority
+- **NFT Count Display**: ✅ Real-time collection scope in welcome & loading messages
 - **Favorites System**: ✅ Complete with Magic Eden integration and pricing
 - **Activity Counter**: ✅ Real-time "Taste Activity Today" with live data
 - **Revenue System**: 4-wallet distribution configured
@@ -85,6 +87,44 @@ contracts/
 - **NFT Cards**: Hover effects with Lick icon overlay and scaling
 - **Token IDs**: Large clickable numbers for address copying
 - **Voting Slider**: "Tap or swipe to vote" with simplified UX
+- **Leaderboard Menu**: Clean "Leaderboard" item in status bar with hover effects
+
+---
+
+## 🏆 FIRE-First Leaderboard System
+
+### **POA (Proof of Aesthetic) Scoring Algorithm**
+The leaderboard uses a sophisticated multi-factor scoring system that prioritizes aesthetic appeal:
+
+#### **Core Components**
+- **FIRE Vote Priority**: NFTs with FIRE votes (strong favorites) appear at the top
+- **Elo Rating Component**: Win/loss performance in head-to-head matchups (1000-1200 range)
+- **Slider Score Component**: Direct aesthetic ratings from 0-100 scale
+- **Win Rate Bonus**: Percentage-based performance multiplier
+- **Collection Diversity**: Ensures variety across different NFT collections
+
+#### **Technical Implementation**
+```sql
+-- Advanced scoring function with FIRE vote prioritization
+CREATE OR REPLACE FUNCTION get_fire_first_leaderboard_v3(limit_count integer DEFAULT 20)
+RETURNS TABLE(
+  id uuid, name text, poa_score numeric, fire_votes bigint,
+  leaderboard_position integer, confidence_score numeric
+) AS $$
+-- Multi-factor POA calculation with forced FIRE-first ordering
+```
+
+#### **Nuclear-Grade Reliability**
+- **Database Function**: `get_fire_first_leaderboard_v3` with proper data types
+- **API Fallback**: Nuclear Option JavaScript sorting to guarantee FIRE-first order
+- **Error Handling**: Multiple fallback systems prevent any ranking failures
+- **Real-time Updates**: Fresh database connections with v3 function versioning
+
+### **User Interface Design**
+- **Swiss Minimalist Modal**: Clean professional appearance perfect for demos
+- **Top 20 Display**: Position numbers only (no emojis or technical details)
+- **Responsive Grid**: Beautiful layout showcasing NFT images and names
+- **Demo-Ready**: All technical metadata hidden for clean presentation
 - **Daily Licks**: Animated popup system with multiplier mechanics
 - **Copy Functionality**: One-click address copying with confirmation
 
