@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
       }, {});
 
       results.imageIssues = Object.entries(imageStats || {})
-        .map(([name, stats]) => ({ collection_name: name, ...stats }))
+        .map(([name, stats]) => ({ collection_name: name, ...(stats as any) }))
         .sort((a: any, b: any) => b.total - a.total);
     }
 
