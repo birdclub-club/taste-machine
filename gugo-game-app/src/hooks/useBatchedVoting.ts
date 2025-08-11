@@ -242,6 +242,7 @@ export function useBatchedVoting() {
     // Process each vote and accumulate changes
     const nftUpdates = new Map<string, {
       current_elo: number;
+      looks_score: number;
       wins: number;
       losses: number;
       total_votes: number;
