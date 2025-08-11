@@ -9,9 +9,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔥 NUCLEAR FIRE-First API - FORCING CORRECT ORDER');
 
-              // Call our NEW function (v3 to bypass caching)
+              // Call our NEW function (v2 - the correct one!)
           const { data: rawData, error: leaderboardError } = await supabase
-            .rpc('get_fire_first_leaderboard_v3', { limit_count: 20 });
+            .rpc('get_fire_first_leaderboard_v2', { limit_count: 20 });
 
     if (leaderboardError) {
       console.error('❌ Function failed:', leaderboardError);
@@ -25,8 +25,17 @@ export async function GET(request: NextRequest) {
     console.log('Total NFTs returned:', rawData?.length);
     console.log('🔥 First 10 raw results:');
     rawData?.slice(0, 10).forEach((nft: any, index: number) => {
-      console.log(`  ${index + 1}. ${nft.name} - FIRE: ${nft.fire_votes}, Votes: ${nft.total_votes}, Position: ${nft.leaderboard_position}`);
+      console.log(`  ${index + 1}. ${nft.name} (${nft.collection_name}) - FIRE: ${nft.fire_votes}, Votes: ${nft.total_votes}, POA: ${nft.poa_score}, Elo: ${nft.current_elo}, Position: ${nft.leaderboard_position}`);
     });
+
+    // Special check for Fugger NFTs
+    const fuggerNfts = rawData?.filter((nft: any) => nft.collection_name?.toLowerCase().includes('fugz') || nft.name?.toLowerCase().includes('fugger'));
+    if (fuggerNfts && fuggerNfts.length > 0) {
+      console.log('🚨 FUGGER/FUGZ NFTs FOUND:');
+      fuggerNfts.forEach((nft: any) => {
+        console.log(`  - ${nft.name} (${nft.collection_name}) - FIRE: ${nft.fire_votes}, Votes: ${nft.total_votes}, POA: ${nft.poa_score}, Elo: ${nft.current_elo}, Wins: ${nft.wins}, Losses: ${nft.losses}`);
+      });
+    }
 
     // Force sort in JavaScript to ensure FIRE votes are at the top
     const sortedLeaderboard = [...(rawData || [])].sort((a: any, b: any) => {

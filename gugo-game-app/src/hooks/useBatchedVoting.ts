@@ -216,15 +216,25 @@ export function useBatchedVoting() {
     });
 
     // Fetch all NFT data in one query
+    console.log(`📊 Fetching NFT data for ${nftIds.size} NFTs:`, Array.from(nftIds));
+    
+    // Try to fetch with both possible column names (current_elo vs looks_score)
     const { data: nfts, error: nftError } = await supabase
       .from('nfts')
-      .select('id, current_elo, wins, losses, total_votes')
+      .select('id, current_elo, looks_score, wins, losses, total_votes')
       .in('id', Array.from(nftIds));
+
+    if (nfts && nfts.length > 0) {
+      console.log('📊 Sample NFT structure:', Object.keys(nfts[0]));
+      console.log('📊 First NFT data:', nfts[0]);
+    }
 
     if (nftError || !nfts) {
       console.error('❌ Error fetching NFTs for batch Elo update:', nftError);
       return;
     }
+
+    console.log(`📊 Fetched ${nfts?.length || 0} NFTs successfully:`, nfts?.map(n => ({ id: n.id, current_elo: n.current_elo, wins: n.wins, losses: n.losses, total_votes: n.total_votes })));
 
     // Create lookup map for NFT data
     const nftMap = new Map(nfts.map(nft => [nft.id, nft]));
@@ -258,19 +268,26 @@ export function useBatchedVoting() {
       const winnerChange = Math.round(kFactor * (1.0 - expectedWinner));
       const loserChange = Math.round(kFactor * (0.0 - expectedWinner));
 
+      // Use the correct Elo column (current_elo or looks_score), ensure integer values
+      const eloColumnA = Math.round(nftA.current_elo !== undefined ? nftA.current_elo : (nftA.looks_score || 1500));
+      const eloColumnB = Math.round(nftB.current_elo !== undefined ? nftB.current_elo : (nftB.looks_score || 1500));
+      
       // Accumulate changes for NFT A
       const updateA = nftUpdates.get(vote.voteData.nft_a_id) || {
-        current_elo: nftA.current_elo,
-        wins: nftA.wins,
-        losses: nftA.losses,
-        total_votes: nftA.total_votes
+        current_elo: eloColumnA,
+        looks_score: eloColumnA,  // Update both possible columns
+        wins: nftA.wins || 0,
+        losses: nftA.losses || 0,
+        total_votes: nftA.total_votes || 0
       };
 
       if (winner === 'a') {
         updateA.current_elo += winnerChange;
+        updateA.looks_score += winnerChange;  // Update both columns
         updateA.wins += voteWeight;
       } else {
         updateA.current_elo += loserChange;
+        updateA.looks_score += loserChange;   // Update both columns
         updateA.losses += voteWeight;
       }
       updateA.total_votes += voteWeight;
@@ -278,42 +295,117 @@ export function useBatchedVoting() {
 
       // Accumulate changes for NFT B
       const updateB = nftUpdates.get(vote.voteData.nft_b_id) || {
-        current_elo: nftB.current_elo,
-        wins: nftB.wins,
-        losses: nftB.losses,
-        total_votes: nftB.total_votes
+        current_elo: eloColumnB,
+        looks_score: eloColumnB,  // Update both possible columns
+        wins: nftB.wins || 0,
+        losses: nftB.losses || 0,
+        total_votes: nftB.total_votes || 0
       };
 
       if (winner === 'b') {
         updateB.current_elo += winnerChange;
+        updateB.looks_score += winnerChange;  // Update both columns
         updateB.wins += voteWeight;
       } else {
         updateB.current_elo += loserChange;
+        updateB.looks_score += loserChange;   // Update both columns
         updateB.losses += voteWeight;
       }
       updateB.total_votes += voteWeight;
       nftUpdates.set(vote.voteData.nft_b_id, updateB);
     }
 
-    // Apply all updates in batch
-    const updatePromises = Array.from(nftUpdates.entries()).map(([nftId, updates]) =>
-      supabase
-        .from('nfts')
-        .update({
+    // Apply all updates in smaller sequential batches to prevent timeouts
+    console.log(`🔄 Applying ${nftUpdates.size} NFT updates in small batches...`);
+    
+    const updateEntries = Array.from(nftUpdates.entries());
+    const BATCH_SIZE = 3; // Smaller batches to prevent timeout
+    const totalBatches = Math.ceil(updateEntries.length / BATCH_SIZE);
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (let i = 0; i < totalBatches; i++) {
+      const batchStart = i * BATCH_SIZE;
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, updateEntries.length);
+      const currentBatch = updateEntries.slice(batchStart, batchEnd);
+      
+      console.log(`📦 Processing batch ${i + 1}/${totalBatches} (${currentBatch.length} updates)...`);
+      
+      const batchPromises = currentBatch.map(async ([nftId, updates]) => {
+        const updateData = {
           ...updates,
-          elo_last_updated: new Date().toISOString(),
+          // Ensure all Elo values are integers for database compatibility
+          current_elo: Math.round(updates.current_elo),
+          looks_score: Math.round(updates.looks_score || updates.current_elo),
           updated_at: new Date().toISOString()
-        })
-        .eq('id', nftId)
-    );
+        };
+        
+        // Retry mechanism for failed updates
+        const MAX_RETRIES = 2;
+        let lastError = null;
+        
+        for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+          try {
+            const result = await supabase
+              .from('nfts')
+              .update(updateData)
+              .eq('id', nftId);
+              
+            if (!result.error) {
+              return result;
+            }
+            
+            lastError = result.error;
+            
+            // If it's a timeout error, wait before retry
+            if (result.error?.code === '57014' && retry < MAX_RETRIES) {
+              console.log(`⏰ NFT ${nftId}: Timeout on attempt ${retry + 1}, retrying...`);
+              await new Promise(resolve => setTimeout(resolve, 500 * (retry + 1)));
+              continue;
+            }
+            
+            return result;
+          } catch (error) {
+            lastError = error;
+            if (retry < MAX_RETRIES) {
+              await new Promise(resolve => setTimeout(resolve, 500 * (retry + 1)));
+            }
+          }
+        }
+        
+        return { error: lastError, data: null, count: null, status: 500, statusText: 'Max retries exceeded' };
+      });
 
-    const results = await Promise.all(updatePromises);
-    const failedUpdates = results.filter(result => result.error);
-
-    if (failedUpdates.length > 0) {
-      console.error(`❌ ${failedUpdates.length} Elo updates failed`);
+      try {
+        const results = await Promise.all(batchPromises);
+        const batchFailures = results.filter(result => result.error);
+        
+        if (batchFailures.length > 0) {
+          console.error(`❌ Batch ${i + 1}: ${batchFailures.length}/${currentBatch.length} updates failed`);
+          batchFailures.forEach((result, index) => {
+            const nftId = currentBatch[results.indexOf(result)][0];
+            console.error(`Failed NFT ${nftId}:`, JSON.stringify(result.error, null, 2));
+          });
+          failureCount += batchFailures.length;
+        }
+        
+        successCount += (currentBatch.length - batchFailures.length);
+        
+        // Small delay between batches to reduce database load
+        if (i < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+      } catch (error) {
+        console.error(`❌ Batch ${i + 1} completely failed:`, error);
+        failureCount += currentBatch.length;
+      }
+    }
+    
+    if (failureCount > 0) {
+      console.error(`❌ ${failureCount} total Elo updates failed out of ${updateEntries.length}`);
     } else {
-      console.log(`✅ Batch updated Elo for ${nftUpdates.size} NFTs`);
+      console.log(`✅ Successfully updated Elo for all ${successCount} NFTs`);
     }
   };
 

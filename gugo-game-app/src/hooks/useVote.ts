@@ -158,7 +158,19 @@ export function useVote() {
       throw new Error('Invalid slider vote data');
     }
 
-    console.log(`📊 Processing slider vote: NFT ${voteData.nft_a_id}, value: ${voteData.slider_value}`);
+    console.log(`📊 Processing slider vote: NFT ${voteData.nft_a_id}, raw value: ${voteData.slider_value}`);
+
+    // Ensure slider value is an integer (slider sends 0.1-10, which rounds to 0-10)
+    const roundedSliderValue = Math.round(voteData.slider_value || 1);
+    
+    if (roundedSliderValue < 0 || roundedSliderValue > 10) {
+      throw new Error(`Invalid slider value: ${roundedSliderValue}. Must be between 0 and 10.`);
+    }
+    
+    // If rounded to 0, set to 1 (minimum meaningful rating)
+    const finalSliderValue = roundedSliderValue === 0 ? 1 : roundedSliderValue;
+    
+    console.log(`📊 Slider value: ${voteData.slider_value} → rounded: ${roundedSliderValue} → final: ${finalSliderValue}`);
 
     // Get current NFT data for logging
     const { data: nft, error: nftError } = await supabase
@@ -168,19 +180,32 @@ export function useVote() {
       .single();
 
     if (nftError || !nft) {
-      throw new Error('Failed to fetch NFT for slider update');
+      console.error('❌ Failed to fetch NFT for slider update:', nftError);
+      throw new Error(`Failed to fetch NFT for slider update: ${nftError?.message || 'Unknown error'}`);
     }
 
     // Call the database function with correct parameters (nft_uuid, new_rating)
-    const { error: updateError } = await supabase
-      .rpc('update_slider_average', {
-        nft_uuid: voteData.nft_a_id, 
-        new_rating: voteData.slider_value
-      });
+    // Add timeout protection
+    try {
+      const updatePromise = supabase
+        .rpc('update_slider_average', {
+          nft_uuid: voteData.nft_a_id, 
+          new_rating: finalSliderValue
+        });
 
-    if (updateError) {
-      console.error('❌ Slider vote update error:', updateError);
-      throw new Error(`Failed to update slider average: ${updateError.message}`);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Slider update timeout after 10 seconds')), 10000)
+      );
+
+      const result = await Promise.race([updatePromise, timeoutPromise]) as any;
+      
+      if (result && result.error) {
+        console.error('❌ Slider vote update error:', result.error);
+        throw new Error(`Failed to update slider average: ${result.error.message || result.error}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Slider vote update failed:', error);
+      throw new Error(`Failed to update slider average: ${error.message || error}`);
     }
 
     // Get updated NFT data for logging
@@ -205,16 +230,16 @@ export function useVote() {
 
     const isSuperVote = voteData.super_vote || false;
 
-    // Get current Elo ratings
+    // Get current Elo ratings (try both column names)
     const [nftAResult, nftBResult] = await Promise.all([
       supabase
         .from('nfts')
-        .select('id, current_elo, wins, losses, total_votes')
+        .select('id, current_elo, looks_score, wins, losses, total_votes')
         .eq('id', voteData.nft_a_id)
         .single(),
       supabase
         .from('nfts')
-        .select('id, current_elo, wins, losses, total_votes')
+        .select('id, current_elo, looks_score, wins, losses, total_votes')
         .eq('id', voteData.nft_b_id)
         .single()
     ]);
@@ -227,9 +252,13 @@ export function useVote() {
     const nftB = nftBResult.data;
     const winner = voteData.winner_id === nftA.id ? 'a' : 'b';
 
+    // Use the correct Elo column (current_elo or looks_score)
+    const nftAElo = nftA.current_elo !== undefined ? nftA.current_elo : nftA.looks_score;
+    const nftBElo = nftB.current_elo !== undefined ? nftB.current_elo : nftB.looks_score;
+
     // Determine winner and loser Elo ratings
-    const winnerElo = winner === 'a' ? nftA.current_elo : nftB.current_elo;
-    const loserElo = winner === 'a' ? nftB.current_elo : nftA.current_elo;
+    const winnerElo = winner === 'a' ? nftAElo : nftBElo;
+    const loserElo = winner === 'a' ? nftBElo : nftAElo;
     const voteType = isSuperVote ? 'super' : 'standard';
 
     // Calculate new Elo ratings using Supabase function with fallback
@@ -295,17 +324,17 @@ export function useVote() {
       voteType
     });
 
-    // Update both NFTs
+    // Update both NFTs (update both possible Elo columns)
     const voteWeight = isSuperVote ? 5 : 1; // Super votes count as 5 votes for statistics
     const updatePromises = [
       supabase
         .from('nfts')
         .update({
           current_elo: new_rating_a,
+          looks_score: new_rating_a,  // Update both possible columns
           wins: winner === 'a' ? nftA.wins + voteWeight : nftA.wins,
           losses: winner === 'a' ? nftA.losses : nftA.losses + voteWeight,
           total_votes: nftA.total_votes + voteWeight,
-          elo_last_updated: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', nftA.id),
@@ -313,10 +342,10 @@ export function useVote() {
         .from('nfts')
         .update({
           current_elo: new_rating_b,
+          looks_score: new_rating_b,  // Update both possible columns
           wins: winner === 'b' ? nftB.wins + voteWeight : nftB.wins,
           losses: winner === 'b' ? nftB.losses : nftB.losses + voteWeight,
           total_votes: nftB.total_votes + voteWeight,
-          elo_last_updated: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', nftB.id)

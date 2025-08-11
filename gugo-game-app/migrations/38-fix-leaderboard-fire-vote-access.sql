@@ -1,9 +1,20 @@
--- FINAL FIX: Create a NEW function with a different name to bypass caching
+-- Fix leaderboard access to FIRE votes by allowing system functions to bypass RLS
+-- The leaderboard function needs to see all FIRE votes, not just current user's
 
--- Drop all old leaderboard functions
-DROP FUNCTION IF EXISTS public.get_dynamic_leaderboard_lightweight(INTEGER) CASCADE;
+-- Add policy to allow leaderboard functions to read all FIRE votes
+CREATE POLICY "System functions can read all favorites" ON public.favorites
+    FOR SELECT USING (
+        -- Allow if called from a database function (has elevated privileges)
+        current_setting('role', true) = 'service_role' OR
+        -- Or if it's a system context (no JWT)
+        current_setting('request.jwt.claim.wallet_address', true) IS NULL OR
+        current_setting('request.jwt.claim.wallet_address', true) = ''
+    );
 
--- Create the NEW FIRE-FIRST function with a different name
+-- Alternatively, we can modify the leaderboard function to use SECURITY DEFINER
+-- which runs with the privileges of the function owner, bypassing RLS
+
+-- Update the leaderboard function to bypass RLS for FIRE vote counting
 CREATE OR REPLACE FUNCTION public.get_fire_first_leaderboard_v2(limit_count INTEGER DEFAULT 20)
 RETURNS TABLE(
   id UUID,
@@ -30,6 +41,7 @@ RETURNS TABLE(
 BEGIN
   RETURN QUERY
   WITH nft_fire_votes AS (
+    -- Temporarily disable RLS to count all FIRE votes
     SELECT 
       nft_id as nft_uuid,
       COUNT(*) as fire_count
@@ -122,11 +134,11 @@ BEGIN
   WHERE r.position <= limit_count
   ORDER BY r.position;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$ LANGUAGE plpgsql SECURITY DEFINER;  -- CRITICAL: This bypasses RLS
 
--- Test the new function
+-- Test the updated function
 SELECT 
-  'NEW FIRE FUNCTION TEST' as test_type,
+  'FIRE VOTE ACCESS TEST' as test_type,
   leaderboard_position,
   name,
   collection_name,

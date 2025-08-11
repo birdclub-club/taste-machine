@@ -474,7 +474,7 @@ export default function Page() {
       if (votingSession.vote_type === 'slider') {
         // For slider votes, winnerId is actually the slider value
         voteData.nft_a_id = votingSession.nft.id;
-        voteData.slider_value = parseFloat(winnerId); // Convert slider value
+        voteData.slider_value = Math.round(parseFloat(winnerId)); // Convert and round slider value to integer
       } else {
         // For matchup votes
         voteData.nft_a_id = votingSession.nft1.id;

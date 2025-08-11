@@ -1,9 +1,6 @@
--- FINAL FIX: Create a NEW function with a different name to bypass caching
+-- Add collection diversity to prevent any single collection from dominating
+-- Limit to max 2-3 NFTs per collection in top 20
 
--- Drop all old leaderboard functions
-DROP FUNCTION IF EXISTS public.get_dynamic_leaderboard_lightweight(INTEGER) CASCADE;
-
--- Create the NEW FIRE-FIRST function with a different name
 CREATE OR REPLACE FUNCTION public.get_fire_first_leaderboard_v2(limit_count INTEGER DEFAULT 20)
 RETURNS TABLE(
   id UUID,
@@ -58,7 +55,7 @@ BEGIN
       poa.algorithm as calculated_algorithm,
       'BOOTSTRAP' as system_mode,
       (n.wins::NUMERIC / NULLIF(n.total_votes, 0)) * 100 as win_percentage,
-      -- FIRE-FIRST priority system
+      -- FIRE-FIRST priority system with collection diversity
       CASE 
         WHEN COALESCE(f.fire_count, 0) >= 3 THEN 1200 + (poa.poa_score * 10)  -- Triple+ FIRE
         WHEN COALESCE(f.fire_count, 0) >= 2 THEN 1100 + (poa.poa_score * 10)  -- Double FIRE
@@ -84,18 +81,34 @@ BEGIN
     ) poa
     WHERE n.current_elo IS NOT NULL
       AND (
-        -- FIRE votes override all other requirements
         COALESCE(f.fire_count, 0) > 0 
         OR 
-        -- OR normal engagement requirements
         (n.total_votes >= 1 OR n.slider_count >= 1)
       )
   ),
-  ranked_nfts AS (
+  -- Apply collection diversity limits
+  diverse_ranked_nfts AS (
     SELECT 
       *,
-      ROW_NUMBER() OVER (ORDER BY priority_score DESC, RANDOM()) as position
+      ROW_NUMBER() OVER (
+        PARTITION BY collection_name 
+        ORDER BY priority_score DESC, RANDOM()
+      ) as collection_rank,
+      ROW_NUMBER() OVER (ORDER BY priority_score DESC, RANDOM()) as overall_rank
     FROM all_nft_scores
+  ),
+  -- Limit collections and create final ranking
+  final_selection AS (
+    SELECT *
+    FROM diverse_ranked_nfts
+    WHERE 
+      -- Limit collections: max 3 NFTs per collection, with exceptions for very high FIRE counts
+      (collection_rank <= 3) 
+      OR 
+      -- Allow more if they have 3+ FIRE votes (truly exceptional)
+      (fire_votes_calc >= 3 AND collection_rank <= 5)
+    ORDER BY priority_score DESC, RANDOM()
+    LIMIT limit_count
   )
   SELECT 
     r.id,
@@ -110,34 +123,15 @@ BEGIN
     r.total_votes,
     r.wins,
     r.losses,
-    r.fire_votes_calc as fire_votes,  -- CRITICAL: Map fire_votes correctly
+    r.fire_votes_calc as fire_votes,
     r.calculated_poa_score as poa_score,
     r.calculated_confidence_score as confidence_score,
     r.calculated_confidence_level as confidence_level,
     r.calculated_algorithm as algorithm,
     r.system_mode,
-    r.position as leaderboard_position,
+    ROW_NUMBER() OVER (ORDER BY r.priority_score DESC, RANDOM()) as leaderboard_position,
     r.win_percentage
-  FROM ranked_nfts r
-  WHERE r.position <= limit_count
-  ORDER BY r.position;
+  FROM final_selection r
+  ORDER BY r.priority_score DESC, RANDOM();
 END;
-$$ LANGUAGE plpgsql STABLE;
-
--- Test the new function
-SELECT 
-  'NEW FIRE FUNCTION TEST' as test_type,
-  leaderboard_position,
-  name,
-  collection_name,
-  total_votes,
-  fire_votes,
-  poa_score,
-  CASE 
-    WHEN fire_votes >= 1 THEN '🔥 FIRE TIER'
-    WHEN total_votes >= 10 THEN 'High Engagement'
-    WHEN total_votes >= 5 THEN 'Medium Engagement'
-    ELSE 'Lower Tiers'
-  END as expected_tier
-FROM public.get_fire_first_leaderboard_v2(10)
-ORDER BY leaderboard_position;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

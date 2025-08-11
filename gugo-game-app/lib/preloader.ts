@@ -15,7 +15,9 @@ class VotingPreloader {
   private readonly MAX_PARALLEL_PRELOAD = 6; // Load multiple sessions in parallel
   private imagePreloadCache = new Map<string, boolean>();
   private seenNFTIds = new Set<string>(); // Track NFTs shown in current session
+  private seenNFTPairs = new Set<string>(); // Track NFT pairs to prevent exact duplicates
   private readonly MAX_SEEN_NFTS = 50; // Clear tracking after this many NFTs
+  private readonly MAX_SEEN_PAIRS = 100; // Track more pairs than individual NFTs
 
   static getInstance(): VotingPreloader {
     if (!VotingPreloader.instance) {
@@ -286,13 +288,21 @@ class VotingPreloader {
       // Mark as seen
       this.markNFTAsSeen(nft.id);
       
+      // 🔥 FIRE VOTE PRIORITY: Check if this NFT has FIRE votes before rejecting
+      const hasFireVotes = await this.checkFireVotes(nft.id);
+      
       // Preload image and validate it loads successfully
       const imageLoaded = await this.preloadImage(nft.image);
       
       if (!imageLoaded) {
-        console.log(`🚫 Skipping NFT ${nft.id} - image failed to load: ${nft.image.substring(0, 50)}...`);
-        // Try again with a different NFT
-        return await this.generateSliderSession();
+        if (hasFireVotes) {
+          console.log(`🔥 FIRE OVERRIDE: Including slider NFT despite image failure - ${nft.name} (🔥 FIRE votes)`);
+          // Continue with original image even if it fails to load - let the frontend handle fallbacks
+        } else {
+          console.log(`🚫 Skipping NFT ${nft.id} - image failed to load: ${nft.image.substring(0, 50)}...`);
+          // Try again with a different NFT
+          return await this.generateSliderSession();
+        }
       }
       
       return {
@@ -308,7 +318,7 @@ class VotingPreloader {
   // 🥊 Generate matchup session (collection-aware)
   private async generateMatchupSession(voteType: 'same_coll' | 'cross_coll', collectionFilter?: string): Promise<VotingSession | null> {
     try {
-      let nfts;
+      let nfts: any[] = [];
       
       if (voteType === 'same_coll') {
         // Simplified same collection logic - get NFTs from a random collection, excluding videos and unrevealed
@@ -383,9 +393,28 @@ class VotingPreloader {
         // Pick random collection with 2+ NFTs
         const [_, collectionNfts] = validCollections[Math.floor(Math.random() * validCollections.length)];
         
-        // Pick two random NFTs from that collection
-        const shuffled = collectionNfts.sort(() => 0.5 - Math.random());
-        nfts = shuffled.slice(0, 2);
+        // Pick two random NFTs from that collection, avoiding duplicate pairs
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (nfts.length === 0 && attempts < maxAttempts) {
+          const shuffled = collectionNfts.sort(() => 0.5 - Math.random());
+          const candidatePair = shuffled.slice(0, 2);
+          
+          // Check if this pair has been seen before
+          if (!this.hasPairBeenSeen(candidatePair[0].id, candidatePair[1].id)) {
+            nfts = candidatePair;
+          } else {
+            console.log(`🔄 Same-coll pair already seen: ${candidatePair[0].name} vs ${candidatePair[1].name}, trying again...`);
+            attempts++;
+          }
+        }
+        
+        if (nfts.length === 0) {
+          console.log(`⚠️ Could not find unique same-coll pair after ${maxAttempts} attempts, allowing duplicate`);
+          const shuffled = collectionNfts.sort(() => 0.5 - Math.random());
+          nfts = shuffled.slice(0, 2);
+        }
       } else {
         // Cross collection - random NFTs, excluding videos and unrevealed
         let crossCollQuery = supabase
@@ -438,8 +467,28 @@ class VotingPreloader {
         
         console.log(`🔀 Collections found for cross-collection matchups:`, crossCollectionBreakdown);
         
-        const shuffled = nftsToUse.sort(() => 0.5 - Math.random());
-        nfts = shuffled.slice(0, 2);
+        // Random selection for cross-collection matchups, avoiding duplicate pairs
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (nfts.length === 0 && attempts < maxAttempts) {
+          const shuffled = nftsToUse.sort(() => 0.5 - Math.random());
+          const candidatePair = shuffled.slice(0, 2);
+          
+          // Check if this pair has been seen before
+          if (!this.hasPairBeenSeen(candidatePair[0].id, candidatePair[1].id)) {
+            nfts = candidatePair;
+          } else {
+            console.log(`🔄 Cross-coll pair already seen: ${candidatePair[0].name} vs ${candidatePair[1].name}, trying again...`);
+            attempts++;
+          }
+        }
+        
+        if (nfts.length === 0) {
+          console.log(`⚠️ Could not find unique cross-coll pair after ${maxAttempts} attempts, allowing duplicate`);
+          const shuffled = nftsToUse.sort(() => 0.5 - Math.random());
+          nfts = shuffled.slice(0, 2);
+        }
       }
 
       // Debug: Alert if any selected NFTs are unrevealed
@@ -451,9 +500,16 @@ class VotingPreloader {
         }
       });
       
-      // Mark both NFTs as seen
+      // Mark both NFTs as seen and track the pair
       this.markNFTAsSeen(nfts[0].id);
       this.markNFTAsSeen(nfts[1].id);
+      this.markPairAsSeen(nfts[0].id, nfts[1].id);
+
+      // 🔥 FIRE VOTE PRIORITY: Check if either NFT has FIRE votes before rejecting
+      const [nft1HasFire, nft2HasFire] = await Promise.all([
+        this.checkFireVotes(nfts[0].id),
+        this.checkFireVotes(nfts[1].id)
+      ]);
 
       // Preload both images in parallel and validate they load successfully
       const [image1Loaded, image2Loaded] = await Promise.all([
@@ -461,10 +517,18 @@ class VotingPreloader {
         this.preloadImage(nfts[1].image)
       ]);
 
+      // 🔥 FIRE VOTE OVERRIDE: If either NFT has FIRE votes, allow it even with broken images
+      const fireOverride = nft1HasFire || nft2HasFire;
+
       if (!image1Loaded || !image2Loaded) {
-        console.log(`🚫 Skipping matchup - image(s) failed to load: NFT1(${image1Loaded ? '✅' : '❌'}) NFT2(${image2Loaded ? '✅' : '❌'})`);
-        // Try again with different NFTs
-        return await this.generateMatchupSession(voteType);
+        if (fireOverride) {
+          console.log(`🔥 FIRE OVERRIDE: Including matchup despite image failures - NFT1(${image1Loaded ? '✅' : '❌'}${nft1HasFire ? ' 🔥' : ''}) NFT2(${image2Loaded ? '✅' : '❌'}${nft2HasFire ? ' 🔥' : ''})`);
+          // Continue with original images even if they fail to load - let the frontend handle fallbacks
+        } else {
+          console.log(`🚫 Skipping matchup - image(s) failed to load: NFT1(${image1Loaded ? '✅' : '❌'}) NFT2(${image2Loaded ? '✅' : '❌'})`);
+          // Try again with different NFTs
+          return await this.generateMatchupSession(voteType);
+        }
       }
 
       // Map database results to NFT type
@@ -679,6 +743,35 @@ class VotingPreloader {
     }
   }
 
+  // 🔄 Track NFT pairs to prevent exact duplicates
+  private markPairAsSeen(nftId1: string, nftId2: string): void {
+    const pairKey = this.getPairKey(nftId1, nftId2);
+    this.seenNFTPairs.add(pairKey);
+    
+    // Clear old pairs if we've seen too many
+    if (this.seenNFTPairs.size > this.MAX_SEEN_PAIRS) {
+      console.log(`🔄 Clearing seen pairs history (${this.seenNFTPairs.size} entries)`);
+      this.clearSeenPairs();
+    }
+  }
+
+  // 🔍 Check if NFT pair has been seen before
+  private hasPairBeenSeen(nftId1: string, nftId2: string): boolean {
+    const pairKey = this.getPairKey(nftId1, nftId2);
+    return this.seenNFTPairs.has(pairKey);
+  }
+
+  // 🔑 Generate consistent pair key (sorted to handle A+B = B+A)
+  private getPairKey(nftId1: string, nftId2: string): string {
+    return [nftId1, nftId2].sort().join('|');
+  }
+
+  // 🧹 Clear seen pairs tracking
+  private clearSeenPairs(): void {
+    this.seenNFTPairs.clear();
+    console.log('✨ Cleared seen pairs - duplicate pairs possible again');
+  }
+
   // 🧹 Clear seen NFTs tracking
   private clearSeenNFTs(): void {
     this.seenNFTIds.clear();
@@ -688,13 +781,15 @@ class VotingPreloader {
   // 📊 Public method to clear seen NFTs (for prize breaks, etc.)
   public resetSession(): void {
     this.clearSeenNFTs();
-    console.log('🎯 Session reset - cleared duplicate tracking');
+    this.clearSeenPairs();
+    console.log('🎯 Session reset - cleared duplicate tracking for NFTs and pairs');
   }
 
   // 🚫👻 Force clear all cached sessions and rebuild stack
   public async forceFullReset(): Promise<void> {
     this.sessionStack.length = 0; // Clear the stack
     this.clearSeenNFTs();
+    this.clearSeenPairs();
     this.imagePreloadCache.clear();
     console.log('🔄 FORCE RESET: Cleared stack, seen NFTs, and image cache');
     
@@ -805,6 +900,101 @@ class VotingPreloader {
       
       img.src = fixedUrl;
     });
+  }
+
+  // 🔥 Check if an NFT has FIRE votes
+  private async checkFireVotes(nftId: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('id')
+        .eq('nft_id', nftId)
+        .eq('vote_type', 'fire')
+        .limit(1);
+
+      if (error) {
+        console.warn(`⚠️ Error checking FIRE votes for ${nftId}:`, error);
+        return false;
+      }
+
+      return (data && data.length > 0);
+    } catch (error) {
+      console.warn(`⚠️ Exception checking FIRE votes for ${nftId}:`, error);
+      return false;
+    }
+  }
+
+  // 🔥 Generate a placeholder image for FIRE-voted NFTs with broken images
+  private generateFirePlaceholder(nftName: string, collectionName: string): string {
+    // Use a fire-themed gradient as a data URL
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      // Create fire gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+      gradient.addColorStop(0, '#ff6b35'); // Orange
+      gradient.addColorStop(0.5, '#ff4757'); // Red  
+      gradient.addColorStop(1, '#8b0000'); // Dark red
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 400, 400);
+      
+      // Add fire emoji
+      ctx.font = '60px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('🔥', 200, 200);
+      
+      // Add NFT name
+      ctx.font = '16px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(nftName, 200, 250);
+      ctx.fillText(collectionName, 200, 280);
+      
+      return canvas.toDataURL();
+    }
+    
+    // Fallback to a simple placeholder service with fire theme
+    const hash = Math.abs((nftName + collectionName).split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0));
+    
+    return `https://picsum.photos/400/400?random=${hash}&blur=1`;
+  }
+
+  // 🔥 Prioritize NFTs with FIRE votes in selection
+  private async prioritizeFireNFTs(nfts: any[]): Promise<any[]> {
+    if (!nfts || nfts.length === 0) return nfts;
+    
+    try {
+      // Check which NFTs have FIRE votes
+      const nftsWithFireStatus = await Promise.all(
+        nfts.map(async (nft) => {
+          const hasFireVotes = await this.checkFireVotes(nft.id);
+          return { ...nft, hasFireVotes };
+        })
+      );
+
+      // Separate FIRE NFTs from regular NFTs
+      const fireNfts = nftsWithFireStatus.filter(nft => nft.hasFireVotes);
+      const regularNfts = nftsWithFireStatus.filter(nft => !nft.hasFireVotes);
+
+      console.log(`🔥 FIRE PRIORITY: ${fireNfts.length} FIRE NFTs, ${regularNfts.length} regular NFTs`);
+
+      // Shuffle each group separately
+      const shuffledFireNfts = fireNfts.sort(() => 0.5 - Math.random());
+      const shuffledRegularNfts = regularNfts.sort(() => 0.5 - Math.random());
+
+      // Return FIRE NFTs first, then regular NFTs
+      return [...shuffledFireNfts, ...shuffledRegularNfts];
+    } catch (error) {
+      console.warn('⚠️ Error prioritizing FIRE NFTs, falling back to random selection:', error);
+      return nfts.sort(() => 0.5 - Math.random());
+    }
   }
 }
 
