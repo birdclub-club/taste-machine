@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { config } from '../../lib/wagmi';
 import { useEffect } from 'react';
+import { MusicProvider } from '@/contexts/MusicContext';
 import '@rainbow-me/rainbowkit/styles.css';
 
 const queryClient = new QueryClient();
@@ -77,8 +78,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
             learnMoreUrl: 'https://abs.xyz',
           }}
         >
-          <GlobalErrorHandler />
-          {children}
+          <MusicProvider>
+            <GlobalErrorHandler />
+            {children}
+          </MusicProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

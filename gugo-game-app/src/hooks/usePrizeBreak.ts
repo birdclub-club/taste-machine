@@ -54,6 +54,21 @@ export function usePrizeBreak() {
 
     console.log(`🎁 Prize break started after ${voteCount} votes - claiming rewards from smart contract...`);
 
+    // 🚀 PERFORMANCE BOOST: Trigger aggressive preloading during prize break
+    console.log('🚀 Prize break: Triggering aggressive image preloading...');
+    try {
+      // Import preloader dynamically to avoid circular dependencies
+      const { votingPreloader } = await import('@lib/preloader');
+      
+      // Force preloader to refill stack during prize break downtime
+      setTimeout(() => {
+        console.log('⚡ Prize break: Starting background preload...');
+        votingPreloader.forceRefillStack();
+      }, 100); // Start immediately but don't block prize animation
+    } catch (error) {
+      console.warn('⚠️ Prize break preloading failed:', error);
+    }
+
     // Safety timeout to prevent getting stuck in "It's Happening" state
     const timeoutId = setTimeout(() => {
       console.warn('⚠️ Prize break claiming timeout - forcing exit from "It\'s Happening" state');

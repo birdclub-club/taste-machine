@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@lib/supabase';
 import type { VoteSubmission, VoteResult } from '@/types/voting';
+import { isPrizeBreakVote } from '@/lib/prize-break-utils';
 
 interface BatchedVote {
   voteData: VoteSubmission;
@@ -26,7 +27,7 @@ export function useBatchedVoting() {
   const processingRef = useRef(false);
 
   // 🚀 Add vote to local batch (instant UI feedback)
-  const addVoteToBatch = async (voteData: VoteSubmission, userWallet: string): Promise<VoteResult> => {
+  const addVoteToBatch = async (voteData: VoteSubmission, userWallet: string, userXP: number = 0): Promise<VoteResult> => {
     const newVote: BatchedVote = {
       voteData,
       userWallet,
@@ -42,11 +43,11 @@ export function useBatchedVoting() {
     }));
 
     const newVoteCount = batchState.totalVoteCount + 1;
-    const isPrizeBreak = newVoteCount % 10 === 0;
+    const isPrizeBreak = isPrizeBreakVote(newVoteCount, userXP);
 
     console.log(`⚡ Vote ${newVoteCount} added to batch - ${isPrizeBreak ? 'PRIZE BREAK!' : 'batched for processing'}`);
 
-    // Check if this triggers a prize break (every 10 votes)
+    // Check if this triggers a prize break (XP-based threshold)
     if (isPrizeBreak) {
       console.log('🎁 Prize break triggered - processing batch now!');
       // Don't await this - let it process in background during prize break
@@ -249,7 +250,18 @@ export function useBatchedVoting() {
     }>();
 
     for (const vote of matchupVotes) {
-      if (!vote.voteData.nft_a_id || !vote.voteData.nft_b_id || !vote.voteData.winner_id) continue;
+      if (!vote.voteData.nft_a_id || !vote.voteData.nft_b_id) continue;
+      
+      // Handle NO votes (valuable negative aesthetic data)
+      const isNoVote = !vote.voteData.winner_id && vote.voteData.engagement_data?.no_vote;
+      if (isNoVote) {
+        // Process NO votes separately - they provide negative aesthetic feedback for both NFTs
+        await processNoVoteBatch(vote, nftMap);
+        continue;
+      }
+      
+      // Regular matchup votes need a winner_id
+      if (!vote.voteData.winner_id) continue;
 
       const nftA = nftMap.get(vote.voteData.nft_a_id);
       const nftB = nftMap.get(vote.voteData.nft_b_id);
@@ -320,7 +332,7 @@ export function useBatchedVoting() {
     console.log(`🔄 Applying ${nftUpdates.size} NFT updates in small batches...`);
     
     const updateEntries = Array.from(nftUpdates.entries());
-    const BATCH_SIZE = 3; // Smaller batches to prevent timeout
+    const BATCH_SIZE = 2; // Reduced from 3 to 2 for better timeout handling
     const totalBatches = Math.ceil(updateEntries.length / BATCH_SIZE);
     let successCount = 0;
     let failureCount = 0;
@@ -341,16 +353,26 @@ export function useBatchedVoting() {
           updated_at: new Date().toISOString()
         };
         
-        // Retry mechanism for failed updates
-        const MAX_RETRIES = 2;
+        // Enhanced retry mechanism with timeout protection
+        const MAX_RETRIES = 3;
+        const TIMEOUT_MS = 5000; // 5 second timeout per update
         let lastError = null;
         
         for (let retry = 0; retry <= MAX_RETRIES; retry++) {
           try {
-            const result = await supabase
+            // Create timeout promise
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Update timeout')), TIMEOUT_MS)
+            );
+            
+            // Create update promise
+            const updatePromise = supabase
               .from('nfts')
               .update(updateData)
               .eq('id', nftId);
+            
+            // Race between update and timeout
+            const result = await Promise.race([updatePromise, timeoutPromise]) as any;
               
             if (!result.error) {
               return result;
@@ -358,18 +380,28 @@ export function useBatchedVoting() {
             
             lastError = result.error;
             
-            // If it's a timeout error, wait before retry
-            if (result.error?.code === '57014' && retry < MAX_RETRIES) {
-              console.log(`⏰ NFT ${nftId}: Timeout on attempt ${retry + 1}, retrying...`);
-              await new Promise(resolve => setTimeout(resolve, 500 * (retry + 1)));
+            // If it's a timeout error, wait longer before retry
+            if ((result.error?.code === '57014' || result.error?.message?.includes('timeout')) && retry < MAX_RETRIES) {
+              const waitTime = 1000 * (retry + 1); // Exponential backoff: 1s, 2s, 3s
+              console.log(`⏰ NFT ${nftId}: Timeout on attempt ${retry + 1}, waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
               continue;
             }
             
             return result;
           } catch (error) {
             lastError = error;
+            
+            // Handle timeout errors specifically
+            if ((error as Error).message === 'Update timeout' && retry < MAX_RETRIES) {
+              const waitTime = 1000 * (retry + 1);
+              console.log(`⏰ NFT ${nftId}: Promise timeout on attempt ${retry + 1}, waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
+            }
+            
             if (retry < MAX_RETRIES) {
-              await new Promise(resolve => setTimeout(resolve, 500 * (retry + 1)));
+              await new Promise(resolve => setTimeout(resolve, 1000 * (retry + 1)));
             }
           }
         }
@@ -379,22 +411,25 @@ export function useBatchedVoting() {
 
       try {
         const results = await Promise.all(batchPromises);
-        const batchFailures = results.filter(result => result.error);
+        const batchFailures = results.filter((result: any) => result.error);
         
         if (batchFailures.length > 0) {
-          console.error(`❌ Batch ${i + 1}: ${batchFailures.length}/${currentBatch.length} updates failed`);
-          batchFailures.forEach((result, index) => {
+          console.warn(`⚠️ Batch ${i + 1}: ${batchFailures.length}/${currentBatch.length} updates failed (continuing with remaining batches)`);
+          batchFailures.forEach((result: any, index) => {
             const nftId = currentBatch[results.indexOf(result)][0];
-            console.error(`Failed NFT ${nftId}:`, JSON.stringify(result.error, null, 2));
+            const errorMsg = result.error?.message || 'Unknown error';
+            console.warn(`⚠️ NFT ${nftId}: ${errorMsg}`);
           });
           failureCount += batchFailures.length;
+        } else {
+          console.log(`✅ Batch ${i + 1}: ${currentBatch.length}/${currentBatch.length} updates successful`);
         }
         
         successCount += (currentBatch.length - batchFailures.length);
         
-        // Small delay between batches to reduce database load
+        // Increased delay between batches to reduce database load during timeouts
         if (i < totalBatches - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 300)); // Increased from 100ms to 300ms
         }
         
       } catch (error) {
@@ -404,7 +439,9 @@ export function useBatchedVoting() {
     }
     
     if (failureCount > 0) {
-      console.error(`❌ ${failureCount} total Elo updates failed out of ${updateEntries.length}`);
+      const successRate = ((successCount / updateEntries.length) * 100).toFixed(1);
+      console.warn(`⚠️ Batch processing completed: ${successCount}/${updateEntries.length} successful (${successRate}%), ${failureCount} failed due to timeouts`);
+      console.log(`💡 Failed updates will be retried in the next batch cycle`);
     } else {
       console.log(`✅ Successfully updated Elo for all ${successCount} NFTs`);
     }
@@ -497,3 +534,51 @@ export function useBatchedVoting() {
     isProcessingBatch
   };
 }
+
+// 📉 Process NO votes (negative aesthetic data for both NFTs)
+const processNoVoteBatch = async (vote: BatchedVote, nftMap: Map<string, any>) => {
+  try {
+    if (!vote.voteData.nft_a_id || !vote.voteData.nft_b_id) return;
+
+    const nftA = nftMap.get(vote.voteData.nft_a_id);
+    const nftB = nftMap.get(vote.voteData.nft_b_id);
+    
+    if (!nftA || !nftB) return;
+
+    const isSuperVote = vote.voteData.super_vote || false;
+    const voteWeight = isSuperVote ? 5 : 1;
+
+    console.log(`❌ Processing NO vote (negative aesthetic data) - both NFTs get +${voteWeight} vote count`);
+
+    // Update both NFTs' vote counts but NO Elo changes (no winner/loser)
+    const updatePromises = [
+      supabase
+        .from('nfts')
+        .update({
+          total_votes: nftA.total_votes + voteWeight,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', nftA.id),
+      supabase
+        .from('nfts')
+        .update({
+          total_votes: nftB.total_votes + voteWeight,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', nftB.id)
+    ];
+
+    const updateResults = await Promise.all(updatePromises);
+
+    if (updateResults.some(result => result.error)) {
+      console.error('❌ Failed to update NFT vote counts for NO vote:', updateResults);
+      throw new Error('Failed to update NFT vote counts for NO vote');
+    }
+
+    console.log(`✅ NO vote processed: Both NFTs got +${voteWeight} vote count (negative aesthetic data recorded)`);
+    
+  } catch (error) {
+    console.error('❌ Error processing NO vote batch:', error);
+    throw error;
+  }
+};

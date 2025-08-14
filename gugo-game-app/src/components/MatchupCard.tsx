@@ -204,7 +204,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     };
   }, [isDragging]);
 
-  const NFTCard = ({ nft, position }: { nft: NFTData; position: 'left' | 'right' }) => {
+  const NFTCard = React.memo(({ nft, position }: { nft: NFTData; position: 'left' | 'right' }) => {
     const isWinner = (voteAnimationState.isAnimating || voteAnimationState.fadeOutGlow) && 
                      voteAnimationState.winnerId === nft.id;
     const isFadingOut = voteAnimationState.fadeOutGlow && voteAnimationState.winnerId === nft.id;
@@ -332,7 +332,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               const currentGateway = target.src.split('/ipfs/')[0] + '/ipfs/';
               ipfsGatewayManager.recordSuccess(currentGateway);
               
-              console.log(`✅ Loaded ${nft.id.substring(0,8)}...`);
+              // Image loaded successfully - reduced logging to prevent console spam
             }}
           />
           
@@ -585,7 +585,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
       </div>
     </div>
     );
-  };
+  });
 
   return (
     <div style={{ 

@@ -12,9 +12,11 @@ import FavoritesGallery from './FavoritesGallery';
 import { canClaimFreeVotes, claimFreeVotes } from '../../lib/auth';
 import { LicksPurchaseModal } from './LicksPurchaseModal';
 import Leaderboard from './Leaderboard';
+import PrizeProgressBar from './PrizeProgressBar';
 
 interface StatusBarProps {
   onConnectWallet: () => void;
+  userVoteCount?: number; // Current user vote count for progress bar
 }
 
 export interface StatusBarRef {
@@ -24,7 +26,7 @@ export interface StatusBarRef {
   triggerLicksAnimation: (licksAmount: number) => void;
 }
 
-const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet }, ref) => {
+const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, userVoteCount = 0 }, ref) => {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const { user, loading, refreshUser } = useAuth();
@@ -1084,6 +1086,12 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet },
                       </div>
                     )}
                   </div>
+                  
+                  {/* Prize Progress Bar */}
+                  <PrizeProgressBar 
+                    currentVotes={userVoteCount}
+                    userXP={user.xp || 0}
+                  />
                   
                   {/* Licks (Interactive) */}
                   <div style={{ 

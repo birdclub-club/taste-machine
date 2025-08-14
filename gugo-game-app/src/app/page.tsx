@@ -18,6 +18,9 @@ import { fetchVotingSession } from '@lib/matchup';
 import { votingPreloader } from '@lib/preloader';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAuth } from '@/hooks/useAuth';
+import { useMusic } from '@/contexts/MusicContext';
+import AudioControls from '@/components/AudioControls';
 import type { VotingSession, VoteSubmission, SliderVote } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 import { supabase } from '@lib/supabase';
@@ -81,6 +84,36 @@ const formatNumber = (num: number): string => {
 // 🎲 Get random prize break message
 const getRandomPrizeMessage = (): string => {
   return PRIZE_BREAK_MESSAGES[Math.floor(Math.random() * PRIZE_BREAK_MESSAGES.length)];
+};
+
+// 🦆 Get appropriate duck image based on reward type
+const getDuckImageForReward = (reward: any) => {
+  console.log('🦆 getDuckImageForReward called with reward:', reward);
+  
+  if (!reward) {
+    console.log('🦆 No reward provided, returning null');
+    return null;
+  }
+  
+  // GUGO prizes get the burning GUGO duck
+  if (reward.gugoAmount > 0) {
+    console.log('🔥 GUGO reward detected, returning burning duck');
+    return {
+      src: "/GUGO-Duck-Burning-Bags.png",
+      alt: "Burning GUGO Duck",
+      filter: 'drop-shadow(0 0 20px rgba(255, 107, 53, 0.6)) drop-shadow(0 0 40px rgba(255, 140, 0, 0.4)) drop-shadow(0 0 60px rgba(255, 165, 0, 0.2))',
+      animation: 'fire-pulse-subtle 3s ease-in-out infinite'
+    };
+  }
+  
+  // Non-GUGO prizes get the art duck
+  console.log('🎨 Non-GUGO reward detected, returning art duck');
+  return {
+    src: "/GOGO-duck-at-easel-01.png", 
+    alt: "Art Duck",
+    filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4))',
+    animation: 'gentle-pulse 2s ease-in-out infinite'
+  };
 };
 
 
@@ -155,8 +188,7 @@ export default function Page() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showDelayedPrize, setShowDelayedPrize] = useState(false);
   const [showMarquee, setShowMarquee] = useState(false);
-  const [showBurningGugo, setShowBurningGugo] = useState(false);
-  const [showArtDuck, setShowArtDuck] = useState(false);
+  // Removed showBurningGugo and showArtDuck - images now embedded in prize modal
   const [prizeBreakMessage, setPrizeBreakMessage] = useState<string>('');
   const [showSessionPrompt, setShowSessionPrompt] = useState<{
     isOpen: boolean;
@@ -184,6 +216,8 @@ export default function Page() {
   const statusBarRef = useRef<StatusBarRef>(null);
   const { licksToday, isLoading: isLoadingActivity } = useActivityCounter();
   const { addToFavorites } = useFavorites();
+  const { user } = useAuth(); // Get user data for XP
+  const { startMusicOnFirstVote } = useMusic(); // Background music system
   
   // Current blockchain - can be made dynamic in the future
   const currentChain = "Abstract";
@@ -212,16 +246,9 @@ export default function Page() {
           setShowConfetti(true);
         }, 500); // Reduced delay to 0.5 seconds
 
-        // Also trigger the burning GUGO notification - appears behind modal
-        console.log('🔥 GUGO burning notification triggered!');
-        setShowBurningGugo(true);
-
         return () => clearTimeout(confettiTimer);
-      } else {
-        // Non-GUGO prizes: art duck
-        console.log('🎨 Non-GUGO prize detected! Triggering art duck notification...');
-        setShowArtDuck(true);
       }
+      // Note: Duck images now embedded in prize modal instead of separate popups
     }
   }, [prizeBreakState.isActive, prizeBreakState.reward]);
 
@@ -288,11 +315,8 @@ export default function Page() {
     try {
       setError(null);
       
-      // 🚫 Prevent rapid session changes - add small delay
-      if (votingSession) {
-        console.log('⏸️  Preventing rapid session change - waiting 500ms...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      // 🚀 INSTANT: No delay needed with preloaded sessions (17 ready)
+      // Removed 500ms delay for instant transitions
       
       // Use override preference if provided, otherwise use current preference
       const currentPreference = overridePreference !== undefined ? overridePreference : preference;
@@ -482,7 +506,10 @@ export default function Page() {
         voteData.winner_id = winnerId;
       }
 
-      const result = await submitVote(voteData, address, userVoteCount);
+      // 🎵 Start background music on first vote (if not already started)
+      startMusicOnFirstVote();
+
+      const result = await submitVote(voteData, address, userVoteCount, user?.xp || 0);
       
       // Check for insufficient votes
       if (result.insufficientVotes) {
@@ -595,8 +622,8 @@ export default function Page() {
   };
 
   const handleSliderVote = async (sliderValue: number, superVote: boolean = false) => {
-    // 🌟 Track maximum slider votes for favorites (100 = max love)
-    if (sliderValue === 100 && votingSession?.vote_type === 'slider') {
+    // 🌟 Track maximum slider votes for favorites (10 = max love, slider range is 0.1-10)
+    if (sliderValue === 10 && votingSession?.vote_type === 'slider') {
       const sliderSession = votingSession as SliderVote;
       console.log('💯 Adding max slider vote to favorites:', sliderSession.nft.id);
       addToFavorites(
@@ -797,6 +824,7 @@ export default function Page() {
               <StatusBar 
           ref={statusBarRef} 
           onConnectWallet={() => {}} // No longer needed - StatusBar has direct RainbowKit
+          userVoteCount={userVoteCount}
         />
         
         {/* Main Content */}
@@ -1387,6 +1415,7 @@ export default function Page() {
                   // Matchup voting interface  
                   isConnected ? (
                     <MatchupCard
+                      key={`${votingSession.nft1.id}-${votingSession.nft2.id}`}
                       nft1={votingSession.nft1}
                       nft2={votingSession.nft2}
                       onVote={handleVote}
@@ -1415,7 +1444,10 @@ export default function Page() {
                             }
                           };
 
-                          const result = await submitVote(voteData, address, userVoteCount);
+                          // 🎵 Start background music on first vote (if not already started)
+                          startMusicOnFirstVote();
+
+                          const result = await submitVote(voteData, address, userVoteCount, user?.xp || 0);
                           
                           // Check for insufficient votes
                           if (result.insufficientVotes) {
@@ -1532,8 +1564,8 @@ export default function Page() {
               )}
             </section>
 
-            {/* Burning GUGO Notification - appears behind modal, above VS sign */}
-            {showBurningGugo && (
+            {/* Duck images now embedded in prize break modal below */}
+            {false && (
               <div 
                 style={{
                   position: 'fixed',
@@ -1550,7 +1582,7 @@ export default function Page() {
               >
                 {/* Close X button - moved outside the content area */}
                 <button
-                  onClick={() => setShowBurningGugo(false)}
+                  onClick={() => {/* Disabled - popup removed */}}
                   style={{
                     position: 'absolute',
                     top: '-20px',
@@ -1616,8 +1648,8 @@ export default function Page() {
               </div>
             )}
 
-            {/* Art Duck Notification - for non-GUGO prizes */}
-            {showArtDuck && (
+            {/* Art Duck moved to prize modal */}
+            {false && (
               <div 
                 style={{
                   position: 'fixed',
@@ -1634,7 +1666,7 @@ export default function Page() {
               >
                 {/* Close X button - moved outside the content area */}
                 <button
-                  onClick={() => setShowArtDuck(false)}
+                  onClick={() => {/* Disabled - popup removed */}}
                   style={{
                     position: 'absolute',
                     top: '-20px',
@@ -1909,21 +1941,26 @@ export default function Page() {
                         minHeight: '120px',
                         justifyContent: 'center'
                       }}>
-                        {/* GUGO Duck Stealing Art Image */}
-                        <div style={{
-                          marginBottom: 'var(--space-4)'
-                        }}>
-                          <img 
-                            src="/GUGO-Duck-Stealing-Art.png" 
-                            alt="GUGO Duck Stealing Art" 
-                            style={{
-                              width: '100px',
-                              height: 'auto',
-                              filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4))',
-                              animation: 'pulse 2s ease-in-out infinite'
-                            }}
-                          />
-                        </div>
+                        {/* Dynamic Duck Image based on reward type */}
+                        {(() => {
+                          const duckImage = getDuckImageForReward(prizeBreakState.reward);
+                          return duckImage ? (
+                            <div style={{
+                              marginBottom: 'var(--space-4)'
+                            }}>
+                              <img 
+                                src={duckImage.src}
+                                alt={duckImage.alt}
+                                style={{
+                                  width: '120px', // Slightly bigger than before
+                                  height: 'auto',
+                                  filter: duckImage.filter,
+                                  animation: duckImage.animation
+                                }}
+                              />
+                            </div>
+                          ) : null;
+                        })()}
                         
                         {/* Animated loading bar */}
                         <div style={{
@@ -1968,6 +2005,27 @@ export default function Page() {
                           }}>
                             {showDelayedPrize && (
                               <>
+                                {/* Duck Image in Final Reward Display */}
+                                {(() => {
+                                  const duckImage = getDuckImageForReward(prizeBreakState.reward);
+                                  return duckImage ? (
+                                    <div style={{
+                                      marginBottom: 'var(--space-4)'
+                                    }}>
+                                      <img 
+                                        src={duckImage.src}
+                                        alt={duckImage.alt}
+                                        style={{
+                                          width: '100px',
+                                          height: 'auto',
+                                          filter: duckImage.filter,
+                                          animation: duckImage.animation
+                                        }}
+                                      />
+                                    </div>
+                                  ) : null;
+                                })()}
+                                
                                 {prizeBreakState.reward.xpAmount > 0 && (
                                   <div>+{formatNumber(prizeBreakState.reward.xpAmount)} XP</div>
                                 )}
@@ -2197,6 +2255,9 @@ export default function Page() {
                 }} 
               />
             </span>
+
+            {/* 🎵 Audio Controls */}
+            <AudioControls />
           </div>
         </div>
       </div>
@@ -2235,6 +2296,7 @@ export default function Page() {
           }}
         />
       )}
+
 
 
     </div>

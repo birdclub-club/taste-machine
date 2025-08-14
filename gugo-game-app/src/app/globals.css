@@ -653,6 +653,17 @@ body.wallet-connected {
   }
 }
 
+@keyframes gentle-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.7)) drop-shadow(0 0 50px rgba(255, 255, 255, 0.5));
+    transform: scale(1.02);
+  }
+}
+
 @keyframes text-glow-subtle {
   0%, 100% {
     text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 107, 53, 0.4);

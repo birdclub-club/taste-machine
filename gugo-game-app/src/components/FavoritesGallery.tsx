@@ -34,16 +34,25 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
     if (!showPrices || favorites.length === 0) return;
     
     const eligibleFavorites = favorites.filter(fav => fav.collection_address && fav.token_id);
-    console.log(`💰 Starting price fetch for ${eligibleFavorites.length} favorites`);
+    console.log(`💰 Starting price fetch for ${eligibleFavorites.length}/${favorites.length} favorites`);
+    console.log('💰 Favorites data:', favorites.map(f => ({ 
+      nft_id: f.nft_id, 
+      collection_address: f.collection_address, 
+      token_id: f.token_id 
+    })));
+    
+    if (eligibleFavorites.length === 0) {
+      console.warn('💰 No favorites have collection_address and token_id - skipping price fetch');
+      setLoadingPrices(false);
+      return;
+    }
     
     setLoadingPrices(true);
     const newPrices: Record<string, { price: number | null; currency: string } | null> = {};
     
     try {
       // Fetch prices for each favorite that has collection_address and token_id
-      const pricePromises = favorites
-        .filter(fav => fav.collection_address && fav.token_id)
-        .map(async (favorite) => {
+      const pricePromises = eligibleFavorites.map(async (favorite) => {
           const startTime = Date.now();
           console.log(`💰 Starting price fetch for ${favorite.nft_id} (${favorite.collection_address}:${favorite.token_id})`);
           
@@ -95,7 +104,13 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
       const successCount = Object.values(newPrices).filter(p => p !== null).length;
       console.log(`💰 Price fetch completed: ${successCount}/${eligibleFavorites.length} successful`);
     } catch (error) {
-      console.error('Error fetching prices:', error);
+      console.error('💰 Error in fetchPrices:', error);
+      // Set all prices to null on error to prevent UI issues
+      const errorPrices: Record<string, null> = {};
+      eligibleFavorites.forEach(fav => {
+        errorPrices[fav.nft_id] = null;
+      });
+      setPrices(errorPrices);
     } finally {
       setLoadingPrices(false);
     }

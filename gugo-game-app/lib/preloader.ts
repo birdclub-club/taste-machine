@@ -4,6 +4,7 @@
 import { supabase } from './supabase';
 import { VotingSession } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from './ipfs-gateway-manager';
+import { enhancedMatchupIntegration, type EnhancedMatchupOptions } from './enhanced-matchup-integration';
 
 class VotingPreloader {
   private static instance: VotingPreloader;
@@ -18,12 +19,56 @@ class VotingPreloader {
   private seenNFTPairs = new Set<string>(); // Track NFT pairs to prevent exact duplicates
   private readonly MAX_SEEN_NFTS = 50; // Clear tracking after this many NFTs
   private readonly MAX_SEEN_PAIRS = 100; // Track more pairs than individual NFTs
+  
+  // 🧠 Enhanced system settings
+  private useEnhancedEngine = true; // Re-enabled with fixed SQL functions
+  private enhancedSuccessRate = 0; // Track enhanced system performance
+  private enhancedAttempts = 0;
+  private enhancedTimeout = 1500; // 1.5 second timeout for enhanced calls (aggressive fallback)
+  private enhancedRatio = 0.3; // 30% enhanced, 70% legacy for speed (reduced from 80%)
 
   static getInstance(): VotingPreloader {
     if (!VotingPreloader.instance) {
       VotingPreloader.instance = new VotingPreloader();
     }
     return VotingPreloader.instance;
+  }
+
+  // 🧹 Clear all cached sessions (useful when collection settings change)
+  clearAllSessions(): void {
+    this.sessionStack = [];
+    this.seenNFTIds.clear();
+    this.seenNFTPairs.clear();
+    console.log('🧹 Cleared all preloader sessions and seen NFT tracking');
+  }
+
+  // 🚀 Force aggressive refill during prize breaks for maximum performance
+  forceRefillStack(): void {
+    if (!this.isPreloading) {
+      console.log('🚀 Force refill: Aggressively preloading sessions during prize break...');
+      // Don't await - let it run in background during prize animation
+      this.preloadSessions(this.TARGET_STACK_SIZE);
+    } else {
+      console.log('🔄 Force refill: Already preloading, skipping duplicate request');
+    }
+  }
+
+  // 🧹 Force clear all cached sessions and regenerate (for fixing filtering issues)
+  forceClearAndRegenerate(): void {
+    console.log('🧹 FORCE CLEAR: Clearing all cached sessions to apply updated filtering...');
+    
+    // Clear all cached data
+    this.sessionStack = [];
+    this.seenNFTIds.clear();
+    this.seenNFTPairs.clear();
+    
+    console.log('✨ Cleared seen NFTs - fresh duplicates possible again');
+    console.log('✨ Cleared seen pairs - duplicate pairs possible again');
+    console.log('🔄 FORCE RESET: Cleared stack, seen NFTs, and image cache');
+    console.log('🔄 Rebuilding session stack with fresh data...');
+    
+    // Regenerate fresh sessions with current filtering
+    this.preloadSessions(this.TARGET_STACK_SIZE);
   }
 
   // 🖼️ Preload images in background with robust fallback
@@ -41,6 +86,13 @@ class VotingPreloader {
       let currentUrl = fixImageUrl(imageUrl);
 
       const tryLoadImage = () => {
+        // Check if we're in a browser environment
+        if (typeof window === 'undefined' || typeof Image === 'undefined') {
+          console.log(`⚠️ Server-side environment detected, skipping image preload for: ${currentUrl.substring(0, 60)}...`);
+          resolve(true); // Assume success on server-side
+          return;
+        }
+        
         const img = new Image();
         
         const timeout = setTimeout(() => {
@@ -124,6 +176,15 @@ class VotingPreloader {
   // 🎚️ Generate slider session (with duplicate prevention and collection filtering)
   private async generateSliderSession(collectionFilter?: string): Promise<VotingSession | null> {
     try {
+      // 🎛️ First, get active collections from collection management
+      const { data: activeCollections } = await supabase
+        .from('collection_management')
+        .select('collection_name')
+        .eq('active', true);
+      
+      const activeCollectionNames = activeCollections?.map(c => c.collection_name) || [];
+      console.log(`🎛️ [PRELOADER] Active collections for slider: ${activeCollectionNames.join(', ')}`);
+      
       // Try to get NFTs with low slider count first, excluding already seen, video files, and unrevealed NFTs
       let query = supabase
         .from('nfts')
@@ -134,22 +195,19 @@ class VotingPreloader {
         .not('image', 'ilike', '%.avi%')
         .not('image', 'ilike', '%.webm%')
         .not('image', 'ilike', '%.mkv%')
-        .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // Exclude unrevealed NFTs
-        .not('traits', 'cs', '[{"trait_type": "reveal", "value": "unrevealed"}]')  // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Status", "value": "Unrevealed"}]')  // Alternative trait names
-        .not('traits', 'cs', '[{"trait_type": "status", "value": "unrevealed"}]')  // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu collection unrevealed
-        .not('traits', 'cs', '[{"trait_type": "status", "value": "hidden"}]')     // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // Bearish collection unrevealed
-        .not('traits', 'cs', '[{"trait_type": "stage", "value": "pre-reveal"}]')  // Case variations
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]')      // Beeish collection unrevealed (specific to Beeish)
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-        .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+        .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // General unrevealed
+        .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu unrevealed
+        .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // BEARISH unrevealed
+        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // BEEISH unrevealed
+        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // BEEISH unrevealed
+        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // BEEISH unrevealed
+        .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]');     // BEEISH unrevealed
+
+      // 🎛️ Filter by active collections only (unless specific collection filter is provided)
+      if (!collectionFilter && activeCollectionNames.length > 0) {
+        query = query.in('collection_name', activeCollectionNames);
+        console.log(`🎯 [PRELOADER] Filtering slider to active collections only`);
+      }
 
       // Apply collection filter if specified
       if (collectionFilter) {
@@ -159,6 +217,7 @@ class VotingPreloader {
       const { data: nfts, error } = await query
         .order('slider_count', { ascending: true })
         .order('total_votes', { ascending: true })
+        .order('id', { ascending: false })  // 🎲 Diverse collection sampling
         .limit(20); // Get more to filter out seen ones
 
       // Debug logging for filter effectiveness
@@ -318,6 +377,15 @@ class VotingPreloader {
   // 🥊 Generate matchup session (collection-aware)
   private async generateMatchupSession(voteType: 'same_coll' | 'cross_coll', collectionFilter?: string): Promise<VotingSession | null> {
     try {
+      // 🎛️ First, get active collections from collection management
+      const { data: activeCollections } = await supabase
+        .from('collection_management')
+        .select('collection_name')
+        .eq('active', true);
+      
+      const activeCollectionNames = activeCollections?.map(c => c.collection_name) || [];
+      console.log(`🎛️ [PRELOADER] Active collections for ${voteType}: ${activeCollectionNames.join(', ')}`);
+      
       let nfts: any[] = [];
       
       if (voteType === 'same_coll') {
@@ -331,29 +399,28 @@ class VotingPreloader {
           .not('image', 'ilike', '%.avi%')
           .not('image', 'ilike', '%.webm%')
           .not('image', 'ilike', '%.mkv%')
-          .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // Exclude unrevealed NFTs
-          .not('traits', 'cs', '[{"trait_type": "reveal", "value": "unrevealed"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Unrevealed"}]')  // Alternative trait names
-          .not('traits', 'cs', '[{"trait_type": "status", "value": "unrevealed"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu collection unrevealed
-          .not('traits', 'cs', '[{"trait_type": "status", "value": "hidden"}]')     // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // Bearish collection unrevealed
-          .not('traits', 'cs', '[{"trait_type": "stage", "value": "pre-reveal"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]')      // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+          .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // General unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // BEARISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]');     // BEEISH unrevealed
+
+        // 🎛️ Filter by active collections only (unless specific collection filter is provided)
+        if (!collectionFilter && activeCollectionNames.length > 0) {
+          sameCollQuery = sameCollQuery.in('collection_name', activeCollectionNames);
+          console.log(`🎯 [PRELOADER] Filtering same_coll to active collections only`);
+        }
 
         // Apply collection filter if specified
         if (collectionFilter) {
           sameCollQuery = sameCollQuery.eq('collection_name', collectionFilter);
         }
 
-        const { data: allNfts } = await sameCollQuery.limit(1000); // Increased limit for collection-specific queries
+        const { data: allNfts } = await sameCollQuery
+          .order('id', { ascending: false })  // 🎲 Diverse collection sampling
+          .limit(2000); // Increased limit for diverse collection sampling
 
         console.log(`🔍 Found ${allNfts?.length || 0} same-collection NFTs after unrevealed filters`);
         if (!allNfts?.length) return null;
@@ -425,29 +492,28 @@ class VotingPreloader {
           .not('image', 'ilike', '%.avi%')
           .not('image', 'ilike', '%.webm%')
           .not('image', 'ilike', '%.mkv%')
-          .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // Exclude unrevealed NFTs
-          .not('traits', 'cs', '[{"trait_type": "reveal", "value": "unrevealed"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Unrevealed"}]')  // Alternative trait names
-          .not('traits', 'cs', '[{"trait_type": "status", "value": "unrevealed"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu collection unrevealed
-          .not('traits', 'cs', '[{"trait_type": "status", "value": "hidden"}]')     // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // Bearish collection unrevealed
-          .not('traits', 'cs', '[{"trait_type": "stage", "value": "pre-reveal"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]')      // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+          .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // General unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // BEARISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]');     // BEEISH unrevealed
+
+        // 🎛️ Filter by active collections only (unless specific collection filter is provided)
+        if (!collectionFilter && activeCollectionNames.length > 0) {
+          crossCollQuery = crossCollQuery.in('collection_name', activeCollectionNames);
+          console.log(`🎯 [PRELOADER] Filtering cross_coll to active collections only`);
+        }
 
         // Apply collection filter if specified
         if (collectionFilter) {
           crossCollQuery = crossCollQuery.eq('collection_name', collectionFilter);
         }
 
-        const { data: randomNfts, error } = await crossCollQuery.limit(500); // Increased limit for collection-specific queries
+        const { data: randomNfts, error } = await crossCollQuery
+          .order('id', { ascending: false })  // 🎲 Diverse collection sampling
+          .limit(2000); // Increased limit for diverse collection sampling
 
         console.log(`🔍 Found ${randomNfts?.length || 0} cross-collection NFTs after unrevealed filters`);
         if (error || !randomNfts || randomNfts.length < 2) {
@@ -467,17 +533,41 @@ class VotingPreloader {
         
         console.log(`🔀 Collections found for cross-collection matchups:`, crossCollectionBreakdown);
         
-        // Random selection for cross-collection matchups, avoiding duplicate pairs
+        // 🎯 CROSS-COLLECTION: Ensure NFTs are from DIFFERENT collections
+        const collectionGroups = nftsToUse.reduce((groups, nft) => {
+          const collection = nft.collection_name;
+          if (!groups[collection]) groups[collection] = [];
+          groups[collection].push(nft);
+          return groups;
+        }, {} as Record<string, any[]>);
+
+        const availableCollections = Object.keys(collectionGroups);
+        
+        if (availableCollections.length < 2) {
+          console.log(`⚠️ Only ${availableCollections.length} collection(s) available for cross-collection matchup`);
+          return null;
+        }
+
+        // Random selection ensuring different collections
         let attempts = 0;
         const maxAttempts = 10;
         
         while (nfts.length === 0 && attempts < maxAttempts) {
-          const shuffled = nftsToUse.sort(() => 0.5 - Math.random());
-          const candidatePair = shuffled.slice(0, 2);
+          // Pick two different collections
+          const shuffledCollections = availableCollections.sort(() => 0.5 - Math.random());
+          const collection1 = shuffledCollections[0];
+          const collection2 = shuffledCollections[1];
+          
+          // Pick random NFT from each collection
+          const nft1 = collectionGroups[collection1][Math.floor(Math.random() * collectionGroups[collection1].length)];
+          const nft2 = collectionGroups[collection2][Math.floor(Math.random() * collectionGroups[collection2].length)];
+          
+          const candidatePair = [nft1, nft2];
           
           // Check if this pair has been seen before
           if (!this.hasPairBeenSeen(candidatePair[0].id, candidatePair[1].id)) {
             nfts = candidatePair;
+            console.log(`✅ Cross-collection matchup: ${collection1} vs ${collection2}`);
           } else {
             console.log(`🔄 Cross-coll pair already seen: ${candidatePair[0].name} vs ${candidatePair[1].name}, trying again...`);
             attempts++;
@@ -555,8 +645,91 @@ class VotingPreloader {
     }
   }
 
-  // 🔄 Generate single voting session (collection-aware)
-  private async generateSession(collectionFilter?: string): Promise<VotingSession | null> {
+  // 🧠 Smart enhanced session generation with performance optimization
+  private async generateEnhancedSession(collectionFilter?: string): Promise<VotingSession | null> {
+    if (!this.useEnhancedEngine) {
+      return this.generateLegacySession(collectionFilter);
+    }
+
+    // Smart ratio: Only use enhanced system for a portion of sessions
+    // Also check if enhanced system has been slow recently
+    const recentTimeouts = this.enhancedAttempts > 5 && this.enhancedSuccessRate < 0.5;
+    const useEnhanced = Math.random() < this.enhancedRatio && !recentTimeouts;
+    
+    if (!useEnhanced || recentTimeouts) {
+      const reason = recentTimeouts ? 'recent timeouts' : `${Math.round((1 - this.enhancedRatio) * 100)}% legacy ratio`;
+      console.log(`🚀 Using legacy for speed (${reason})`);
+      return this.generateLegacySession(collectionFilter);
+    }
+
+    this.enhancedAttempts++;
+    const filterLabel = collectionFilter || 'mixed';
+    
+    try {
+      console.log(`🧠 Smart enhanced generation for ${filterLabel}...`);
+      
+      // Timeout wrapper for enhanced calls
+      const enhancedPromise = enhancedMatchupIntegration.generateEnhancedSession({
+        useEnhancedEngine: true,
+        collectionFilter,
+        maxCandidates: 5, // Reduced for speed
+        prioritizeInformation: true
+      });
+
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => {
+          console.log(`⏱️ Enhanced timeout after ${this.enhancedTimeout}ms, falling back`);
+          resolve(null);
+        }, this.enhancedTimeout);
+      });
+
+      const enhancedResult = await Promise.race([enhancedPromise, timeoutPromise]);
+      
+      if (enhancedResult) {
+        // Convert enhanced result to VotingSession format
+        let session: VotingSession;
+        
+        if (enhancedResult.vote_type === 'slider' && enhancedResult.nft) {
+          session = {
+            vote_type: 'slider',
+            nft: enhancedResult.nft
+          };
+        } else if ((enhancedResult.vote_type === 'same_coll' || enhancedResult.vote_type === 'cross_coll') && 
+                   enhancedResult.nft1 && enhancedResult.nft2) {
+          session = {
+            vote_type: enhancedResult.vote_type,
+            nft1: enhancedResult.nft1,
+            nft2: enhancedResult.nft2
+          };
+        } else {
+          // Invalid enhanced result, fall back to legacy
+          return this.generateLegacySession(collectionFilter);
+        }
+
+        // Track enhanced system success
+        this.enhancedSuccessRate = ((this.enhancedSuccessRate * (this.enhancedAttempts - 1)) + 1) / this.enhancedAttempts;
+        
+        console.log(`⚡ Enhanced ${enhancedResult.vote_type} (Score: ${enhancedResult.information_score?.toFixed(2) || 'N/A'}) - ${(this.enhancedSuccessRate * 100).toFixed(0)}% success`);
+        
+        return session;
+      } else {
+        // Track timeout/failure
+        this.enhancedSuccessRate = ((this.enhancedSuccessRate * (this.enhancedAttempts - 1)) + 0) / this.enhancedAttempts;
+        
+        console.log(`🚀 Enhanced timeout/failed, using legacy for speed (success rate: ${Math.round(this.enhancedSuccessRate * 100)}%)`);
+        return this.generateLegacySession(collectionFilter);
+      }
+    } catch (error) {
+      // Track error
+      this.enhancedSuccessRate = ((this.enhancedSuccessRate * (this.enhancedAttempts - 1)) + 0) / this.enhancedAttempts;
+      
+      console.log(`🚀 Enhanced error, using legacy (success rate: ${Math.round(this.enhancedSuccessRate * 100)}%): ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return this.generateLegacySession(collectionFilter);
+    }
+  }
+
+  // 🔄 Generate single voting session (collection-aware) - Legacy method
+  private async generateLegacySession(collectionFilter?: string): Promise<VotingSession | null> {
     const voteType = this.decideVoteType();
     const filterLabel = collectionFilter || 'mixed';
     
@@ -564,24 +737,29 @@ class VotingPreloader {
       if (voteType === 'slider') {
         const session = await this.generateSliderSession(collectionFilter);
         if (session) {
-          console.log(`✅ Generated ${voteType} session for ${filterLabel}`);
+          console.log(`✅ Generated legacy ${voteType} session for ${filterLabel}`);
         } else {
-          console.log(`❌ Failed to generate ${voteType} session for ${filterLabel}`);
+          console.log(`❌ Failed to generate legacy ${voteType} session for ${filterLabel}`);
         }
         return session;
       } else {
         const session = await this.generateMatchupSession(voteType, collectionFilter);
         if (session) {
-          console.log(`✅ Generated ${voteType} session for ${filterLabel}`);
+          console.log(`✅ Generated legacy ${voteType} session for ${filterLabel}`);
         } else {
-          console.log(`❌ Failed to generate ${voteType} session for ${filterLabel}`);
+          console.log(`❌ Failed to generate legacy ${voteType} session for ${filterLabel}`);
         }
         return session;
       }
     } catch (error) {
-      console.error(`❌ Error generating ${voteType} session for ${filterLabel}:`, error);
+      console.error(`❌ Error generating legacy ${voteType} session for ${filterLabel}:`, error);
       return null;
     }
+  }
+
+  // 🔄 Generate single voting session (collection-aware) - Updated
+  private async generateSession(collectionFilter?: string): Promise<VotingSession | null> {
+    return this.generateEnhancedSession(collectionFilter);
   }
 
   // 🔄 Generate single voting session (backward compatibility)
@@ -801,7 +979,7 @@ class VotingPreloader {
     }
   }
 
-  // 📋 Get session stats for stack (optimized)
+  // 📋 Get session stats for stack (optimized with enhanced metrics)
   public getSessionStats() {
     return {
       queueLength: this.sessionStack.length, // For backward compatibility
@@ -811,8 +989,38 @@ class VotingPreloader {
       seenNFTs: this.seenNFTIds.size,
       maxSeenNFTs: this.MAX_SEEN_NFTS,
       targetSize: this.TARGET_STACK_SIZE,
-      minimumSize: this.MINIMUM_STACK_SIZE
+      minimumSize: this.MINIMUM_STACK_SIZE,
+      
+      // 🧠 Enhanced system metrics
+      enhancedEngineEnabled: this.useEnhancedEngine,
+      enhancedSuccessRate: this.enhancedSuccessRate,
+      enhancedAttempts: this.enhancedAttempts
     };
+  }
+
+  // 🧠 Enable/disable enhanced engine
+  public setEnhancedEngine(enabled: boolean): void {
+    const wasEnabled = this.useEnhancedEngine;
+    this.useEnhancedEngine = enabled;
+    
+    if (wasEnabled !== enabled) {
+      console.log(`🧠 Enhanced engine ${enabled ? 'ENABLED' : 'DISABLED'}`);
+      
+      // Reset metrics when switching modes
+      this.enhancedSuccessRate = 0;
+      this.enhancedAttempts = 0;
+      
+      // Optional: Clear stack to regenerate with new engine
+      if (enabled) {
+        console.log('🔄 Clearing stack to regenerate with enhanced engine...');
+        this.forceFullReset();
+      }
+    }
+  }
+
+  // 🧠 Get enhanced engine status
+  public async getEnhancedEngineStatus() {
+    return await enhancedMatchupIntegration.getEngineStatus();
   }
 
   // 🚫 Skip failed session and get next from stack
@@ -1000,3 +1208,8 @@ class VotingPreloader {
 
 // Export singleton instance
 export const votingPreloader = VotingPreloader.getInstance();
+
+// Make available globally for debugging
+if (typeof window !== 'undefined') {
+  (window as any).votingPreloader = votingPreloader;
+}

@@ -22,7 +22,7 @@ interface StackedSession {
   isAnimating: boolean;
 }
 
-const STACK_SIZE = 3; // Number of matchups to keep pre-loaded
+const STACK_SIZE = 3; // Increased for instant transitions - always have next matchup ready
 
 export default function StackedMatchups({ 
   onVote, 
@@ -112,7 +112,7 @@ export default function StackedMatchups({
         return newStack;
       });
 
-      // 4. Load new matchup for bottom of stack (background)
+      // 4. 🚀 INSTANT: Load new matchup for bottom of stack (no delay)
       const newSession = votingPreloader.getNextSession();
       if (newSession) {
         const newStackedSession: StackedSession = {
@@ -124,9 +124,9 @@ export default function StackedMatchups({
         };
 
         setMatchupStack(prevStack => [...prevStack, newStackedSession]);
-        console.log('📚 Added new matchup to bottom of stack');
+        console.log('⚡ Instantly added new matchup to stack');
       }
-    }, 300); // Match this with CSS transition duration
+    }, 50); // Minimal delay for state update batching
   };
 
   const handleImageFailure = () => {
@@ -146,21 +146,19 @@ export default function StackedMatchups({
       return newStack;
     });
 
-    // Load replacement matchup
-    setTimeout(async () => {
-      const newSession = votingPreloader.getNextSession();
-      if (newSession) {
-        const newStackedSession: StackedSession = {
-          session: newSession,
-          id: `stack-${++stackIdCounter.current}`,
-          zIndex: 1000 - (STACK_SIZE - 1),
-          isVisible: false,
-          isAnimating: false
-        };
+    // 🚀 INSTANT: Load replacement matchup immediately
+    const newSession = votingPreloader.getNextSession();
+    if (newSession) {
+      const newStackedSession: StackedSession = {
+        session: newSession,
+        id: `stack-${++stackIdCounter.current}`,
+        zIndex: 1000 - (STACK_SIZE - 1),
+        isVisible: false,
+        isAnimating: false
+      };
 
-        setMatchupStack(prevStack => [...prevStack, newStackedSession]);
-      }
-    }, 100);
+      setMatchupStack(prevStack => [...prevStack, newStackedSession]);
+    }
 
     // Call parent failure handler if provided
     onImageFailure?.();
@@ -205,14 +203,16 @@ export default function StackedMatchups({
               left: 0,
               right: 0,
               bottom: 0,
-              zIndex,
+              zIndex: index === 0 ? 1000 : 999, // Simplified z-index - only current and next
               opacity: isVisible ? 1 : 0,
               transform: isAnimating ? 'scale(0.95) translateY(-20px)' : 'scale(1) translateY(0)',
-              transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
-              pointerEvents: index === 0 && isVisible ? 'auto' : 'none' // Only top layer interactive
+              transition: 'opacity 0.2s ease-out, transform 0.2s ease-out', // Faster transitions
+              pointerEvents: index === 0 && isVisible ? 'auto' : 'none', // Only top layer interactive
+              willChange: index < 2 ? 'opacity, transform' : 'auto' // GPU optimization for active layers only
             }}
           >
             <MatchupCard
+              key={`${session.nft1.id}-${session.nft2.id}-${id}`}
               nft1={session.nft1}
               nft2={session.nft2}
               onVote={handleVoteWithStack}

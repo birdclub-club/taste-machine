@@ -1,12 +1,22 @@
 import { supabase } from './supabase';
 import type { VotingSession, VoteType, NFT, MatchupPair, SliderVote } from '@/types/voting';
+import { enhancedMatchupIntegration, type EnhancedMatchupOptions } from './enhanced-matchup-integration';
 
-// 🧠 Sophisticated Voting Session Logic (INSTANT DELIVERY)
-export async function fetchVotingSession(userWallet?: string, collectionFilter?: string): Promise<VotingSession> {
+// 🧠 Sophisticated Voting Session Logic (ENHANCED + INSTANT DELIVERY)
+export async function fetchVotingSession(userWallet?: string, collectionFilter?: string, useEnhanced: boolean = true): Promise<VotingSession> {
   console.log('🔍 Fetching voting session...');
   
   if (collectionFilter) {
     console.log(`🎯 Filtering for collection: ${collectionFilter}`);
+  }
+  
+  // Try enhanced system first if enabled
+  if (useEnhanced) {
+    const enhancedSession = await tryEnhancedVotingSession(userWallet, collectionFilter);
+    if (enhancedSession) {
+      console.log(`✨ Enhanced delivery: ${enhancedSession.vote_type}`);
+      return enhancedSession;
+    }
   }
   
   // Try to get instant matchup from pre-generated queue
@@ -26,6 +36,48 @@ export async function fetchVotingSession(userWallet?: string, collectionFilter?:
   } else {
     return await fetchMatchupVote(voteType, collectionFilter);
   }
+}
+
+// 🧠 Try enhanced voting session generation
+async function tryEnhancedVotingSession(userWallet?: string, collectionFilter?: string): Promise<VotingSession | null> {
+  try {
+    const enhancedOptions: EnhancedMatchupOptions = {
+      useEnhancedEngine: true,
+      collectionFilter,
+      userWallet,
+      maxCandidates: 10,
+      prioritizeInformation: true
+    };
+
+    const enhancedResult = await enhancedMatchupIntegration.generateEnhancedSession(enhancedOptions);
+    
+    if (enhancedResult) {
+      // Convert enhanced result to VotingSession format
+      const session: VotingSession = {
+        vote_type: enhancedResult.vote_type,
+        ...(enhancedResult.nft && { nft: enhancedResult.nft }),
+        ...(enhancedResult.nft1 && enhancedResult.nft2 && { 
+          nft1: enhancedResult.nft1, 
+          nft2: enhancedResult.nft2 
+        })
+      } as VotingSession;
+
+      // Log collection info for debugging
+      if (enhancedResult.nft1 && enhancedResult.nft2) {
+        console.log(`🎨 Enhanced matchup: ${enhancedResult.nft1.collection_name}/${enhancedResult.nft1.name} vs ${enhancedResult.nft2.collection_name}/${enhancedResult.nft2.name}`);
+      } else if (enhancedResult.nft) {
+        console.log(`🎨 Enhanced slider: ${enhancedResult.nft.collection_name}/${enhancedResult.nft.name}`);
+      }
+      
+      console.log(`✨ Enhanced session generated: ${enhancedResult.vote_type} (Score: ${enhancedResult.information_score?.toFixed(3) || 'N/A'})`);
+      
+      return session;
+    }
+  } catch (error) {
+    console.warn('⚠️ Enhanced session generation failed:', error);
+  }
+  
+  return null;
 }
 
 // ⚡ Get instant matchup from pre-generated queue
@@ -183,6 +235,15 @@ async function fetchSliderVote(collectionFilter?: string): Promise<SliderVote> {
   if (error || !nftData || nftData.length === 0) {
     console.warn('⚠️ No cold start NFTs found, falling back to random NFT');
     
+    // 🎛️ First, get active collections from collection management
+    const { data: activeCollections } = await supabase
+      .from('collection_management')
+      .select('collection_name')
+      .eq('active', true);
+    
+    const activeCollectionNames = activeCollections?.map(c => c.collection_name) || [];
+    console.log(`🎛️ Active collections for slider: ${activeCollectionNames.join(', ')}`);
+    
     // Fallback to random NFT with lowest slider count, excluding videos and unrevealed
     let query = supabase
       .from('nfts')
@@ -208,6 +269,12 @@ async function fetchSliderVote(collectionFilter?: string): Promise<SliderVote> {
       .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
       .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
       .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]')      // Case variations;
+    
+    // 🎛️ Filter by active collections only (unless specific collection filter is provided)
+    if (!collectionFilter && activeCollectionNames.length > 0) {
+      query = query.in('collection_name', activeCollectionNames);
+      console.log(`🎯 Filtering slider to active collections only`);
+    }
 
     // Add collection filter if specified
     if (collectionFilter) {
