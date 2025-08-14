@@ -43,10 +43,35 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **Delayed Prize Reveal**: 1-second delay for dramatic prize unveiling
 - **Random Messages**: Dynamic "It's Happening" variations for anticipation
 
+### **🎵 Background Music System**
+- **Auto-Play**: Music starts on first vote with 7 curated tracks
+- **Shuffle Playlist**: Randomized track selection for variety
+- **Volume Controls**: Slider with mute functionality and visual feedback
+- **Play/Pause Toggle**: SVG icons with hover states
+- **Global State Management**: Consistent music experience across the app
+- **URL Encoding**: Handles special characters in MP3 filenames
+
+### **🔐 Admin Dashboard**
+- **Wallet Authentication**: Secure access control for admin users
+- **Treasury Analytics**: Real-time GUGO token flow monitoring
+  - Prize Break Treasury, Weekly Raffle Treasury, Operations Wallet
+  - Total Supply, Contract Balance, Burned GUGO tracking
+- **Revenue Tracking**: Daily and all-time revenue metrics
+- **User Statistics**: Total, daily active, and new user analytics
+- **Collection Management**: Active collections and engagement metrics
+- **Live Data**: Real-time updates with fallback systems
+
+### **📊 XP-Based Prize System**
+- **Graduated Prize Breaks**: 10 votes (0-99 XP) → 20 votes (100+ XP)
+- **Visual Progress Bar**: Unlabeled progress indicator for anticipation
+- **Dynamic Thresholds**: User experience adapts based on engagement level
+- **Smart Rewards**: Prize frequency adjusts to user expertise
+
 ### **🎯 Core Gameplay**
 - **NFT Aesthetic Voting** - Vote on matchups between NFTs
 - **💰 Token Economy** - FGUGO tokens for voting and rewards  
-- **🎁 Enhanced Prize Break System** - Rewards every 10 votes + free vote compensation
+- **🎁 XP-Based Prize System** - Dynamic rewards: 10 votes (beginners) → 20 votes (experienced)
+- **📊 Visual Progress Tracking** - Unlabeled progress bar builds anticipation
 - **🔥 Super Vote System** - Premium fire votes with 2x Elo impact (costs 5 votes)
 - **📊 Elo Rating System** - Dynamic aesthetic rankings
 - **🔗 Abstract Global Wallet** - Seamless onboarding with AGW
@@ -59,6 +84,7 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **⚡ Session Keys** - Gasless transactions with detailed authorization messages
 - **⭐ Favorites Gallery** - Track and manage your most loved NFTs with pricing data
 - **📊 Real-time Activity Counter** - Live "Taste Activity Today" with dynamic growth simulation
+- **🎵 Immersive Audio** - Background music enhances voting experience
 
 ### **🛡️ Robust Infrastructure**
 - **Intelligent IPFS Gateway Management** - Adaptive selection from 8+ gateways with health tracking
@@ -77,6 +103,10 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **Wallets**: Abstract Global Wallet (AGW) + Metamask fallback
 - **Backend**: Supabase (PostgreSQL, Auth, Edge Functions)
 - **Smart Contracts**: GUGO and FGUGO ERC20 tokens
+- **Audio**: HTML5 Audio API with React Context
+- **Charts**: Recharts for admin analytics
+- **State Management**: React Context + Custom Hooks
+- **Type Safety**: Comprehensive TypeScript coverage
 
 ## 🚀 Quick Start
 
@@ -125,11 +155,14 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 1. **Welcome Experience** - Learn about Taste Machine's mission through comprehensive onboarding
 2. **Connect Wallet** - Simple prompt: "Connect your wallet to start voting, earning, and burning"
 3. **Vote on Matchups** - Choose between NFT pairs or wait for the "No" button (appears after 5 seconds)
-4. **Super Votes** - Use fire buttons for premium votes (costs 5 votes, 2x Elo impact)
-5. **Earn Rewards** - Get XP and tokens for voting with enhanced prize notifications
-6. **Prize Breaks** - Rewards every 10 votes with duck animations and marquee effects
-7. **Experience Burning** - Watch your GUGO prizes trigger burning duck notifications
-8. **Climb Rankings** - Build your aesthetic score with enhanced Elo system
+4. **Music Starts** - Background music begins automatically on your first vote
+5. **Super Votes** - Use fire buttons for premium votes (costs 5 votes, 2x Elo impact)
+6. **Earn XP & Rewards** - Build experience points and earn tokens for voting
+7. **Dynamic Prize Breaks** - Rewards every 10 votes (beginners) or 20 votes (experienced users)
+8. **Progress Tracking** - Watch your unlabeled progress bar fill toward the next prize
+9. **Experience Burning** - Watch your GUGO prizes trigger burning duck notifications
+10. **Admin Access** - Connect admin wallet to access treasury analytics and user statistics
+11. **Climb Rankings** - Build your aesthetic score with enhanced Elo system
 
 ### **🔥 Super Vote System**
 - **Fire Buttons**: Premium voting option with flame emoji
@@ -172,13 +205,16 @@ The game follows a mobile-first, component-based architecture with Swiss design 
 ```
 /gugo-game-app
 ├── /src/app/           # Next.js App Router with main voting interface
+│   ├── /admin/         # Admin dashboard for treasury and user analytics
 │   ├── /api/           # API routes for data and external services
+│   │   ├── /admin/     # Admin-only endpoints (treasury, user stats)
 │   │   ├── daily-vote-count/ # Real-time activity counter data source
 │   │   ├── favorites/    # Favorites management endpoints
+│   │   ├── user-stats/   # User statistics and analytics
 │   │   └── nft-price/    # NFT pricing data from external APIs
 │   ├── globals.css     # Swiss design system & CSS variables with dot grid
-│   ├── page.tsx        # Main voting experience with favorites integration
-│   └── layout.tsx      # App layout and providers
+│   ├── page.tsx        # Main voting experience with music and progress bars
+│   └── providers.tsx   # App providers including MusicProvider
 ├── /src/components/    # Reusable React components
 │   ├── StatusBar.tsx   # Top navigation with gold shimmer Favorites button
 │   ├── MatchupCard.tsx # NFT voting interface with smart "No" button timing
@@ -187,21 +223,35 @@ The game follows a mobile-first, component-based architecture with Swiss design 
 │   ├── WelcomePopup.tsx # Enhanced onboarding with comprehensive mission explanation
 │   ├── CircularMarquee.tsx # Linear scrolling text effects for prize celebrations
 │   ├── FavoritesGallery.tsx # Professional favorites management modal
-│   └── PurchaseAlert.tsx # Elegant modal for vote purchase prompts
+│   ├── PurchaseAlert.tsx # Elegant modal for vote purchase prompts
+│   ├── AudioControls.tsx # Music playback controls with volume slider
+│   ├── PrizeProgressBar.tsx # Visual progress indicator for prize breaks
+│   ├── AnalyticsCharts.tsx # Admin dashboard charts and visualizations
+│   └── UserStatsDisplay.tsx # User statistics display components
 ├── /src/hooks/         # Custom React hooks for game logic
-│   ├── useVote.ts      # Vote submission with super vote support
-│   ├── usePrizeBreak.ts # Enhanced prize break with free vote integration
+│   ├── useVote.ts      # Vote submission with XP-based prize break logic
+│   ├── usePrizeBreak.ts # Enhanced prize break with XP graduation
+│   ├── useBatchedVoting.ts # Batch voting with XP integration
 │   ├── useFavorites.ts # Favorites management and state
+│   ├── useAdmin.ts     # Admin authentication and access control
 │   └── useActivityCounter.ts # Real-time activity counter with growth simulation
-├── /lib/              # Utilities and core systems
+├── /src/contexts/      # React Context providers
+│   └── MusicContext.tsx # Global music state management
+├── /src/lib/          # Utilities and core systems
 │   ├── supabase.ts     # Database client
 │   ├── preloader.ts    # Advanced session preloading with IPFS health tracking
 │   ├── matchup.ts      # Matchup generation with unrevealed NFT filtering
+│   ├── prize-break-utils.ts # XP-based prize break calculations
+│   ├── admin-config.ts # Admin wallet configuration
 │   └── ipfs-gateway-manager.ts # 🌐 Intelligent IPFS gateway system
 ├── /migrations/        # Database schema updates
+│   ├── 04-add-user-stats-functions.sql # User statistics RPC functions
+│   ├── 05-add-analytics-snapshots.sql # Analytics data snapshots
 │   ├── 15-add-favorites-system.sql # Initial favorites implementation
 │   └── 16-add-collection-address-to-favorites.sql # Enhanced favorites metadata
-└── /public/           # Static assets (logos, icons)
+├── /public/           # Static assets (logos, icons, music)
+│   └── /music/        # Background music MP3 files (7 tracks)
+└── /test-scripts/     # Testing and utility scripts
 ```
 
 ### **Component Highlights**
@@ -212,6 +262,12 @@ The game follows a mobile-first, component-based architecture with Swiss design 
 - **PurchaseAlert**: Elegant modal for insufficient vote scenarios
 - **FavoritesGallery**: Professional modal with NFT grid, pricing data, and Magic Eden integration
 - **ActivityCounter**: Real-time taste activity display with live data and growth simulation
+- **AudioControls**: Music playback interface with volume slider and SVG icons
+- **PrizeProgressBar**: Visual progress indicator with XP-based thresholds
+- **AnalyticsCharts**: Interactive charts for admin dashboard with Recharts
+- **UserStatsDisplay**: Real-time user metrics with proper data validation
+- **MusicContext**: Global audio state management with shuffle and volume control
+- **Admin Dashboard**: Secure wallet-authenticated treasury and user analytics
 - **IPFS Gateway Manager**: Bulletproof image loading with health tracking
 - **Enhanced Prize Notifications**: Duck animations with context-aware messaging
 - **Responsive Design**: Mobile-first with touch gesture support
@@ -377,35 +433,53 @@ node scripts/update-gugo-price.js 0.25
 ## 🔧 Recent Fixes & Improvements
 
 ### **Latest Updates (August 2025)**
+
+#### **🎵 Background Music System**
+- **✅ Auto-Play Music**: Starts on first vote with 7 curated MP3 tracks
+- **✅ Shuffle Playlist**: Randomized track selection for variety
+- **✅ Volume Controls**: Slider with mute functionality and visual feedback
+- **✅ Play/Pause Toggle**: SVG icons with hover states and smooth transitions
+- **✅ Global State Management**: React Context for consistent music experience
+- **✅ URL Encoding**: Handles special characters in MP3 filenames
+
+#### **🔐 Admin Dashboard & Analytics**
+- **✅ Wallet Authentication**: Secure access control for admin users
+- **✅ Treasury Analytics**: Real-time GUGO token flow monitoring
+  - Prize Break Treasury, Weekly Raffle Treasury, Operations Wallet
+  - Total Supply, Contract Balance, Burned GUGO tracking
+- **✅ Revenue Tracking**: Daily and all-time revenue metrics
+- **✅ User Statistics**: Total, daily active, and new user analytics with proper validation
+- **✅ Collection Management**: Active collections and engagement metrics
+- **✅ Interactive Charts**: Recharts integration for data visualization
+- **✅ Live Data**: Real-time updates with fallback systems
+
+#### **📊 XP-Based Prize System**
+- **✅ Graduated Prize Breaks**: 10 votes (0-99 XP) → 20 votes (100+ XP)
+- **✅ Visual Progress Bar**: Unlabeled progress indicator for anticipation
+- **✅ Dynamic Thresholds**: User experience adapts based on engagement level
+- **✅ Smart Rewards**: Prize frequency adjusts to user expertise
+
+#### **🔧 Technical Improvements**
+- **✅ TypeScript Fixes**: Resolved all 37 TypeScript errors across 7 files
+- **✅ Database Optimization**: Improved queries with proper joins and type safety
+- **✅ Error Handling**: Enhanced API error boundaries and user feedback
+- **✅ Type Safety**: Comprehensive TypeScript coverage throughout codebase
+- **✅ Performance**: Optimized component rendering and state management
+
+#### **🐛 Critical Bug Fixes**
+- **✅ User Statistics**: Fixed Daily/Active users showing larger than Total users
+- **✅ Database Schema**: Corrected votes table queries with proper user joins
+- **✅ Date Handling**: Consistent UTC date calculations across all APIs
+- **✅ Favorites Gallery**: Fixed "Failed to fetch" error in NFT price loading
+- **✅ Slider Voting**: Corrected max slider votes (10) adding to favorites
+- **✅ Music Controls**: Resolved visibility and functionality issues with React Portal
+
+#### **🎨 UI/UX Enhancements**
 - **✅ Favorites Gallery System**: Complete NFT favorites tracking with Magic Eden integration
-  - **Automatic Collection**: Fire votes and 100% slider votes auto-add to favorites
-  - **Price Discovery**: Toggle to show/hide current NFT listing prices
-  - **Rich Metadata**: Collection names, Token IDs, vote types, and direct links
-  - **Gold Shimmer Button**: Premium styling with 3-second animation cycle
 - **✅ Real-time Activity Counter**: Live "Taste Activity Today" with 5x boost multiplier
-  - **Live Database**: Fetches daily vote count from Supabase with growth simulation
-  - **Visual Integration**: Inline display with Lick icon and real-time updates
-- **✅ Enhanced UI Polish**: 
-  - **Gold Shimmer Effects**: Premium button styling with keyframe animations
-  - **Dot Grid Background**: Extended to cover entire scrollable area
-  - **Status Bar Enhancements**: Adjusted red dot positioning and icon sizing
-  - **Prize Display**: Color-matched Lick icons and "Congrats!" text for non-GUGO awards
-- **✅ Database Schema Updates**: 
-  - **Favorites Table**: Added collection_address column for Magic Eden integration
-  - **Safe Migrations**: Incremental SQL updates with IF NOT EXISTS logic
-  - **RPC Functions**: Enhanced favorites management with proper security
-- **✅ Enhanced Welcome Experience**: Comprehensive onboarding with detailed mission explanation
-- **✅ Simplified Wallet Connection**: Streamlined prompt focusing on core value proposition
+- **✅ Enhanced UI Polish**: Gold shimmer effects and dot grid background extensions
 - **✅ Duck Notification System**: Context-aware animations for different prize types
-- **✅ Infinite Marquee Effects**: Linear scrolling text with prize-specific phrase categories
-- **✅ Background Consistency**: Welcome modal matches main site's green dot pattern
 - **✅ Prize Reveal Timing**: 1-second delay for dramatic effect with random messages
-- **✅ Number Formatting**: Comma formatting for large prize amounts (1,000+)
-- **✅ Fixed**: "Failed to fetch" error in Licks purchase flow
-- **✅ Enhanced**: Purchase retry mechanism with exponential backoff (3 attempts)
-- **✅ Improved**: Balance refresh logic with 5-retry system and delay handling
-- **✅ Resolved**: Development server stability issues
-- **✅ Optimized**: API error handling across all endpoints
 
 ### **Pending Items for Future Development**
 - **🔄 Security**: Re-implement Row Level Security (RLS) for production
