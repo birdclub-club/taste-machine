@@ -16,6 +16,11 @@ const COLOR_PALETTES = [
   { bg: '#B5874D', text: '#E2CE2B' }, // 8.
   { bg: '#DDD094', text: '#3D4572' }, // 9.
   { bg: '#443532', text: '#688274' }, // 10.
+  { bg: '#7A5C48', text: '#D3986F' }, // 11. New - Warm brown with golden text
+  { bg: '#BF7C6F', text: '#3A1E13' }, // 12. New - Dusty rose with dark brown text
+  { bg: '#1E3244', text: '#CBB26E' }, // 13. New - Dark blue with golden text
+  { bg: '#201639', text: '#B5B28E' }, // 14. New - Deep purple with sage text
+  { bg: '#BF588A', text: '#FFFFFF' }, // 15. New - Magenta with white text
 ];
 
 export default function LandingPage() {
