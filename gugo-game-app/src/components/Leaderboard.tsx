@@ -37,6 +37,8 @@ interface UserLeaderboardEntry {
     maxXP: number;
     progress: number;
   };
+  voting_streak: number;
+  days_since_joining: number;
   votes_per_day: number;
   xp_per_vote: number;
 }
@@ -731,7 +733,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
               <div style={{ 
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 'var(--space-3)',
+                gap: 'var(--space-2)',
                 padding: 'var(--space-2)'
               }}>
                 {userLeaderboard.map((user, index) => {
@@ -740,113 +742,122 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                          user.taste_level.level >= 5 ? 'var(--color-yellow)' : 
                                          'var(--dynamic-text-color, var(--color-grey-400))';
                   
+                  const streakColor = user.voting_streak >= 7 ? 'var(--color-green)' : 
+                                     user.voting_streak >= 3 ? 'var(--color-yellow)' : 
+                                     'var(--dynamic-text-color, var(--color-grey-400))';
+                  
                   return (
                     <div
                       key={user.id}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        padding: 'var(--space-4)',
+                        padding: 'var(--space-3)',
                         background: 'var(--dynamic-text-color, var(--color-grey-800))',
                         border: '1px solid var(--dynamic-bg-color, var(--color-grey-600))',
                         borderRadius: 'var(--border-radius-lg)',
                         transition: 'all var(--transition-base)',
                         position: 'relative',
-                        minHeight: '80px'
+                        minHeight: '60px'
                       }}
                     >
                       {/* Position Badge */}
                       <div style={{
-                        width: '40px',
-                        height: '40px',
+                        width: '32px',
+                        height: '32px',
                         background: isTopThree ? 'var(--color-green)' : 'var(--dynamic-bg-color, var(--color-white))',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 'var(--font-size-lg)',
+                        fontSize: 'var(--font-size-sm)',
                         fontWeight: '700',
                         color: isTopThree ? 'white' : 'var(--dynamic-text-color, var(--color-black))',
-                        marginRight: 'var(--space-4)',
+                        marginRight: 'var(--space-3)',
                         flexShrink: 0
                       }}>
                         {user.position}
                       </div>
 
-                      {/* User Info */}
+                      {/* User Info - All Inline */}
                       <div style={{
                         display: 'flex',
-                        flexDirection: 'column',
+                        alignItems: 'center',
                         flex: 1,
-                        gap: 'var(--space-1)'
+                        gap: 'var(--space-4)',
+                        fontSize: 'var(--font-size-sm)',
+                        flexWrap: 'wrap'
                       }}>
                         {/* Display Name */}
                         <div style={{
-                          fontSize: 'var(--font-size-lg)',
+                          fontSize: 'var(--font-size-md)',
                           fontWeight: '600',
-                          color: 'var(--dynamic-bg-color, var(--color-white))'
+                          color: 'var(--dynamic-bg-color, var(--color-white))',
+                          minWidth: '120px'
                         }}>
                           {user.display_name}
+                        </div>
+                        
+                        {/* XP */}
+                        <div style={{
+                          fontSize: 'var(--font-size-md)',
+                          fontWeight: '700',
+                          color: 'var(--color-green)',
+                          minWidth: '80px'
+                        }}>
+                          {user.xp.toLocaleString()} XP
                         </div>
                         
                         {/* Taste Level */}
                         <div style={{
                           fontSize: 'var(--font-size-sm)',
                           color: tasteLevelColor,
-                          fontWeight: '500'
+                          fontWeight: '500',
+                          minWidth: '140px'
                         }}>
-                          Level {user.taste_level.level}: {user.taste_level.name}
+                          L{user.taste_level.level}: {user.taste_level.name}
                         </div>
                         
-                        {/* Progress Bar */}
-                        <div style={{
-                          width: '100%',
-                          height: '4px',
-                          background: 'var(--dynamic-bg-color, var(--color-grey-700))',
-                          borderRadius: '2px',
-                          overflow: 'hidden',
-                          marginTop: 'var(--space-1)'
-                        }}>
-                          <div style={{
-                            width: `${user.taste_level.progress}%`,
-                            height: '100%',
-                            background: tasteLevelColor,
-                            transition: 'width var(--transition-base)'
-                          }} />
-                        </div>
-                      </div>
-
-                      {/* Stats */}
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-end',
-                        gap: 'var(--space-1)',
-                        marginLeft: 'var(--space-4)'
-                      }}>
-                        <div style={{
-                          fontSize: 'var(--font-size-lg)',
-                          fontWeight: '700',
-                          color: 'var(--color-green)'
-                        }}>
-                          {user.xp.toLocaleString()} XP
-                        </div>
+                        {/* Total Votes */}
                         <div style={{
                           fontSize: 'var(--font-size-sm)',
                           color: 'var(--dynamic-bg-color, var(--color-grey-300))',
-                          opacity: 0.8
+                          minWidth: '80px'
                         }}>
                           {user.total_votes.toLocaleString()} votes
                         </div>
-                        {user.votes_per_day > 0 && (
+                        
+                        {/* Voting Streak */}
+                        {user.voting_streak > 0 && (
                           <div style={{
-                            fontSize: 'var(--font-size-xs)',
-                            color: 'var(--dynamic-bg-color, var(--color-grey-400))',
-                            opacity: 0.6
+                            fontSize: 'var(--font-size-sm)',
+                            color: streakColor,
+                            fontWeight: '500',
+                            minWidth: '60px'
                           }}>
-                            {user.votes_per_day}/day avg
+                            🔥 {user.voting_streak} day{user.voting_streak !== 1 ? 's' : ''}
                           </div>
                         )}
+                        
+                        {/* Votes per day */}
+                        <div style={{
+                          fontSize: 'var(--font-size-xs)',
+                          color: 'var(--dynamic-bg-color, var(--color-grey-400))',
+                          opacity: 0.8,
+                          minWidth: '60px'
+                        }}>
+                          {user.votes_per_day}/day
+                        </div>
+                        
+                        {/* Days since joining */}
+                        <div style={{
+                          fontSize: 'var(--font-size-xs)',
+                          color: 'var(--dynamic-bg-color, var(--color-grey-400))',
+                          opacity: 0.6,
+                          minWidth: '60px'
+                        }}>
+                          {user.days_since_joining}d old
+                        </div>
                       </div>
                     </div>
                   );

@@ -5,6 +5,61 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Calculate voting streak for a user
+async function calculateVotingStreak(userId: string): Promise<number> {
+  try {
+    // Get user's votes ordered by date (most recent first)
+    const { data: votes, error } = await supabase
+      .from('votes')
+      .select('created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error || !votes || votes.length === 0) {
+      return 0;
+    }
+
+    // Group votes by date
+    const votesByDate = new Map<string, number>();
+    votes.forEach(vote => {
+      const date = new Date(vote.created_at).toISOString().split('T')[0];
+      votesByDate.set(date, (votesByDate.get(date) || 0) + 1);
+    });
+
+    const sortedDates = Array.from(votesByDate.keys()).sort().reverse();
+    
+    if (sortedDates.length === 0) return 0;
+
+    // Check if user voted today
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    let streak = 0;
+    let currentDate = today;
+    
+    // Start from today or yesterday if they haven't voted today
+    if (!votesByDate.has(today)) {
+      if (!votesByDate.has(yesterday)) {
+        return 0; // No recent activity
+      }
+      currentDate = yesterday;
+    }
+
+    // Count consecutive days
+    while (votesByDate.has(currentDate)) {
+      streak++;
+      const date = new Date(currentDate);
+      date.setDate(date.getDate() - 1);
+      currentDate = date.toISOString().split('T')[0];
+    }
+
+    return streak;
+  } catch (error) {
+    console.error('Error calculating voting streak:', error);
+    return 0;
+  }
+}
+
 // Taste Level calculation based on XP
 export function calculateTasteLevel(xp: number): { level: number; name: string; minXP: number; maxXP: number; progress: number } {
   const tasteLevels = [
@@ -77,13 +132,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Process users and add taste levels and rankings
-    const processedUsers = usersData.map((user, index) => {
+    // Process users and add taste levels, rankings, and streaks
+    const processedUsers = await Promise.all(usersData.map(async (user, index) => {
       const tasteLevel = calculateTasteLevel(user.xp || 0);
       
       // Create display name (username or shortened wallet address)
       const displayName = user.username || 
         `${user.wallet_address.slice(0, 6)}...${user.wallet_address.slice(-4)}`;
+
+      // Calculate voting streak
+      const votingStreak = await calculateVotingStreak(user.id);
+
+      // Calculate days since joining
+      const daysSinceJoining = Math.max(1, Math.ceil((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)));
 
       return {
         id: user.id,
@@ -97,11 +158,13 @@ export async function GET(request: NextRequest) {
         created_at: user.created_at,
         position: index + 1,
         taste_level: tasteLevel,
+        voting_streak: votingStreak,
+        days_since_joining: daysSinceJoining,
         // Calculate some additional stats
-        votes_per_day: user.total_votes ? Math.round((user.total_votes || 0) / Math.max(1, Math.ceil((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)))) : 0,
+        votes_per_day: user.total_votes ? Math.round((user.total_votes || 0) / daysSinceJoining * 10) / 10 : 0,
         xp_per_vote: user.total_votes ? Math.round(((user.xp || 0) / Math.max(1, user.total_votes)) * 100) / 100 : 0
       };
-    });
+    }));
 
     // Calculate metadata
     const metadata = {
