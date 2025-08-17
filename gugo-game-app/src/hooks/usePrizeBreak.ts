@@ -179,6 +179,7 @@ export function usePrizeBreak() {
       reward: null,
       rewardDescription: null,
       rewardEmoji: null,
+      selectedDuckImage: null,
       isClaimingReward: hasSession // Only start claiming if we have a session
     });
 

@@ -680,15 +680,15 @@ class VotingPreloader {
     } catch (error) {
       console.error(`❌ Error generating ${voteType} session:`, {
         error,
-        message: error?.message,
-        stack: error?.stack,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
         voteType,
-        collectionFilter,
-        activeCollectionsCount: activeCollectionNames?.length || 0
+        collectionFilter
       });
       
       // Try to provide more context about the failure
-      if (error?.message?.includes('relation') || error?.message?.includes('table')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('relation') || errorMessage.includes('table')) {
         console.error('🔍 Database schema issue detected - check if NFTs table exists and has correct columns');
       }
       
