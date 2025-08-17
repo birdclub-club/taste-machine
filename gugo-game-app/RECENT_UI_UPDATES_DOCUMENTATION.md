@@ -5,47 +5,58 @@
 
 ## 🆕 Latest Updates (January 2025)
 
-### 🏆 Leaderboard Enhancements
-- **Show Prices Integration**: Added Magic Eden price fetching with toggle button in header
-- **Redesigned Layout**: Two-column grid with horizontal card layout
-- **Larger NFT Images**: 160px × 160px images positioned on right side of cards
-- **Token Information**: Collection names and token IDs with Magic Eden links
-- **Dynamic Styling**: Inverted color scheme using `--dynamic-text-color` backgrounds
-- **Price Display**: Shows actual prices, "Unlisted", or "Price unavailable" states
-- **Fixed Data Fields**: Updated to use `contract_address` instead of `collection_address`
+### 🎨 Slider Module Complete Restoration
+- **Full-Screen Mouse Tracking**: Entire screen responds to mouse Y-position for rating (0-10)
+- **Dynamic Color Meter**: Narrow vertical meter fills with `--dynamic-text-color`, orange at 10 for FIRE
+- **Matchup-Style NFT Cards**: Single NFT styled exactly like matchup cards with white background and token ID
+- **Smooth Animations**: Added `cubic-bezier` easing for meter level transitions
+- **Precise Positioning**: NFT image and meter moved 30px right, instructions centered and repositioned
+- **White Glow Effect**: Non-fire votes (1-9) show white glow when locked in, matching matchup behavior
+- **Robust Image Loading**: Implemented retry logic with IPFS gateway switching for failed slider images
 
-### 🎨 Dynamic Icon Theming
-- **Footer Licks Icon**: Now uses CSS mask technique with `var(--dynamic-text-color)`
-- **Cross-Palette Compatibility**: Icon automatically adapts to any color scheme
-- **Technical Implementation**: Uses `backgroundColor` with CSS `mask` properties
+### 🎁 Prize Break Modal Overhaul
+- **Card Flip Animation**: "Reward incoming..." back card flips to reveal full prize details
+- **Dynamic Duck Selection**: Random duck images based on reward type (GUGO vs XP/Votes), persists until next prize break
+- **Linear Marquee**: Endless straight scrolling without bullet points, positioned below prize
+- **Dynamic Styling**: All text uses `--dynamic-text-color`, prizes pulse with `slow-pulse` animation
+- **Licks Icon Integration**: Dynamic colored Licks icon with shine effect using CSS mask
+- **Session Integration**: Dynamic button text based on session state, removed redundant session prompts
+- **Proper Layout**: Modal sized and positioned to fit all content with `overflowY: 'auto'`
 
-### 🔧 Animation & UX Improvements
-- **Landing to Main Transition**: Refined timing and easing for smooth page transitions
-- **Status Bar Animation**: Delayed slide-down effect with improved timing
-- **Element Positioning**: Fine-tuned "Powered by GUGO" placement and opacity
-- **Footer Styling**: Updated opacity to 100% for better visibility
+### 🚨 Purchase Alert Modal Redesign
+- **Dynamic Color Palette**: Complete restyling using `--dynamic-bg-color`, `--dynamic-text-color`, `--dynamic-accent-color`
+- **Shine Animation**: Title text includes shine effect matching other dynamic text
+- **Licks Icon Styling**: CSS mask implementation for dynamic coloring with proper sizing
+- **React Portal Rendering**: Rendered to `document.body` with backdrop blur for proper layering
+- **Integrated Purchase Flow**: Closes alert and opens `LicksPurchaseModal` via `StatusBar` reference
+- **Contextual Information**: Updated text explaining Super Votes and pricing
 
-### 🎯 Modal System Overhaul
-- **React Portals**: All modals now use `createPortal` for proper z-index handling
-- **Consistent Z-Index**: All modals use `999999` z-index with `isolation: 'isolate'`
-- **Updated Components**:
-  - `Leaderboard.tsx`: Portal rendering with proper positioning
-  - `FavoritesGallery.tsx`: Enhanced with price functionality
-  - `LicksPurchaseModal.tsx`: Fixed portal implementation
-  - `StatusBar.tsx` popups: ABOUT, HOW, WHY, and LickClaimPopup
-- **Improved UX**: Modals no longer appear behind other elements
+### 🏆 Fire List & Leaderboard Enhancements
+- **Dynamic Text Colors**: All modal text (titles, subtypes, buttons) use `var(--dynamic-text-color)`
+- **Improved Close Button Contrast**: Close button background uses `--dynamic-text-color`, X uses `--dynamic-bg-color`
+- **Magic Eden "Make Offer" Links**: Added next to prices with matching styling, underline, and green hover effect
+- **Robust Price Fetching**: Leaderboard includes fallback contract address mapping for known collections
+- **Consistent Data Mapping**: Unified field handling between Fire List (`collection_address`) and Leaderboard (`contract_address`)
+- **Enhanced Debugging**: Extensive console logging for price fetching diagnostics
 
-### 🎮 Interactive Features
-- **Onboarding Tour**: Replaced welcome message with interactive feature tour
-- **Tour Highlights**: NFT matchup area, XP system, daily licks, leaderboard, fire list
-- **Progress Indicators**: Dot navigation with dismissible popups
-- **Spotlight Effect**: CSS `clipPath` for highlighting specific areas
+### 🔧 Technical Infrastructure Improvements
+- **Page Refresh Flash Fix**: Eliminated default color flash on refresh with proper SSR/CSR state management
+- **Framer Motion Stability**: Fixed "controls.start() before mount" errors with `isReady` guards and proper initialization timing
+- **TypeScript Error Resolution**: Fixed error handling in `preloader.ts`, type definitions in `useMousePosition.ts`, missing properties in `usePrizeBreak.ts`
+- **Build System Optimization**: Added missing utility files (`utils.ts`, `useMousePosition.ts`) to git for successful Vercel deployment
+- **IPFS Gateway Performance**: Reverted to HTTP protocol for speed, optimized gateway health tracking and selection
 
-### 🎵 Audio & Visual Polish
-- **Slider Module**: Restored dynamic color palette styling
-- **VS/NO Buttons**: Inverted color scheme for better contrast
-- **Music Controls**: Dynamic palette integration
-- **Wallet Button**: Consistent styling with dynamic colors
+### 🎯 Animation & Interaction Fixes
+- **Prize Trailing Images**: Enhanced error handling and mount state checking for Framer Motion animations
+- **Mouse Position Tracking**: Improved type safety and null handling for ref-based mouse tracking
+- **Session Flow Optimization**: Streamlined prize claim flow by removing redundant session prompts
+- **Component Cleanup**: Proper unmount handling and timer cleanup to prevent memory leaks
+
+### 🎮 Enhanced User Experience
+- **Dynamic Button States**: Prize claim button text changes based on session state ("Start a Session" vs "Accept Reward")
+- **Integrated Purchase Flow**: Seamless transition from purchase alert to Licks purchasing modal
+- **Improved Error Messages**: Better user feedback for image loading failures and API errors
+- **Consistent Theming**: All new and restored components use dynamic color variables
 
 ## 🌈 Dynamic Color System Implementation
 
@@ -124,6 +135,63 @@
 - **Functionality**: Play/pause and volume controls unchanged
 
 ## 🔧 Technical Improvements
+
+### Recent Implementation Details (January 2025)
+
+#### Slider Module Technical Implementation
+```typescript
+// Full-screen mouse tracking overlay
+<div 
+  style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    pointerEvents: 'none', // Main container
+    zIndex: 1
+  }}
+>
+  {/* Interactive elements have pointerEvents: 'auto' */}
+</div>
+```
+
+#### Prize Break Card Flip Animation
+```css
+.prize-card {
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+.prize-card.flipped {
+  transform: rotateY(180deg);
+}
+```
+
+#### Dynamic Color CSS Mask Implementation
+```css
+.dynamic-icon {
+  background-color: var(--dynamic-text-color);
+  -webkit-mask: url('/lick-icon.png') center/contain no-repeat;
+  mask: url('/lick-icon.png') center/contain no-repeat;
+}
+```
+
+#### Framer Motion Mount Safety
+```typescript
+const isReady = useRef(false);
+useEffect(() => {
+  const timer = setTimeout(() => {
+    if (isMounted.current) {
+      isReady.current = true;
+    }
+  }, 500);
+  return () => clearTimeout(timer);
+}, []);
+
+// All animation calls guarded
+if (!isMounted.current || !isReady.current || !controls) return;
+controls.start(/* animation */);
+```
 
 ### JSX Refactoring
 - **Complex Conditional Rendering**: Refactored nested ternary operators into helper function
