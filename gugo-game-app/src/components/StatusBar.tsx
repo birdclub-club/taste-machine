@@ -8,6 +8,7 @@ import { useSessionKey } from '../hooks/useSessionKey';
 import { useCollectionPreference } from '../hooks/useCollectionPreference';
 import { SessionAction } from '../../lib/session-keys';
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import FavoritesGallery from './FavoritesGallery';
 import { canClaimFreeVotes, claimFreeVotes } from '../../lib/auth';
 import { LicksPurchaseModal } from './LicksPurchaseModal';
@@ -24,6 +25,7 @@ export interface StatusBarRef {
   triggerXpAnimation: (xpAmount: number) => void;
   triggerWalletGlow: (gugoAmount: number) => void;
   triggerLicksAnimation: (licksAmount: number) => void;
+  openPurchaseModal: () => void;
 }
 
 const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, userVoteCount = 0 }, ref) => {
@@ -138,7 +140,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
     refreshUserData: refreshUser,
     triggerXpAnimation,
     triggerWalletGlow,
-    triggerLicksAnimation
+    triggerLicksAnimation,
+    openPurchaseModal: () => setShowPurchaseModal(true)
   }), [refreshUser]);
   const { eligibility, refreshBalance } = useTokenBalance();
   const [showWalletDropdown, setShowWalletDropdown] = useState(false);
@@ -285,20 +288,20 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
   }, [canClaim, hasClaimedToday, user, isConnected]);
 
   // Lick Claiming Popup Component
-  const LickClaimPopup = () => (
+  const LickClaimPopup = () => createPortal(
     <div 
       className="lick-popup"
       style={{
         position: 'fixed',
         top: '68px', // Just below the status bar
         right: '320px', // Positioned directly under the Lick icon
-        background: '#2a2a2a', // Dark background to match status bar
+        background: 'var(--dynamic-bg-color)', // Dynamic background
         borderRadius: 'var(--border-radius-lg)',
         padding: 'var(--space-4)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-        border: '1px solid #333333',
+        border: '1px solid var(--dynamic-text-color)',
         borderTop: 'none', // Remove top border to connect with triangle
-        zIndex: 1000,
+        zIndex: 999999,
         width: '190px', // Slightly wider for better icon spacing
         maxWidth: 'calc(100vw - 20px)', // Ensure it doesn't overflow on mobile
         textAlign: 'center',
@@ -306,7 +309,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
         animation: popupStage === 'initial' ? 'dropdownReveal 0.4s ease-out forwards' : 'none',
         transformOrigin: 'top center',
         // Lock transform after initial animation
-        transform: popupStage !== 'initial' ? 'scaleY(1) translateY(0)' : undefined
+        transform: popupStage !== 'initial' ? 'scaleY(1) translateY(0)' : undefined,
+        isolation: 'isolate'
       }}
       onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside popup
       >
@@ -320,7 +324,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
         height: '0',
         borderLeft: '8px solid transparent',
         borderRight: '8px solid transparent',
-        borderBottom: '8px solid #2a2a2a',
+        borderBottom: '8px solid var(--dynamic-bg-color)',
         zIndex: 1001
       }} />
       
@@ -334,7 +338,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
         height: '0',
         borderLeft: '9px solid transparent',
         borderRight: '9px solid transparent',
-        borderBottom: '9px solid #333333',
+        borderBottom: '9px solid var(--dynamic-text-color)',
         zIndex: 1000
       }} />
       
@@ -432,7 +436,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
           gap: '10px', // Slightly larger gap for bigger icon
           fontSize: '28px', // Fixed pixel size
           fontWeight: '800',
-          color: 'var(--color-white)',
+          color: 'var(--dynamic-text-color, var(--color-white))',
           height: '48px', // Taller to accommodate bigger icon
           width: '150px', // Slightly wider for better spacing
           lineHeight: '48px', // Match height for better alignment
@@ -509,7 +513,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                   
                   if (shouldUpdate) {
                     // Update DOM directly instead of React state to prevent re-renders
-                    const randomMultiplier = Math.floor(Math.random() * 10) + 1;
+                    const randomMultiplier = Math.floor(Math.random() * 5) + 1;
                     lastMultiplier = randomMultiplier; // Keep track of what we're showing
                     if (multiplierRef.current) {
                       multiplierRef.current.textContent = `×${randomMultiplier}`;
@@ -542,7 +546,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
               }}
               style={{
                 background: 'var(--color-green)',
-                color: 'var(--color-white)',
+                color: 'var(--dynamic-text-color, var(--color-white))',
                 border: 'none',
                 borderRadius: 'var(--border-radius)',
                 padding: '6px 16px', // Even smaller padding
@@ -566,25 +570,15 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
             </button>
           )}
           
-          {/* Result stage message */}
-          {popupStage === 'result' && (
-            <div style={{
-              fontSize: '11px',
-              color: 'var(--color-grey-400)',
-              textAlign: 'center',
-              lineHeight: '1.2',
-              marginTop: 'var(--space-2)'
-            }}>
-              Come back tomorrow for more free Licks.
-            </div>
-          )}
+
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
   // About popup component
-  const AboutPopup = () => (
+  const AboutPopup = () => createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -595,18 +589,20 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
-      padding: 'var(--space-4)'
+      zIndex: 999999,
+      padding: 'var(--space-4)',
+      paddingTop: '80px',
+      isolation: 'isolate'
     }} onClick={() => setShowAboutPopup(false)}>
       <div style={{
-        background: '#2a2a2a',
+        background: 'var(--dynamic-bg-color)',
         borderRadius: 'var(--border-radius-lg)',
         padding: 'var(--space-8)',
         maxWidth: '500px',
         width: '100%',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         position: 'relative',
-        border: '1px solid #444444'
+        border: '1px solid var(--dynamic-text-color, #444444)'
       }} onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => setShowAboutPopup(false)}
@@ -618,7 +614,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
             border: 'none',
             fontSize: 'var(--font-size-xl)',
             cursor: 'pointer',
-            color: 'var(--color-white)'
+            color: 'var(--dynamic-text-color, var(--color-white))'
           }}
         >
           ×
@@ -638,7 +634,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
             <h2 style={{ 
               fontSize: 'var(--font-size-2xl)', 
               fontWeight: '800', 
-              color: 'var(--color-white)',
+              color: 'var(--dynamic-text-color, var(--color-white))',
               marginBottom: 'var(--space-1)',
               textTransform: 'none'
             }}>
@@ -648,25 +644,27 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
         </div>
 
         <div style={{ textAlign: 'left', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            If you're like us, you could scroll NFT art all day, so we built a way to make it count.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            We're building on-chain aesthetic scores for NFTs.
           </p>
           
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            We want to surface great art — not just rare art — and give it the visibility it deserves.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            Not just to reward what's rare — but to help great art get seen.
           </p>
           
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
             You'll get free Licks (votes) every day — enough to play and start shaping the signal.
           </p>
           
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            But if you want to earn more, vote more, and unlock bigger rewards, you'll need GUGO or ETH to buy additional Licks (about $0.02 USD each).
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            To go deeper, earn more, and unlock bigger rewards, you can spend GUGO or ETH to buy more Licks (about $0.02 each).
           </p>
           
-          <p style={{ marginBottom: 'var(--space-5)', color: '#e5e5e5' }}>
-            That small stake helps keep the system clean by filtering out spam, bots, and low-effort voting.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            That small stake helps keep the system clean by filtering out bots, spam, and low-effort noise.
           </p>
+          
+
 
           {/* Whitepaper Link */}
           <div style={{ paddingTop: 'var(--space-4)' }}>
@@ -678,7 +676,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
               display: 'inline-flex',
               alignItems: 'center',
               gap: 'var(--space-2)',
-              color: '#e5e5e5',
+              color: 'var(--dynamic-text-color, #e5e5e5)',
               textDecoration: 'none',
                 fontSize: 'var(--font-size-sm)',
               fontWeight: '400',
@@ -688,7 +686,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                 border: '1px solid rgba(229, 229, 229, 0.2)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--color-white)';
+              e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-white))';
                 e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
             }}
             onMouseLeave={(e) => {
@@ -702,11 +700,12 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
   // How popup component
-  const HowPopup = () => (
+  const HowPopup = () => createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -717,18 +716,20 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
-      padding: 'var(--space-4)'
+      zIndex: 999999,
+      padding: 'var(--space-4)',
+      paddingTop: '80px',
+      isolation: 'isolate'
     }} onClick={() => setShowHowPopup(false)}>
       <div style={{
-        background: '#2a2a2a',
+        background: 'var(--dynamic-bg-color)',
         borderRadius: 'var(--border-radius-lg)',
         padding: 'var(--space-8)',
         maxWidth: '500px',
         width: '100%',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         position: 'relative',
-        border: '1px solid #444444'
+        border: '1px solid var(--dynamic-text-color, #444444)'
       }} onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => setShowHowPopup(false)}
@@ -740,7 +741,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
             border: 'none',
             fontSize: 'var(--font-size-xl)',
             cursor: 'pointer',
-            color: 'var(--color-white)'
+            color: 'var(--dynamic-text-color, var(--color-white))'
           }}
         >
           ×
@@ -750,31 +751,32 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
           <h2 style={{ 
             fontSize: 'var(--font-size-2xl)', 
             fontWeight: '800', 
-            color: 'var(--color-white)',
+                            color: 'var(--dynamic-text-color, var(--color-white))',
             marginBottom: 'var(--space-2)',
             textTransform: 'none'
           }}>
-            See two. Choose one. Earn GUGO.
+            Share your taste.
           </h2>
         </div>
 
         <div style={{ textAlign: 'left', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5', fontSize: 'var(--font-size-base)', fontWeight: '500' }}>
-            We call our votes Licks.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            You'll be shown two NFTs — choose the one that hits harder.
           </p>
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            You'll be shown two NFTs — just lick the one that looks better.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            If something really slaps, hit the 🔥.
           </p>
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            If something really hits, smash the fire button. That's the highest compliment.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            We call votes Licks, and you can always get more.
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
   // Why popup component
-  const WhyPopup = () => (
+  const WhyPopup = () => createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -785,18 +787,20 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
-      padding: 'var(--space-4)'
+      zIndex: 999999,
+      padding: 'var(--space-4)',
+      paddingTop: '80px',
+      isolation: 'isolate'
     }} onClick={() => setShowWhyPopup(false)}>
       <div style={{
-        background: '#2a2a2a',
+        background: 'var(--dynamic-bg-color)',
         borderRadius: 'var(--border-radius-lg)',
         padding: 'var(--space-8)',
         maxWidth: '500px',
         width: '100%',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         position: 'relative',
-        border: '1px solid #444444'
+        border: '1px solid var(--dynamic-text-color, #444444)'
       }} onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => setShowWhyPopup(false)}
@@ -808,7 +812,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
             border: 'none',
             fontSize: 'var(--font-size-xl)',
             cursor: 'pointer',
-            color: 'var(--color-white)'
+            color: 'var(--dynamic-text-color, var(--color-white))'
           }}
         >
           ×
@@ -818,24 +822,25 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
           <h2 style={{ 
             fontSize: 'var(--font-size-2xl)', 
             fontWeight: '800', 
-            color: 'var(--color-white)',
+                            color: 'var(--dynamic-text-color, var(--color-white))',
             marginBottom: 'var(--space-2)',
-            textTransform: 'uppercase'
+            textTransform: 'none'
           }}>
-            Why?
+            We love art.
           </h2>
         </div>
 
         <div style={{ textAlign: 'left', lineHeight: '1.6' }}>
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5', fontSize: 'var(--font-size-lg)', lineHeight: '1.7' }}>
-            Because we love art.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            In a space obsessed with rarity, we built a way to measure what actually looks good.
           </p>
-          <p style={{ marginBottom: 'var(--space-4)', color: '#e5e5e5' }}>
-            In a space obsessed with traits and rarity, we built a way to surface what actually looks good. You bring the eye — we bring the GUGO.
+          <p style={{ marginBottom: 'var(--space-4)', color: 'var(--dynamic-text-color, #e5e5e5)' }}>
+            Soon, you'll be able to factor aesthetic scores into how NFTs are valued.
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
 
@@ -867,25 +872,23 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
       `}</style>
       
       <div style={{
-        background: '#2a2a2a',
-        borderBottom: '1px solid #333333',
         position: 'sticky',
         top: 0,
         zIndex: 100,
         backdropFilter: 'blur(8px)',
-        backgroundColor: 'rgba(42, 42, 42, 0.95)'
+        backgroundColor: 'var(--dynamic-bg-color-dark, rgba(30, 30, 30, 0.95))'
       }}>
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
-          padding: 'var(--space-3) var(--space-6)',
-          maxWidth: 'var(--max-width)',
-          margin: '0 auto'
+          padding: 'var(--space-3) 5vw',
+          maxWidth: 'none',
+          margin: '0'
         }}>
           
           {/* LEFT SIDE: Logo + Name + About */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginLeft: '10px' }}>
             {/* Logo */}
             <div style={{
               width: '40px',
@@ -916,7 +919,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                 width: '40px',
                 height: '40px',
                 background: 'var(--color-black)',
-                color: 'var(--color-white)',
+                color: 'var(--dynamic-text-color, var(--color-white))',
                 borderRadius: 'var(--border-radius-sm)',
                 display: 'none',
                 alignItems: 'center',
@@ -931,9 +934,10 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
             
             {/* Name */}
             <span style={{
-              fontWeight: '800',
-              fontSize: 'var(--font-size-lg)',
-              color: 'var(--color-white)',
+              fontFamily: 'var(--font-family-primary)',
+              fontWeight: '300',
+              fontSize: 'var(--font-size-2xl)',
+              color: 'var(--dynamic-text-color, var(--color-white))',
               letterSpacing: '-0.02em',
               textTransform: 'uppercase'
             }}>
@@ -947,14 +951,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                 onClick={() => setShowAboutPopup(true)}
                 style={{
                   cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
+                  fontSize: 'var(--font-size-sm)',
                   fontWeight: '500',
                   color: 'var(--color-grey-300)',
                   transition: 'all var(--transition-base)',
                   textDecoration: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--color-white)';
+                  e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-white))';
                   e.currentTarget.style.textDecoration = 'underline';
                 }}
                 onMouseLeave={(e) => {
@@ -970,14 +974,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                 onClick={() => setShowHowPopup(true)}
                 style={{
                   cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
+                  fontSize: 'var(--font-size-sm)',
                   fontWeight: '500',
                   color: 'var(--color-grey-300)',
                   transition: 'all var(--transition-base)',
                   textDecoration: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--color-white)';
+                  e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-white))';
                   e.currentTarget.style.textDecoration = 'underline';
                 }}
                 onMouseLeave={(e) => {
@@ -993,14 +997,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                 onClick={() => setShowWhyPopup(true)}
                 style={{
                   cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
+                  fontSize: 'var(--font-size-sm)',
                   fontWeight: '500',
                   color: 'var(--color-grey-300)',
                   transition: 'all var(--transition-base)',
                   textDecoration: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--color-white)';
+                  e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-white))';
                   e.currentTarget.style.textDecoration = 'underline';
                 }}
                 onMouseLeave={(e) => {
@@ -1013,17 +1017,18 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
               
               {/* Leaderboard */}
               <span
+                data-tour="leaderboard"
                 onClick={() => setShowLeaderboard(true)}
                 style={{
                   cursor: 'pointer',
-                  fontSize: 'var(--font-size-xs)',
+                  fontSize: 'var(--font-size-sm)',
                   fontWeight: '500',
                   color: 'var(--color-grey-300)',
                   transition: 'all var(--transition-base)',
                   textDecoration: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--color-white)';
+                  e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-white))';
                   e.currentTarget.style.textDecoration = 'underline';
                 }}
                 onMouseLeave={(e) => {
@@ -1032,6 +1037,33 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                 }}
               >
                 Leaderboard
+              </span>
+              
+              {/* Fire List */}
+              <span
+                data-tour="fire-list"
+                onClick={() => {
+                  console.log('🔥 Opening Fire List...');
+                  setShowFavoritesGallery(true);
+                }}
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: '500',
+                  color: 'var(--color-grey-300)',
+                  transition: 'all var(--transition-base)',
+                  textDecoration: 'none'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-white))';
+                  e.currentTarget.style.textDecoration = 'underline';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-grey-300)';
+                  e.currentTarget.style.textDecoration = 'none';
+                }}
+              >
+                Fire List
               </span>
 
             </div>
@@ -1046,12 +1078,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                 {/* Stats - Clean Text Style */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
                   {/* XP */}
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 'var(--space-2)',
-                    position: 'relative'
-                  }}>
+                  <div 
+                    data-tour="xp-area"
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 'var(--space-2)',
+                      position: 'relative'
+                    }}>
                     <span style={{
                       fontSize: '14px',
                       color: '#ff9500'
@@ -1060,8 +1094,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                     </span>
                     <span style={{ 
                       fontWeight: '600', 
-                      color: 'var(--color-white)',
-                      fontSize: 'var(--font-size-xs)'
+                      color: 'var(--dynamic-text-color, var(--color-white))',
+                      fontSize: 'var(--font-size-sm)'
                     }}>
                       {user.xp || 0} XP
                     </span>
@@ -1094,12 +1128,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                   />
                   
                   {/* Licks (Interactive) */}
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 'var(--space-2)',
-                    position: 'relative'
-                  }}>
+                  <div 
+                    data-tour="licks-area"
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 'var(--space-2)',
+                      position: 'relative'
+                    }}>
                     <div 
                       style={{ 
                         position: 'relative',
@@ -1148,8 +1184,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                     </div>
                     <span style={{ 
                       fontWeight: '600',
-                      color: 'var(--color-white)',
-                      fontSize: 'var(--font-size-xs)'
+                      color: '#ffffff',
+                      fontSize: 'var(--font-size-sm)'
                     }}>
                       {formatLicks(user.available_votes || 0)}
                     </span>
@@ -1161,7 +1197,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                         bottom: '10px', // Much lower, just above the Lick count
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        color: 'var(--color-white)',
+                        color: 'var(--dynamic-text-color, var(--color-white))',
                         fontSize: 'var(--font-size-sm)',
                         fontWeight: '600',
                         textShadow: '0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.6)',
@@ -1245,26 +1281,26 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                       alignItems: 'center',
                       gap: 'var(--space-2)',
                       padding: 'var(--space-2) var(--space-3)',
-                      background: showWalletGlow ? '#1f3a1f' : '#2a2a2a', // Green tint when glowing
-                      border: showWalletGlow ? '1px solid var(--color-green)' : '1px solid #444444',
+                      background: showWalletGlow ? '#1f3a1f' : 'var(--dynamic-bg-color)', // Use dynamic background color as background
+                      border: '1px solid var(--dynamic-text-color)', // Add border with dynamic text color
                       borderRadius: 'var(--border-radius)',
                       cursor: 'pointer',
                       transition: 'all var(--transition-base)',
                       fontSize: 'var(--font-size-sm)',
                       fontWeight: '500',
-                      color: 'var(--color-white)', // White text for dark theme
+                      color: 'var(--dynamic-text-color)', // Use dynamic text color as text color
                       boxShadow: showWalletGlow 
                         ? '0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3)' 
                         : 'none',
                       animation: showWalletGlow ? 'walletGlow 3s ease-out' : 'none'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#333333';
-                      e.currentTarget.style.borderColor = '#555555';
+                      if (!showWalletGlow) {
+                        e.currentTarget.style.opacity = '0.8';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#2a2a2a';
-                      e.currentTarget.style.borderColor = '#444444';
+                      e.currentTarget.style.opacity = '1';
                     }}
                   >
                     <div style={{
@@ -1279,7 +1315,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                         : '0 0 6px #dc2626'
                     }}></div>
                     {formatAddress(address || '')}
-                    <span style={{ fontSize: '10px', color: 'var(--color-grey-300)' }}>▼</span>
+                    <span style={{ fontSize: '10px', color: 'var(--dynamic-text-color)' }}>▼</span>
                   </button>
 
                   {/* GUGO Floating Notification - positioned over wallet button */}
@@ -1307,8 +1343,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                       top: '100%',
                       right: 0,
                       marginTop: 'var(--space-2)',
-                      background: '#2a2a2a', // Dark background to match theme
-                      border: '1px solid #444444', // Dark border
+                      background: 'var(--dynamic-bg-color)', // Dark background to match theme
+                      border: '1px solid var(--dynamic-text-color, #444444)', // Dark border
                       borderRadius: 'var(--border-radius)',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.6)', // Darker shadow
                       minWidth: '200px',
@@ -1334,7 +1370,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                         <div style={{ 
                           marginBottom: 'var(--space-3)',
                           paddingBottom: 'var(--space-3)',
-                          borderBottom: '1px solid #444444' // Darker border for dark theme
+                          borderBottom: '1px solid var(--dynamic-text-color, #444444)' // Darker border for dark theme
                         }}>
                           <div className="text-caption" style={{ 
                             marginBottom: 'var(--space-2)',
@@ -1381,7 +1417,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                             <div style={{ flex: 1 }}>
                               <div style={{ 
                                 fontWeight: '600',
-                                color: 'var(--color-white)', // White text for dark background
+                                color: 'var(--dynamic-text-color, var(--color-white))', // White text for dark background
                                 fontSize: 'var(--font-size-sm)'
                               }}>
                                 {loading ? (
@@ -1432,7 +1468,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                             <div style={{ flex: 1 }}>
                               <div style={{ 
                                 fontWeight: '600',
-                                color: 'var(--color-white)', // White text for dark background
+                                color: 'var(--dynamic-text-color, var(--color-white))', // White text for dark background
                                 fontSize: 'var(--font-size-sm)'
                               }}>
                                 {loading ? (
@@ -1460,7 +1496,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                         <div style={{ 
                           marginBottom: 'var(--space-3)',
                           paddingBottom: 'var(--space-3)',
-                          borderBottom: '1px solid #444444'
+                          borderBottom: '1px solid var(--dynamic-text-color, #444444)'
                         }}>
                           <div className="text-caption" style={{ 
                             marginBottom: 'var(--space-2)',
@@ -1486,7 +1522,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                                 }}></div>
                                 <div style={{ 
                                   fontSize: 'var(--font-size-sm)',
-                                  color: 'var(--color-white)',
+                                  color: 'var(--dynamic-text-color, var(--color-white))',
                                   fontWeight: '600'
                                 }}>
                                   {needsRenewal ? 'Expires Soon' : 'Active'}
@@ -1558,7 +1594,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                                 }}></div>
                                 <div style={{ 
                                   fontSize: 'var(--font-size-sm)',
-                                  color: 'var(--color-white)',
+                                  color: 'var(--dynamic-text-color, var(--color-white))',
                                   fontWeight: '600'
                                 }}>
                                   No Session
@@ -1608,64 +1644,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                           )}
                         </div>
 
-                        {/* Favorites Gallery Section */}
-                        <div style={{ 
-                          marginBottom: 'var(--space-3)',
-                          paddingBottom: 'var(--space-3)',
-                          borderBottom: '1px solid #444444'
-                        }}>
-                          <button
-                            onClick={() => {
-                              console.log('🌟 Opening Favorites Gallery...');
-                              setShowFavoritesGallery(true);
-                              setShowWalletDropdown(false);
-                            }}
-                            style={{
-                              width: '100%',
-                              padding: 'var(--space-3)',
-                              background: 'linear-gradient(135deg, #d4af37, #ffd700, #ffed4e)',
-                              border: 'none',
-                              borderRadius: 'var(--border-radius-sm)',
-                              cursor: 'pointer',
-                              fontSize: 'var(--font-size-sm)',
-                              color: '#000',
-                              fontWeight: '700',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em',
-                              transition: 'all var(--transition-base)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: 'var(--space-2)',
-                              position: 'relative',
-                              overflow: 'hidden',
-                              boxShadow: '0 2px 8px rgba(212, 175, 55, 0.3)'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(212, 175, 55, 0.6)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(212, 175, 55, 0.3)';
-                            }}
-                          >
-                            {/* Shimmer reflection effect */}
-                            <div
-                              style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: '-100%',
-                                width: '100%',
-                                height: '100%',
-                                background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
-                                animation: 'goldShimmer 3s infinite linear',
-                                pointerEvents: 'none'
-                              }}
-                            />
-                            Favorites Gallery
-                          </button>
-                        </div>
+
 
                         <button
                           onClick={() => {
@@ -1680,11 +1659,11 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                             borderRadius: 'var(--border-radius-sm)',
                             cursor: 'pointer',
                             fontSize: 'var(--font-size-sm)',
-                            color: 'var(--color-white)', // White text
+                            color: 'var(--dynamic-text-color, var(--color-white))', // White text
                             transition: 'all var(--transition-base)'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#444444';
+                            e.currentTarget.style.background = 'var(--dynamic-text-color, #444444)';
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = '#333333';

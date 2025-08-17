@@ -10,10 +10,10 @@ class VotingPreloader {
   private static instance: VotingPreloader;
   private sessionStack: VotingSession[] = []; // 🚀 LIFO stack for instant access
   private isPreloading = false;
-  private readonly TARGET_STACK_SIZE = 15; // 🚀 Larger stack for instant transitions
-  private readonly MINIMUM_STACK_SIZE = 8; // Never go below 8 sessions
-  private readonly REFILL_TRIGGER = 5; // Refill when stack drops to 5 sessions
-  private readonly MAX_PARALLEL_PRELOAD = 6; // Load multiple sessions in parallel
+  private readonly TARGET_STACK_SIZE = 8; // 🚀 Reduced for faster loading
+  private readonly MINIMUM_STACK_SIZE = 4; // Never go below 4 sessions
+  private readonly REFILL_TRIGGER = 3; // Refill when stack drops to 3 sessions
+  private readonly MAX_PARALLEL_PRELOAD = 3; // Reduced parallel loading to prevent overwhelming
   private imagePreloadCache = new Map<string, boolean>();
   private seenNFTIds = new Set<string>(); // Track NFTs shown in current session
   private seenNFTPairs = new Set<string>(); // Track NFT pairs to prevent exact duplicates
@@ -24,8 +24,8 @@ class VotingPreloader {
   private useEnhancedEngine = true; // Re-enabled with fixed SQL functions
   private enhancedSuccessRate = 0; // Track enhanced system performance
   private enhancedAttempts = 0;
-  private enhancedTimeout = 1500; // 1.5 second timeout for enhanced calls (aggressive fallback)
-  private enhancedRatio = 0.3; // 30% enhanced, 70% legacy for speed (reduced from 80%)
+  private enhancedTimeout = 800; // 0.8 second timeout for enhanced calls (faster fallback)
+  private enhancedRatio = 0.3; // 30% enhanced, 70% legacy for balanced performance
 
   static getInstance(): VotingPreloader {
     if (!VotingPreloader.instance) {
@@ -98,7 +98,7 @@ class VotingPreloader {
         const timeout = setTimeout(() => {
           console.log(`⏰ Preload timeout ${attemptCount + 1}: ${currentUrl.substring(0, 60)}...`);
           tryNextGateway();
-        }, 1000); // Reduced to 1 second for ultra-fast gateway switching
+        }, 500); // Reduced to 0.5 seconds for ultra-fast gateway switching
 
         img.onload = () => {
           clearTimeout(timeout);
@@ -418,12 +418,32 @@ class VotingPreloader {
           sameCollQuery = sameCollQuery.eq('collection_name', collectionFilter);
         }
 
-        const { data: allNfts } = await sameCollQuery
+        const { data: allNfts, error: sameCollError } = await sameCollQuery
           .order('id', { ascending: false })  // 🎲 Diverse collection sampling
           .limit(2000); // Increased limit for diverse collection sampling
 
         console.log(`🔍 Found ${allNfts?.length || 0} same-collection NFTs after unrevealed filters`);
-        if (!allNfts?.length) return null;
+        
+        // Enhanced error logging for same-collection
+        if (sameCollError) {
+          console.error('❌ Supabase error in same-collection matchup:', {
+            error: sameCollError,
+            message: sameCollError?.message,
+            details: sameCollError?.details,
+            hint: sameCollError?.hint,
+            code: sameCollError?.code
+          });
+          return null;
+        }
+        
+        if (!allNfts?.length) {
+          console.error('❌ No NFTs found for same-collection matchup:', {
+            activeCollections: activeCollectionNames,
+            collectionFilter,
+            hasCollectionFilter: !!collectionFilter
+          });
+          return null;
+        }
 
         // Filter out already seen NFTs
         const unseenNfts = allNfts.filter(nft => !this.seenNFTIds.has(nft.id));
@@ -516,8 +536,26 @@ class VotingPreloader {
           .limit(2000); // Increased limit for diverse collection sampling
 
         console.log(`🔍 Found ${randomNfts?.length || 0} cross-collection NFTs after unrevealed filters`);
-        if (error || !randomNfts || randomNfts.length < 2) {
-          console.error('❌ Failed to fetch NFTs for cross-collection matchup:', error);
+        
+        // Enhanced error logging
+        if (error) {
+          console.error('❌ Supabase error in cross-collection matchup:', {
+            error,
+            message: error?.message,
+            details: error?.details,
+            hint: error?.hint,
+            code: error?.code
+          });
+          return null;
+        }
+        
+        if (!randomNfts || randomNfts.length < 2) {
+          console.error('❌ Insufficient NFTs for cross-collection matchup:', {
+            nftCount: randomNfts?.length || 0,
+            activeCollections: activeCollectionNames,
+            collectionFilter,
+            hasCollectionFilter: !!collectionFilter
+          });
           return null;
         }
         
@@ -640,7 +678,20 @@ class VotingPreloader {
         vote_type: voteType
       };
     } catch (error) {
-      console.error(`❌ Error generating ${voteType} session:`, error);
+      console.error(`❌ Error generating ${voteType} session:`, {
+        error,
+        message: error?.message,
+        stack: error?.stack,
+        voteType,
+        collectionFilter,
+        activeCollectionsCount: activeCollectionNames?.length || 0
+      });
+      
+      // Try to provide more context about the failure
+      if (error?.message?.includes('relation') || error?.message?.includes('table')) {
+        console.error('🔍 Database schema issue detected - check if NFTs table exists and has correct columns');
+      }
+      
       return null;
     }
   }

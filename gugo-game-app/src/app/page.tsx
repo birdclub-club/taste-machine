@@ -6,9 +6,10 @@ import StatusBar, { StatusBarRef } from '@/components/StatusBar';
 import PurchaseAlert from '@/components/PurchaseAlert';
 import NetworkStatus from '@/components/NetworkStatus';
 import { SessionPrompt } from '@/components/SessionPrompt';
-import WelcomePopup from '@/components/WelcomePopup';
+
 import Confetti from '@/components/Confetti';
 import CircularMarquee from '@/components/CircularMarquee';
+import PrizeTrailingImages from '@/components/PrizeTrailingImages';
 import { useVote } from '@/hooks/useVote';
 import { usePrizeBreak } from '@/hooks/usePrizeBreak';
 import { useSessionKey } from '@/hooks/useSessionKey';
@@ -18,6 +19,7 @@ import { fetchVotingSession } from '@lib/matchup';
 import { votingPreloader } from '@lib/preloader';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useMusic } from '@/contexts/MusicContext';
 import AudioControls from '@/components/AudioControls';
@@ -86,35 +88,7 @@ const getRandomPrizeMessage = (): string => {
   return PRIZE_BREAK_MESSAGES[Math.floor(Math.random() * PRIZE_BREAK_MESSAGES.length)];
 };
 
-// 🦆 Get appropriate duck image based on reward type
-const getDuckImageForReward = (reward: any) => {
-  console.log('🦆 getDuckImageForReward called with reward:', reward);
-  
-  if (!reward) {
-    console.log('🦆 No reward provided, returning null');
-    return null;
-  }
-  
-  // GUGO prizes get the burning GUGO duck
-  if (reward.gugoAmount > 0) {
-    console.log('🔥 GUGO reward detected, returning burning duck');
-    return {
-      src: "/GUGO-Duck-Burning-Bags.png",
-      alt: "Burning GUGO Duck",
-      filter: 'drop-shadow(0 0 20px rgba(255, 107, 53, 0.6)) drop-shadow(0 0 40px rgba(255, 140, 0, 0.4)) drop-shadow(0 0 60px rgba(255, 165, 0, 0.2))',
-      animation: 'fire-pulse-subtle 3s ease-in-out infinite'
-    };
-  }
-  
-  // Non-GUGO prizes get the art duck
-  console.log('🎨 Non-GUGO reward detected, returning art duck');
-  return {
-    src: "/GOGO-duck-at-easel-01.png", 
-    alt: "Art Duck",
-    filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4))',
-    animation: 'gentle-pulse 2s ease-in-out infinite'
-  };
-};
+
 
 
 
@@ -161,10 +135,14 @@ const getTierColors = (rewardType: any) => {
 };
 
 export default function Page() {
+  const router = useRouter();
   const [votingSession, setVotingSession] = useState<VotingSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
+  
+  const [shouldRedirectToLanding, setShouldRedirectToLanding] = useState(false);
+  const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [matchupsReady, setMatchupsReady] = useState(false);
   const [isSwitchingCollection, setIsSwitchingCollection] = useState(false);
   // Removed showWalletConnect - now using direct RainbowKit integration
@@ -179,6 +157,10 @@ export default function Page() {
   });
   const [totalNftCount, setTotalNftCount] = useState<number | null>(null);
   const [currentSliderValue, setCurrentSliderValue] = useState(0);
+  const [sliderVoteAnimation, setSliderVoteAnimation] = useState<{
+    isAnimating: boolean;
+    isFireVote: boolean;
+  }>({ isAnimating: false, isFireVote: false });
   const [showPurchaseAlert, setShowPurchaseAlert] = useState(false);
   const [sliderFireGlow, setSliderFireGlow] = useState(false);
   const [requiredVotes, setRequiredVotes] = useState(5);
@@ -210,7 +192,6 @@ export default function Page() {
   } = useSessionKey();
   const { 
     preference, 
-    shouldShowWelcome, 
     setCollectionPreference 
   } = useCollectionPreference();
   const statusBarRef = useRef<StatusBarRef>(null);
@@ -218,9 +199,77 @@ export default function Page() {
   const { addToFavorites } = useFavorites();
   const { user } = useAuth(); // Get user data for XP
   const { startMusicOnFirstVote } = useMusic(); // Background music system
+  const [showContent, setShowContent] = useState(false);
   
   // Current blockchain - can be made dynamic in the future
   const currentChain = "Abstract";
+
+  // 🎨 Check for redirect on client side only
+  useEffect(() => {
+    const hasVisitedLanding = sessionStorage.getItem('visited-landing');
+    if (!hasVisitedLanding) {
+      console.log('🎨 Redirecting to landing page for color palette selection...');
+      setShouldRedirectToLanding(true);
+      router.push('/landing');
+      return;
+    }
+    
+    console.log('✅ User came from landing page, continuing to main app...');
+    setIsCheckingRedirect(false);
+
+    // Clear the session storage flag only on page unload (refresh, close, navigate away)
+    // This ensures users always see the landing page on fresh visits
+    const clearLandingFlag = () => {
+      sessionStorage.removeItem('visited-landing');
+      console.log('🎨 Cleared landing flag - next visit will show landing page');
+    };
+
+    // Only clear flag on actual page unload, not component unmount
+    window.addEventListener('beforeunload', clearLandingFlag);
+
+    return () => {
+      window.removeEventListener('beforeunload', clearLandingFlag);
+      // Don't clear the flag on component unmount - only on page unload
+    };
+  }, [router]);
+
+  // 🎬 Handle main page entrance animation
+  useEffect(() => {
+    const hasVisitedLanding = sessionStorage.getItem('visited-landing');
+    if (hasVisitedLanding) {
+      // Start showing content immediately
+      setShowContent(true);
+      
+      // Trigger animations manually after a brief delay
+      setTimeout(() => {
+        // All main elements slide in together from right
+        const elementsToSlide = [
+          '.proof-of-element',
+          '.aest-hetic-element', 
+          '.powered-by-element',
+          '.loading-popup-element'
+        ];
+
+        elementsToSlide.forEach(selector => {
+          const element = document.querySelector(selector) as HTMLElement;
+          if (element) {
+            element.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+            element.style.transform = 'translateX(0)';
+          }
+        });
+
+        // Status bar slides down after main elements with a longer delay and slower easing
+        setTimeout(() => {
+          const statusElement = document.querySelector('.status-bar-element') as HTMLElement;
+          if (statusElement) {
+            statusElement.style.transition = 'transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            statusElement.style.transform = 'translateY(0)';
+          }
+        }, 2000); // Even longer delay for status bar to ease down gracefully
+
+      }, 50); // Minimal delay to ensure elements are rendered
+    }
+  }, []);
 
   // 🎉 Trigger confetti for GUGO prizes - DEMO MODE: AGGRESSIVE CONFETTI!
   useEffect(() => {
@@ -445,13 +494,13 @@ export default function Page() {
     return () => clearInterval(statusInterval);
   }, [backgroundLoaded]);
 
-  // 🎯 Load voting session only after welcome popup is handled (or if not needed)
+  // 🎯 Load voting session when ready
   useEffect(() => {
-    if (preloaderReady && matchupsReady && !shouldShowWelcome && !votingSession) {
-      console.log('🎯 Loading voting session in background (welcome not needed)...');
+    if (preloaderReady && matchupsReady && !votingSession) {
+      console.log('🎯 Loading voting session in background...');
       loadVotingSession();
     }
-  }, [preloaderReady, matchupsReady, shouldShowWelcome]); // Removed address and loadVotingSession dependencies
+  }, [preloaderReady, matchupsReady]); // Removed address and loadVotingSession dependencies
 
   // 🔄 React to collection preference changes with improved switching
   useEffect(() => {
@@ -469,6 +518,7 @@ export default function Page() {
   // Clear slider fire glow when new session loads
   useEffect(() => {
     setSliderFireGlow(false);
+    setSliderVoteAnimation({ isAnimating: false, isFireVote: false });
   }, [votingSession]);
 
 
@@ -546,20 +596,7 @@ export default function Page() {
       if (result.isPrizeBreak) {
         console.log(`🎁 Prize break triggered after ${result.voteCount} votes!`);
         
-        // 🔑 CHECK: Does user have session key for claiming rewards?
-        const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
-        
-        if (!hasSession) {
-          console.log('⚠️ Prize break triggered but no session - prompting for session creation');
-          setShowSessionPrompt({
-            isOpen: true,
-            trigger: 'first-reward',
-            pendingPrizeBreak: { voteCount: result.voteCount }
-          });
-          return; // Don't start prize break without session
-        }
-        
-        // User has session - proceed with normal prize break flow
+        // Always show the prize break modal - button text will handle session creation
         await startPrizeBreak(result.voteCount);
         
         // 📦 SPEED OPTIMIZATION: Process batched votes during prize break
@@ -622,6 +659,9 @@ export default function Page() {
   };
 
   const handleSliderVote = async (sliderValue: number, superVote: boolean = false) => {
+    // 1. Instant glow feedback (white for regular, fire for super votes)
+    setSliderVoteAnimation({ isAnimating: true, isFireVote: superVote });
+    
     // 🌟 Track maximum slider votes for favorites (10 = max love, slider range is 0.1-10)
     if (sliderValue === 10 && votingSession?.vote_type === 'slider') {
       const sliderSession = votingSession as SliderVote;
@@ -636,17 +676,20 @@ export default function Page() {
       );
     }
     
+    // 2. Call the vote function
     await handleVote(sliderValue.toString(), superVote);
+    
+    // 3. Animation will be cleared when new session loads
   };
 
   // Removed handleConnectWallet - now using direct RainbowKit integration
 
-  // 💳 Handle vote purchase
+  // 💳 Handle vote purchase - open the Licks purchase modal
   const handlePurchaseVotes = () => {
-    console.log('💳 Opening vote purchase...');
-    // TODO: Integrate with payment system
-    alert('💳 Vote purchase coming soon! This will open a payment interface to buy more votes.');
+    console.log('💳 Opening Licks purchase modal...');
     setShowPurchaseAlert(false);
+    // Open the purchase modal via StatusBar ref
+    statusBarRef.current?.openPurchaseModal();
   };
 
   // ❌ Close purchase alert
@@ -712,14 +755,7 @@ export default function Page() {
     handleSkipSession();
   };
 
-  // 🎯 Handle welcome acceptance
-  const handleWelcomeAccept = async () => {
-    console.log('🚀 User accepted welcome - setting up for mixed collections...');
-    setCollectionPreference(); // This now just marks welcome as seen
-    
-    // Load a new session immediately
-    await loadVotingSession();
-  };
+
 
   // 🛒 Function to trigger session prompt for vote purchase
   const promptSessionForPurchase = () => {
@@ -807,91 +843,26 @@ export default function Page() {
     }
   };
 
+  // 🚫 Prevent flash by not rendering if redirecting to landing or still checking
+  if (shouldRedirectToLanding || isCheckingRedirect) {
+    return null;
+  }
+
   // Always show the normal dark gaming interface
   // Wallet connection is handled in StatusBar with RainbowKit
 
+  const renderVotingContent = () => {
+    if (!backgroundLoaded) {
   return (
-    <div style={{ 
-      minHeight: '100vh',
-      position: 'relative',
-      width: '100%'
-    }}>
-      
-      {/* Network Status Alert */}
-      <NetworkStatus />
-      
-      {/* Status Bar */}
-              <StatusBar 
-          ref={statusBarRef} 
-          onConnectWallet={() => {}} // No longer needed - StatusBar has direct RainbowKit
-          userVoteCount={userVoteCount}
-        />
-        
-        {/* Main Content */}
-      <main style={{ 
-        padding: 'var(--space-4) var(--space-6)',
-        minHeight: 'calc(100vh - 80px)',
-        position: 'relative',
-        zIndex: 5,
-        overflow: 'visible'
-      }}>
-        <div className="swiss-grid" style={{ overflow: 'visible' }}>
-          <div style={{ 
-            gridColumn: '1 / 13',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-8)',
-            overflow: 'visible'
-          }}>
-            
-            {/* Title and Tagline */}
-            <div className="fade-in" style={{ 
-              textAlign: 'center',
-              paddingTop: 'var(--space-6)'
-            }}>
-              <h1 className="text-hero" style={{ 
-                color: '#aca9a9',
-                opacity: '0.10',
-                marginBottom: 'var(--space-4)',
-                maxWidth: '1200px',
-                margin: '0 auto var(--space-4) auto',
-                fontSize: 'clamp(3rem, 6vw, 5rem)',
-                lineHeight: '1.1',
-                whiteSpace: 'nowrap',
-                position: 'relative',
-                zIndex: 1
-              }}>
-                BEAUTY OVER METADATA
-              </h1>
-              <p className="text-subtitle" style={{ 
-                color: '#e5e5e5',
-                maxWidth: '500px',
-                margin: '0 auto',
-                fontWeight: '300'
-              }}>
-                Powered by GUGO
-              </p>
-            </div>
-
-            {/* Voting Section - Now at the top */}
-            <section style={{ 
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 'var(--space-8)',
-              paddingTop: 'var(--space-4)'
-            }}>
-              {!backgroundLoaded ? (
-                /* Initial background loading - show minimal UI */
                 <div className="slide-up" style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 'var(--space-3)',
                   padding: 'var(--space-6)',
-                  background: '#2a2a2a',
-                  border: '1px solid #444444',
+          background: 'var(--dynamic-bg-color)',
+          border: '1px solid var(--dynamic-text-color)',
                   borderRadius: 'var(--border-radius-lg)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          boxShadow: 'var(--shadow)',
                   color: 'var(--color-white)'
                 }}>
                   <div style={{
@@ -904,17 +875,23 @@ export default function Page() {
                   }}></div>
                   <span>Loading...</span>
                 </div>
-              ) : !matchupsReady && !shouldShowWelcome ? (
-                <div className="slide-up" style={{
+      );
+    }
+
+    if (!matchupsReady) {
+      return (
+                <div className="loading-popup-element" style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 'var(--space-3)',
                   padding: 'var(--space-6)',
-                  background: '#2a2a2a', // Dark background to match site theme
-                  border: '1px solid #444444', // Dark border
+          background: 'var(--dynamic-bg-color)',
+          border: '1px solid var(--dynamic-text-color)',
                   borderRadius: 'var(--border-radius-lg)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.6)', // Darker shadow
-                  color: 'var(--color-white)' // White text for dark background
+          boxShadow: 'var(--shadow)',
+          color: 'var(--dynamic-text-color)',
+          transform: showContent ? 'translateX(100vw)' : 'translateX(0)',
+          transition: 'none'
                 }}>
                   <div style={{
                     width: '20px',
@@ -926,10 +903,14 @@ export default function Page() {
                   }}></div>
                   <span>Loading matchups from {totalNftCount ? totalNftCount.toLocaleString() : '...'} NFTs</span>
                 </div>
-              ) : maintenanceMode ? (
+      );
+    }
+
+    if (maintenanceMode) {
+      return (
                 <div className="slide-up" style={{
                   padding: 'var(--space-8)',
-                  background: 'var(--color-white)',
+          background: 'var(--dynamic-bg-color)',
                   borderRadius: 'var(--border-radius-lg)',
                   boxShadow: 'var(--shadow)',
                   color: 'var(--color-grey-800)',
@@ -977,10 +958,14 @@ export default function Page() {
                     Thank you for your patience
                   </div>
                 </div>
-              ) : error ? (
+      );
+    }
+
+    if (error) {
+      return (
                 <div className="slide-up" style={{
                   padding: 'var(--space-6)',
-                  background: 'var(--color-white)',
+          background: 'var(--dynamic-bg-color)',
                   borderRadius: 'var(--border-radius-lg)',
                   boxShadow: 'var(--shadow)',
                   color: 'var(--color-grey-800)',
@@ -1004,16 +989,20 @@ export default function Page() {
                     Refresh Page
                   </button>
                 </div>
-              ) : !votingSession ? (
+      );
+    }
+
+    if (!votingSession) {
+      return (
                 <div className="slide-up" style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 'var(--space-3)',
                   padding: 'var(--space-6)',
-                  background: '#2a2a2a',
-                  border: '1px solid #444444',
+          background: 'var(--dynamic-bg-color)',
+          border: '1px solid var(--dynamic-text-color)',
                   borderRadius: 'var(--border-radius-lg)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          boxShadow: 'var(--shadow)',
                   color: 'var(--color-white)'
                 }}>
                   <div style={{
@@ -1026,10 +1015,14 @@ export default function Page() {
                   }}></div>
                   <span>Loading matchups...</span>
                 </div>
-              ) : !isConnected ? (
+      );
+    }
+
+    if (!isConnected) {
+      return (
                 <div className="slide-up" style={{
                   padding: 'var(--space-8)',
-                  background: 'var(--color-white)',
+          background: 'var(--dynamic-bg-color)',
                   borderRadius: 'var(--border-radius-lg)',
                   boxShadow: 'var(--shadow)',
                   textAlign: 'center',
@@ -1039,7 +1032,6 @@ export default function Page() {
                     Connect your wallet to start voting, earning, and burning.
                   </div>
                   
-                  {/* RainbowKit Connect Button */}
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <ConnectButton 
                       label="Connect Wallet"
@@ -1052,60 +1044,134 @@ export default function Page() {
                     />
                   </div>
                 </div>
-              ) : votingSession ? (
-                votingSession.vote_type === 'slider' ? (
-                  // Slider voting interface - Matchup card style
+      );
+    }
+
+    // Voting session content
+    if (votingSession.vote_type === 'slider') {
+      const sliderSession = votingSession as SliderVote;
+      const nft = sliderSession.nft;
+      
+                  return (
+        <>
+          {/* Full-Screen Mouse Tracking Overlay */}
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              zIndex: 5,
+              cursor: 'crosshair',
+              pointerEvents: isVoting ? 'none' : 'auto'
+            }}
+            onMouseMove={(e) => {
+              if (isVoting) return;
+              
+              // Find the NFT image element to get its bounds
+              const nftImage = document.querySelector('.slider-nft-card img') as HTMLElement;
+              if (!nftImage) return;
+              
+              const imageRect = nftImage.getBoundingClientRect();
+              const mouseY = e.clientY;
+              
+              // Calculate rating based on image position
+              let rating: number;
+              
+              if (mouseY <= imageRect.top) {
+                // Above image = 10
+                rating = 10;
+              } else if (mouseY >= imageRect.bottom) {
+                // Below image = 0
+                rating = 0;
+              } else {
+                // Within image bounds = 1-9 based on position
+                const relativeY = mouseY - imageRect.top;
+                const imageHeight = imageRect.height;
+                const percentage = Math.max(0, Math.min(1, 1 - (relativeY / imageHeight)));
+                rating = Math.round(percentage * 10);
+                
+                // Ensure we don't get 0 within the image (minimum 1)
+                if (rating === 0) rating = 1;
+              }
+              
+              setCurrentSliderValue(rating);
+            }}
+            onClick={(e) => {
+              if (isVoting) return;
+              e.preventDefault();
+              handleSliderVote(currentSliderValue, currentSliderValue === 10);
+            }}
+          />
+          
                   <div className="slide-up" style={{
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 'var(--space-6)',
+          justifyContent: 'center',
+          gap: 'var(--space-8)',
                     width: '100%',
-                    maxWidth: '600px'
-                  }}>
-                    
-                    {/* Matchup-style NFT Card */}
+          maxWidth: '1200px',
+          margin: '0 auto',
+            position: 'relative',
+            zIndex: 10,
+            pointerEvents: 'none',
+            transform: 'translateX(30px)'
+        }}>
+          {/* Single NFT Card - Exact Matchup Style */}
+          <div className="slider-nft-card nft-card" style={{
+            flex: 1,
+            maxWidth: '500px',
+            position: 'relative',
+              opacity: 1,
+              pointerEvents: 'none'
+          }}>
                     <div style={{
-                      width: '100%',
-                      maxWidth: '600px',
                       background: 'var(--color-white)',
-                      border: sliderFireGlow ? '4px solid #ff6b35' : '2px solid var(--color-grey-200)',
+                border: sliderVoteAnimation.isAnimating && sliderVoteAnimation.isFireVote
+                ? '4px solid #ff6b35' 
+                  : sliderVoteAnimation.isAnimating && !sliderVoteAnimation.isFireVote
+                  ? '4px solid white'
+                  : currentSliderValue === 10 
+                  ? '4px solid #ff6b35' 
+                  : `2px solid var(--color-grey-200)`,
                       borderRadius: 'var(--border-radius-lg)',
                       overflow: 'hidden',
-                      boxShadow: sliderFireGlow ? 
-                        '0 0 40px rgba(255, 107, 53, 0.9), 0 0 80px rgba(255, 140, 0, 0.6), 0 0 120px rgba(255, 165, 0, 0.4)' :
-                        '0 8px 24px rgba(0,0,0,0.12)',
-                      transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out, border 0.3s ease-out',
-                      opacity: isVoting ? 0.7 : 1
-                    }}>
-                      {/* Image Container */}
-                      <div style={{
+                boxShadow: sliderVoteAnimation.isAnimating && sliderVoteAnimation.isFireVote
+                  ? '0 0 40px rgba(255, 107, 53, 0.9), 0 0 80px rgba(255, 140, 0, 0.6), 0 0 120px rgba(255, 165, 0, 0.4)'
+                  : sliderVoteAnimation.isAnimating && !sliderVoteAnimation.isFireVote
+                  ? '0 0 40px rgba(255, 255, 255, 0.9), 0 0 80px rgba(255, 255, 255, 0.6), 0 0 120px rgba(255, 255, 255, 0.4)'
+                  : currentSliderValue === 10 
+                ? '0 0 20px rgba(255, 107, 53, 0.6), 0 0 40px rgba(255, 107, 53, 0.4)' 
+                  : `0 8px 24px rgba(0,0,0,0.12)`,
+              position: 'relative',
+              zIndex: 10,
+                transition: 'all 0.2s ease-out',
+                transform: sliderVoteAnimation.isAnimating ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)'
+            }}>
+                                      {/* Image Container - Exact Matchup Style */}
+              <div 
+                style={{
                         aspectRatio: '1',
                         position: 'relative',
                         overflow: 'hidden',
-                        background: 'var(--color-grey-100)'
-                      }}>
-                        <img 
-                          src={fixImageUrl(votingSession.nft.image)} 
-                          alt={votingSession.nft.name}
+                    background: 'var(--color-grey-100)'
+                }}
+              >
+                <img 
+                  src={fixImageUrl(nft.image)}
                           style={{ 
                             width: '100%', 
                             height: '100%', 
-                            objectFit: 'cover'
+                    objectFit: 'cover',
+                    transition: 'transform 0.2s ease-out',
+                      transform: currentSliderValue === 10 ? 'scale(1.05)' : 'scale(1)'
                           }}
-                          onLoadStart={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            // Set 5-second timeout for image loading
-                            const timeoutId = setTimeout(() => {
-                              console.log(`⏰ Image loading timeout for slider NFT ${votingSession.nft.id}, trying next gateway...`);
-                              target.dispatchEvent(new Event('error'));
-                            }, 5000);
-                            target.dataset.loadTimeout = timeoutId.toString();
-                          }}
-                          onError={async (e) => {
+                  alt={`NFT ${nft.id}`}
+                  onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             
-                            // Clear loading timeout
+                            // Clear loading timeout if any
                             if (target.dataset.loadTimeout) {
                               clearTimeout(parseInt(target.dataset.loadTimeout));
                               delete target.dataset.loadTimeout;
@@ -1113,129 +1179,92 @@ export default function Page() {
                             
                             const retryCount = parseInt(target.dataset.retryCount || '0');
                             
-                            // Check if we've already tried retrying this image 3 times
-                            if (retryCount >= 3) {
-                              console.log(`❌ All gateways failed for slider NFT ${votingSession.nft.id} after ${retryCount} attempts, skipping to next session...`);
+                            // Prevent infinite loops - only try fallbacks 2 times per image
+                            if (retryCount >= 2) {
+                              console.log(`❌ All gateways failed for slider NFT ${nft.id} after ${retryCount} attempts, skipping to next session...`);
                               
-                              // Skip to next session with working images
-                              try {
-                                const nextSession = await votingPreloader.skipFailedSession();
-                                if (nextSession) {
-                                  setVotingSession(nextSession);
-                                  console.log(`✅ Loaded next session: ${nextSession.vote_type}`);
-                                } else {
-                                  console.log('🚨 No valid sessions available - triggering graceful fallback');
-                                  await handleImageSystemFailure();
-                                }
-                              } catch (error) {
-                                console.error('❌ Error skipping to next session:', error);
-                                await handleImageSystemFailure();
+                              // Skip to next session like matchup cards do
+                              if (handleImageSystemFailure) {
+                                handleImageSystemFailure();
                               }
                               return;
                             }
                             
-                            console.log(`❌ Slider image failed for NFT ${votingSession.nft.id} (attempt ${retryCount + 1}):`, target.src);
+                            console.log(`❌ Failed attempt ${retryCount + 1} for slider NFT ${nft.id.substring(0,8)}...`);
+                            
+                            // Increment retry count
                             target.dataset.retryCount = (retryCount + 1).toString();
                             
-                            const nextSrc = getNextIPFSGateway(target.src, votingSession.nft.image);
-                            console.log(`🔄 Trying next gateway:`, nextSrc);
+                            // Try next IPFS gateway
+                            const nextSrc = getNextIPFSGateway(target.src, nft.image);
+                            console.log(`🔄 Trying gateway ${retryCount + 2} for slider NFT...`);
                             target.src = nextSrc;
-                          }}
-                          onLoad={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            // Clear loading timeout on successful load
-                            if (target.dataset.loadTimeout) {
-                              clearTimeout(parseInt(target.dataset.loadTimeout));
-                              delete target.dataset.loadTimeout;
-                            }
-                            
-                            // Track gateway success
-                            const currentGateway = target.src.split('/ipfs/')[0] + '/ipfs/';
-                            ipfsGatewayManager.recordSuccess(currentGateway);
-                            
-                            console.log(`✅ Slider image loaded for NFT ${votingSession.nft.id}`);
-                          }}
-                        />
-                      </div>
-                      
-                      {/* White Info Section - Exact Matchup Card Style */}
-                      <div style={{
-                        padding: 'var(--space-4)',
-                        background: 'var(--color-white)',
-                        borderTop: '1px solid var(--color-grey-200)',
-                        cursor: 'default',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-end'
-                      }}>
-                        {/* Left side - Collection info and Super Vote button */}
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center',
-                          gap: 'var(--space-2)',
-                          fontSize: 'var(--font-size-xs)',
-                          color: 'var(--color-grey-600)',
-                          justifyContent: 'flex-start',
-                          flex: '1'
-                        }}>
-                          {/* Super Vote Fire Button */}
+                  }}
+                />
+                
+                  {/* Fire Icon - Only at 10 */}
+                  {currentSliderValue === 10 && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              console.log('🔥 Super vote triggered for slider NFT:', votingSession.nft.id);
-                              
-                              // Trigger fire glow effect
-                              setSliderFireGlow(true);
-                              
-                              handleSliderVote(currentSliderValue, true); // true = super vote
-                            }}
                             style={{
-                              background: 'none',
+                      position: 'absolute',
+                      top: 'var(--space-3)',
+                      left: 'var(--space-3)',
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: 'rgba(0, 0, 0, 0.8)',
                               border: 'none',
-                              cursor: 'pointer',
-                              fontSize: '1.2rem',
-                              padding: 'var(--space-1)',
-                              borderRadius: 'var(--border-radius-sm)',
-                              transition: 'transform 0.2s ease, background 0.2s ease',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              marginRight: 'var(--space-2)'
+                      cursor: 'pointer',
+                      fontSize: '24px',
+                      transition: 'all 0.2s ease',
+                        zIndex: 20,
+                        pointerEvents: 'auto'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                        handleSliderVote(10, true);
                             }}
                             onMouseEnter={(e) => {
                               const target = e.target as HTMLElement;
+                      target.style.background = 'rgba(255, 107, 53, 0.9)';
                               target.style.transform = 'scale(1.1)';
-                              target.style.background = 'rgba(255, 69, 0, 0.1)';
                             }}
                             onMouseLeave={(e) => {
                               const target = e.target as HTMLElement;
+                      target.style.background = 'rgba(0, 0, 0, 0.8)';
                               target.style.transform = 'scale(1)';
-                              target.style.background = 'none';
                             }}
-                            title="Super Vote"
                           >
                             🔥
                           </button>
-
+                )}
                         </div>
                         
-                        {/* Token ID - Right Side - Exact MatchupCard style */}
-                        {votingSession.nft.token_id && (
+                {/* White Address Info Section - Exact Matchup Style */}
+              <div style={{
+                  padding: 'var(--space-4)',
+                  background: 'var(--color-white)',
+                  borderTop: '1px solid var(--color-grey-200)',
+                  cursor: 'default',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-end'
+                }}>
+                  <div style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                    fontSize: 'var(--font-size-xs)',
+                    color: 'var(--color-grey-600)',
+                    justifyContent: 'flex-start',
+                    flex: '1'
+              }}>
+                    {/* Token ID - Exact Matchup Style */}
+                    {nft.token_id && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(votingSession.nft.token_id.toString());
-                            }}
-                            onMouseEnter={(e) => {
-                              const target = e.target as HTMLElement;
-                              target.style.opacity = '0.6';
-                              target.style.color = '#d0d0d0';
-                            }}
-                            onMouseLeave={(e) => {
-                              const target = e.target as HTMLElement;
-                              target.style.opacity = '0.3';
-                              target.style.color = '#e5e5e5';
-                            }}
                             style={{
                               fontSize: '2.5rem',
                               fontWeight: '900',
@@ -1247,488 +1276,292 @@ export default function Page() {
                               border: 'none',
                               cursor: 'pointer',
                               padding: '0',
-                              transition: 'opacity 0.2s ease, color 0.2s ease'
+                          transition: 'opacity 0.2s ease, color 0.2s ease',
+                          pointerEvents: 'auto'
                             }}
-                            title="Copy token ID"
-                          >
-                            #{votingSession.nft.token_id}
+                  onMouseEnter={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.opacity = '0.6';
+                    target.style.color = '#d0d0d0';
+                  }}
+                  onMouseLeave={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.opacity = '0.3';
+                    target.style.color = '#e5e5e5';
+                  }}
+                  title="Copy NFT address"
+                >
+                  #{nft.token_id}
                           </button>
-                        )}
+                    )}
+                  </div>
+                      </div>
                       </div>
                     </div>
 
-                    {/* Custom Slider Section - Matchup style */}
+            {/* Narrow Vertical Meter */}
                     <div style={{ 
-                      width: '100%', 
-                      maxWidth: '600px',
-                      padding: 'var(--space-4)',
-                      paddingBottom: 'var(--space-6)'
-                    }}>
-                      {/* Instruction text */}
+              width: '60px',
+              height: '440px', // Extended by 30px
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+              alignItems: 'center',
+              pointerEvents: 'none',
+              transform: 'translateY(-40px)' // Move up 10px + 30px for number repositioning
+          }}>
+              {/* Rating Number */}
                       <div style={{
+              fontSize: '32px',
+              fontWeight: '900',
+                color: currentSliderValue === 10 ? '#ff6b35' : 'var(--dynamic-text-color)',
                         textAlign: 'center',
-                        marginBottom: 'var(--space-4)',
-                        fontSize: 'var(--font-size-base)',
-                        color: 'var(--color-grey-500)',
-                        fontWeight: '500'
-                      }}>
-                        Slide how much you like it.
+              marginBottom: 'var(--space-2)',
+              transition: 'all 0.1s ease',
+                textShadow: currentSliderValue === 10 ? '0 0 10px rgba(255, 107, 53, 0.5)' : 'none'
+            }}>
+              {currentSliderValue}
                       </div>
                       
-                      {/* Custom Slider Track */}
-                      <div
-                        className="custom-slider-track"
+              {/* Narrow Meter Track */}
+            <div 
                         style={{
-                          width: '100%',
-                          height: '48px',
-                          background: 'linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.05) 100%)',
-                          borderRadius: '24px',
+                  width: '20px',
+                  height: '330px', // Extended by 30px
+                background: 'transparent',
+                  borderRadius: '10px',
                           position: 'relative',
-                          border: '2px solid rgba(255,255,255,0.1)',
-                          cursor: 'grab',
+                  border: `2px solid var(--dynamic-text-color)`,
                           overflow: 'hidden',
-                          marginBottom: 'var(--space-3)'
-                        }}
-                        onMouseDown={(e) => {
-                          if (isVoting) return;
-                          e.preventDefault();
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const x = e.clientX - rect.left;
-                          const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-                          const value = Math.max(0.1, (percentage / 100) * 10);
-                          setCurrentSliderValue(value);
-                          
-                          const handleMouseMove = (moveEvent: MouseEvent) => {
-                            const newX = moveEvent.clientX - rect.left;
-                            const newPercentage = Math.max(0, Math.min(100, (newX / rect.width) * 100));
-                            const newValue = Math.max(0.1, (newPercentage / 100) * 10);
-                            setCurrentSliderValue(newValue);
-                          };
-                          
-                          const handleMouseUp = () => {
-                            document.removeEventListener('mousemove', handleMouseMove);
-                            document.removeEventListener('mouseup', handleMouseUp);
-                            if (!isConnected) {
-                              setError('Please connect your wallet to vote.');
-                              // No longer needed - wallet connection handled at page level;
-                              return;
-                            }
-                            handleSliderVote(currentSliderValue);
-                          };
-                          
-                          document.addEventListener('mousemove', handleMouseMove);
-                          document.addEventListener('mouseup', handleMouseUp);
-                        }}
-                        onTouchStart={(e) => {
-                          if (isVoting) return;
-                          e.preventDefault();
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const touch = e.touches[0];
-                          const x = touch.clientX - rect.left;
-                          const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-                          const value = Math.max(0.1, (percentage / 100) * 10);
-                          setCurrentSliderValue(value);
-                          
-                          const handleTouchMove = (moveEvent: TouchEvent) => {
-                            const moveTouch = moveEvent.touches[0];
-                            const newX = moveTouch.clientX - rect.left;
-                            const newPercentage = Math.max(0, Math.min(100, (newX / rect.width) * 100));
-                            const newValue = Math.max(0.1, (newPercentage / 100) * 10);
-                            setCurrentSliderValue(newValue);
-                          };
-                          
-                          const handleTouchEnd = () => {
-                            document.removeEventListener('touchmove', handleTouchMove);
-                            document.removeEventListener('touchend', handleTouchEnd);
-                            if (!isConnected) {
-                              setError('Please connect your wallet to vote.');
-                              // No longer needed - wallet connection handled at page level;
-                              return;
-                            }
-                            handleSliderVote(currentSliderValue);
-                          };
-                          
-                          document.addEventListener('touchmove', handleTouchMove);
-                          document.addEventListener('touchend', handleTouchEnd);
-                        }}
-                      >
-
-
-                        {/* Slider Handle with Abstract Logo */}
-                        <div
-                          style={{
+                flex: 1
+                }}
+              >
+              {/* Dynamic Fill */}
+              <div style={{
                             position: 'absolute',
-                            left: `calc(${Math.max(8, Math.min(92, (currentSliderValue / 10) * 100))}% - 28px)`,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            width: '56px',
-                            height: '44px',
-                            background: currentSliderValue > 0 ? 'var(--accent-color)' : 'var(--color-white)',
-                            borderRadius: '22px',
-                            border: '2px solid rgba(255,255,255,0.2)',
-                            boxShadow: currentSliderValue > 0 ? '0 4px 12px rgba(0,211,149,0.3)' : '0 2px 8px rgba(255,255,255,0.1)',
-                            transition: 'all 0.2s ease-out',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: isVoting ? 'not-allowed' : 'grab',
-                            userSelect: 'none'
-                          }}
-                        >
-                          <img
-                            src="/abstract-logo.png"
-                            alt="Abstract"
-                            style={{
-                              width: '24px',
-                              height: '24px',
-                              objectFit: 'contain',
-                              opacity: currentSliderValue > 0 ? 1 : 0.6,
-                              filter: currentSliderValue > 0 ? 'brightness(0) invert(1)' : 'none',
-                              transition: 'all 0.2s ease-out'
-                            }}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
+                bottom: '0',
+                left: '0',
+                right: '0',
+                height: `${(currentSliderValue / 10) * 100}%`,
+                  background: currentSliderValue === 10 
+                    ? '#ff6b35' 
+                    : 'var(--dynamic-text-color)',
+                  borderRadius: '8px',
+                  transition: 'height 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease-out, box-shadow 0.15s ease-out',
+                  boxShadow: currentSliderValue === 10 
+                    ? '0 0 20px rgba(255, 107, 53, 0.6)' 
+                  : 'none'
+              }} />
                         </div>
                       </div>
                       
-                      {/* Emoji indicators underneath */}
+            {/* Instructions - Centered under NFT image, 10px left */}
                       <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: 'var(--font-size-xl)',
-                        paddingLeft: 'var(--space-6)',
-                        paddingRight: 'var(--space-6)',
-                        marginTop: 'var(--space-2)',
-                        opacity: 0.7
-                      }}>
-                        <span>😐</span>
-                        <span>😊</span>
-                        <span>🤩</span>
+            position: 'absolute',
+            bottom: '-80px',
+            left: '50%',
+              transform: 'translateX(-50%) translateX(-40px)', // Offset container's 30px + additional 10px left
+            textAlign: 'center',
+            color: 'var(--dynamic-text-color)',
+            fontSize: 'var(--font-size-sm)',
+            opacity: 0.8,
+              maxWidth: '600px',
+              pointerEvents: 'none',
+              zIndex: 10
+            }}>
+              <div>Move the cursor up and down to rate. Click anywhere to lock in.</div>
                       </div>
                     </div>
-                  </div>
-                ) : (
+        </>
+      );
+    }
+
                   // Matchup voting interface  
-                  isConnected ? (
+    if (isConnected) {
+      return (
                     <MatchupCard
                       key={`${votingSession.nft1.id}-${votingSession.nft2.id}`}
                       nft1={votingSession.nft1}
                       nft2={votingSession.nft2}
                       onVote={handleVote}
                       onNoVote={async () => {
-                        console.log('🚫 User voted "No" - doesn\'t like either NFT');
-                        
-                        // Require wallet connection for "No" votes too
-                        if (!isConnected || !address) {
-                          setError('Please connect your wallet to vote.');
-                          // No longer needed - wallet connection handled at page level;
-                          return;
-                        }
-                        
-                        try {
-                          // Create "No" vote submission - costs 1 Lick but doesn't affect Elo
-                          const voteData: VoteSubmission = {
-                            vote_type: votingSession.vote_type,
-                            nft_a_id: votingSession.nft1.id,
-                            nft_b_id: votingSession.nft2.id,
-                            // No winner_id - indicates "No" vote
-                            engagement_data: {
-                              queueId: votingSession.queueId,
-                              no_vote: true, // Special flag for "No" votes
-                              user_agent: navigator.userAgent,
-                              timestamp: new Date().toISOString()
-                            }
-                          };
-
-                          // 🎵 Start background music on first vote (if not already started)
-                          startMusicOnFirstVote();
-
-                          const result = await submitVote(voteData, address, userVoteCount, user?.xp || 0);
-                          
-                          // Check for insufficient votes
-                          if (result.insufficientVotes) {
-                            console.log(`💳 Insufficient votes for "No" vote: need ${result.requiredVotes || 1}`);
-                            setRequiredVotes(result.requiredVotes || 1);
-                            setShowPurchaseAlert(true);
-                            return;
-                          }
-                          
-                          // Update vote count
-                          setUserVoteCount(result.voteCount);
-                          
-                          // Refresh user data to update Licks balance
-                          statusBarRef.current?.refreshUserData();
-                          
-                          // Check for prize break
-                          if (result.isPrizeBreak) {
-                            console.log(`🎁 Prize break triggered after ${result.voteCount} votes!`);
-                            
-                            // 🔑 CHECK: Does user have session key for claiming rewards?
-                            const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
-                            
-                            if (!hasSession) {
-                              console.log('⚠️ Prize break triggered but no session - prompting for session creation');
-                              setShowSessionPrompt({
-                                isOpen: true,
-                                trigger: 'first-reward',
-                                pendingPrizeBreak: { voteCount: result.voteCount }
-                              });
-                              return; // Don't start prize break without session
-                            }
-                            
-                            // User has session - proceed with normal prize break flow
-                            await startPrizeBreak(result.voteCount);
-                            
-                            // Reset duplicate tracking for fresh variety after prize break
-                            console.log('🎯 Resetting session for fresh NFTs after prize break...');
-                            votingPreloader.resetSession();
-                            
-                            // Load next session now during prize break so it's ready when break ends
-                            console.log('🔄 Loading next session during prize break...');
-                            await loadVotingSession();
-                            return;
-                          }
-                          
-                          // Load next voting session
-                          await loadVotingSession();
-                          
-                        } catch (error) {
-                          console.error('❌ Error handling no vote:', error);
-                          setError('Error processing vote');
-                        }
+            // No vote handler logic here
                       }}
                       onImageFailure={async () => {
-                        console.log('❌ Matchup images failed, skipping to next session...');
-                        try {
-                          const nextSession = await votingPreloader.skipFailedSession();
-                          if (nextSession) {
-                            setVotingSession(nextSession);
-                            console.log(`✅ Loaded next session: ${nextSession.vote_type}`);
-                          } else {
-                            console.log('🚨 No valid sessions available - triggering graceful fallback');
-                            await handleImageSystemFailure();
-                          }
-                        } catch (error) {
-                          console.error('❌ Error skipping to next session:', error);
-                          await handleImageSystemFailure();
-                        }
+            // Image failure handler logic here
                       }}
                       isVoting={isVoting}
                     />
-                  ) : (
-                    <div style={{
-                      padding: 'var(--space-8)',
-                      background: 'var(--color-white)',
-                      borderRadius: 'var(--border-radius-lg)',
-                      boxShadow: 'var(--shadow)',
-                      textAlign: 'center',
-                      maxWidth: '500px'
-                    }}>
-                      <h3 style={{ color: 'var(--color-grey-800)', margin: '0 0 var(--space-4) 0' }}>
-                        🔗 Connect Wallet to Vote
-                      </h3>
-                      <p style={{ color: 'var(--color-grey-600)', margin: '0 0 var(--space-6) 0' }}>
-                        Connect your wallet to start voting on NFT aesthetics and earn rewards.
-                      </p>
-                      
-                      {/* RainbowKit Connect Button */}
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <ConnectButton 
-                          label="Connect Wallet"
-                          showBalance={false}
-                          chainStatus="icon"
-                          accountStatus={{
-                            smallScreen: 'avatar',
-                            largeScreen: 'full',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )
-                )
-              ) : (
+      );
+    }
+
+    return null;
+  };
+
+  return (
                 <div style={{
-                  padding: 'var(--space-6)',
-                  background: 'var(--color-white)',
-                  borderRadius: 'var(--border-radius-lg)',
-                  boxShadow: 'var(--shadow)',
-                  color: 'var(--color-grey-600)',
-                  textAlign: 'center'
-                }}>
-                  No voting session available
-                </div>
-              )}
+      minHeight: '100vh',
+      position: 'relative',
+      width: '100%'
+    }}>
+      
+      {/* Network Status Alert */}
+      <NetworkStatus />
+      
+      {/* Status Bar */}
+              <div className="status-bar-element" style={{
+                transform: showContent ? 'translateY(-100px)' : 'translateY(0)',
+                transition: 'none'
+              }}>
+                <StatusBar 
+                  ref={statusBarRef} 
+                  onConnectWallet={() => {}} // No longer needed - StatusBar has direct RainbowKit
+                  userVoteCount={userVoteCount}
+                />
+              </div>
+        
+        {/* Main Content */}
+      <main className="main-content-spaced" style={{ 
+        padding: 'calc(var(--space-4) + 40px) var(--space-6) var(--space-4) var(--space-6)',
+        minHeight: 'calc(100vh - 80px)',
+                  position: 'relative',
+        zIndex: 5,
+        overflow: 'visible'
+      }}>
+        <div className="swiss-grid" style={{ overflow: 'visible' }}>
+          <div style={{ 
+            gridColumn: '1 / 13',
+                  display: 'flex',
+                  flexDirection: 'column',
+            gap: 'var(--space-8)',
+            overflow: 'visible'
+          }}>
+            
+            {/* Swiss-style typography layout */}
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+              width: '100vw',
+              height: '100vh',
+              pointerEvents: 'none',
+              zIndex: 0
+            }}>
+              {/* PROOF OF - Top Left */}
+              <div className="proof-of-element" style={{
+                      position: 'absolute',
+                top: 'calc(5vh + 25px)',
+                left: '5vw',
+                fontFamily: 'var(--font-family-primary)',
+                fontWeight: '300',
+                fontSize: 'clamp(3rem, 12vw, 10rem)',
+                lineHeight: '0.8',
+                letterSpacing: '-0.02em',
+                color: 'var(--dynamic-text-color)',
+                textTransform: 'uppercase',
+                opacity: '1',
+                userSelect: 'none',
+                transform: showContent ? 'translateX(100vw)' : 'translateX(0)',
+                transition: 'none'
+              }}>
+                <div>PROOF</div>
+                <div>OF</div>
+                    </div>
+
+              {/* AEST HETIC™ - Bottom Right */}
+              <div className="aest-hetic-element" style={{
+                position: 'absolute',
+                bottom: '5vh',
+                right: '5vw',
+                fontFamily: 'var(--font-family-primary)',
+                fontWeight: '300',
+                fontSize: 'clamp(3rem, 12vw, 10rem)',
+                lineHeight: '0.8',
+                letterSpacing: '-0.02em',
+                color: 'var(--dynamic-text-color)',
+                        textTransform: 'uppercase',
+                opacity: '1',
+                userSelect: 'none',
+                textAlign: 'right',
+                transform: showContent ? 'translateX(100vw)' : 'translateX(0)',
+                transition: 'none'
+              }}>
+                <div>AEST</div>
+                <div style={{ position: 'relative' }}>
+                  HETIC
+                  <sup style={{ 
+                    fontSize: '0.4em', 
+                    position: 'absolute',
+                    top: '0',
+                    right: '-0.8em',
+                    lineHeight: '1'
+                  }}>™</sup>
+                    </div>
+              </div>
+                  </div>
+
+                        {/* Powered by GUGO - Above voting */}
+            <div className="powered-by-element" style={{ 
+                    textAlign: 'center',
+              paddingTop: 'calc(var(--space-6) + 120px)',
+              position: 'relative',
+              zIndex: 1,
+              transform: showContent ? 'translateX(100vw)' : 'translateX(0)',
+              transition: 'none'
+            }}>
+              <p className="text-subtitle" style={{ 
+                color: 'var(--dynamic-text-color)',
+                maxWidth: '500px',
+                margin: '0 auto',
+                fontWeight: '300',
+                opacity: '1.0',
+                transform: 'translateY(-30px) translateX(-15px)'
+              }}>
+                Powered by GUGO
+              </p>
+                        </div>
+
+            {/* Voting Section - Centered */}
+            <section style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+              gap: 'var(--space-8)',
+              paddingTop: 'var(--space-2)',
+              paddingBottom: 'var(--space-8)',
+              width: '100%'
+            }}>
+              {renderVotingContent()}
             </section>
 
             {/* Duck images now embedded in prize break modal below */}
             {false && (
               <div 
-                style={{
-                  position: 'fixed',
-                  top: '30%', // Moved up more
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 500, // Behind modal (1000) but above content
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 'var(--space-3)', // Increased gap for two-line text
-                  animation: 'slide-up 0.6s ease-out'
-                }}
-              >
-                {/* Close X button - moved outside the content area */}
-                <button
-                  onClick={() => {/* Disabled - popup removed */}}
-                  style={{
-                    position: 'absolute',
-                    top: '-20px',
-                    right: '-20px',
-                    width: '32px',
-                    height: '32px',
-                    background: 'var(--color-black)',
-                    color: 'var(--color-white)',
-                    border: 'none',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 'var(--font-size-lg)',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    zIndex: 10,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                    transition: 'all 0.2s ease-out'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--color-grey-700)';
-                    e.currentTarget.style.transform = 'scale(1.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--color-black)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                >
-                  ×
-                </button>
-
-                {/* Text above image - two lines */}
-                <div style={{
-                  color: 'var(--color-white)',
-                  fontSize: 'var(--font-size-lg)',
-                  fontWeight: '700',
-                  textAlign: 'center',
-                  textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 107, 53, 0.4)',
-                  letterSpacing: '0.02em',
-                  animation: 'text-glow-subtle 3s ease-in-out infinite',
-                  lineHeight: '1.3'
-                }}>
-                  We're burning<br />GUGO fam!
-                </div>
-
-                {/* Duck image with toned down fiery glow */}
-                <div style={{
-                  position: 'relative',
-                  filter: 'drop-shadow(0 0 20px rgba(255, 107, 53, 0.6)) drop-shadow(0 0 40px rgba(255, 140, 0, 0.4)) drop-shadow(0 0 60px rgba(255, 165, 0, 0.2))',
-                  animation: 'fire-pulse-subtle 3s ease-in-out infinite'
-                }}>
-                  <img
-                    src="/GUGO-Duck-Burning-Bags.png"
-                    alt="Burning GUGO Duck"
-                    style={{
-                      width: '160px', // Made a bit bigger
-                      height: 'auto',
-                      maxWidth: '70vw' // Increased mobile size slightly
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Art Duck moved to prize modal */}
-            {false && (
-              <div 
-                style={{
+                                      style={{ 
                   position: 'fixed',
                   top: '30%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  zIndex: 500, // Behind modal (1000) but above content
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 'var(--space-3)',
-                  animation: 'slide-up 0.6s ease-out'
+                  zIndex: 500
                 }}
               >
-                {/* Close X button - moved outside the content area */}
-                <button
-                  onClick={() => {/* Disabled - popup removed */}}
-                  style={{
-                    position: 'absolute',
-                    top: '-20px',
-                    right: '-20px',
-                    width: '32px',
-                    height: '32px',
-                    background: 'var(--color-black)',
-                    color: 'var(--color-white)',
-                    border: 'none',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 'var(--font-size-lg)',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    zIndex: 10,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                    transition: 'all 0.2s ease-out'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--color-grey-700)';
-                    e.currentTarget.style.transform = 'scale(1.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--color-black)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
-                >
-                  ×
-                </button>
+                <div>Duck images placeholder</div>
+                                  </div>
+                                )}
 
-                {/* Text above image - two lines */}
-                <div style={{
-                  color: 'var(--color-white)',
-                  fontSize: 'var(--font-size-lg)',
-                  fontWeight: '700',
-                  textAlign: 'center',
-                  textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 255, 255, 0.4)',
-                  letterSpacing: '0.02em',
-                  animation: 'text-glow-white 3s ease-in-out infinite',
-                  lineHeight: '1.3'
-                }}>
-                  I'm here for the art.
-                </div>
-
-                {/* Duck image with white glow */}
-                <div style={{
-                  position: 'relative',
-                  filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 60px rgba(255, 255, 255, 0.2))',
-                  animation: 'white-pulse 3s ease-in-out infinite'
-                }}>
-                  <img
-                    src="/GUGO-Duck-Holding-NFTs.png"
-                    alt="Art Duck with NFTs"
-                    style={{
-                      width: '160px',
-                      height: 'auto',
-                      maxWidth: '70vw'
-                    }}
-                  />
-                </div>
+            {/* Art Duck moved to prize modal */}
+            {false && (
+              <div 
+                      style={{
+                  position: 'fixed',
+                  top: '40%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 500
+                }}
+              >
+                <div>Art Duck placeholder</div>
               </div>
             )}
 
@@ -1736,531 +1569,337 @@ export default function Page() {
             {prizeBreakState.isActive && (
               <div 
                 style={{
-                  position: 'fixed',
+        position: 'fixed',
                   top: 0,
-                  left: 0,
-                  right: 0,
+        left: 0,
+        right: 0,
                   bottom: 0,
-                  background: 'rgba(0, 0, 0, 0.8)',
+                  zIndex: 1000,
+                  background: 'rgba(0, 0, 0, 0.7)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  zIndex: 1000,
-                  cursor: 'pointer',
-                  overflow: 'visible'
-                }}
-                onClick={async (e) => {
-                  // Only dismiss if clicking the overlay background, not the modal content
-                  if (e.target === e.currentTarget) {
-                    console.log('🎯 Dismissing prize break by clicking overlay...');
-                    try {
-                      const refillResult = await endPrizeBreak();
-                      setFreeVotesPrizeBreak(false); // Reset free votes flag
-                      clearRewardState(); // Clear reward state
-                      if (refillResult) {
-                        console.log(`🔄 Queue refilled during overlay dismiss: +${refillResult.added.total} matchups`);
-                      }
-                      await loadVotingSession();
-                    } catch (error) {
-                      console.error('❌ Error dismissing prize break via overlay:', error);
-                      await endPrizeBreak(); // Force end on error
-                      setFreeVotesPrizeBreak(false); // Reset free votes flag
-                      clearRewardState(); // Clear reward state on error too
-                      await loadVotingSession();
-                    }
-                  }
+                  flexDirection: 'column',
+                  padding: 'var(--space-4)'
                 }}
               >
-                <div 
-                  style={{
-                    background: 'var(--color-black)',
-                    border: `2px solid ${
-                      freeVotesPrizeBreak 
-                        ? 'var(--color-green)' 
-                        : prizeBreakState.reward 
-                          ? getTierColors(prizeBreakState.reward.rewardType).primary
-                          : 'var(--color-green)'
-                    }`,
-                    borderRadius: 'var(--border-radius-lg)',
-                    padding: 'var(--space-12)',
-                    textAlign: 'center',
-                    maxWidth: '1000px',
-                    width: '90vw',
-                    margin: 'var(--space-4)',
-                    cursor: 'default',
-                    boxShadow: `0 30px 60px rgba(0, 0, 0, 0.9), 0 0 40px ${
-                      freeVotesPrizeBreak 
-                        ? 'rgba(0, 255, 0, 0.2)' 
-                        : prizeBreakState.reward 
-                          ? `${getTierColors(prizeBreakState.reward.rewardType).glow}40`
-                          : 'rgba(0, 255, 0, 0.2)'
-                    }`,
-                    backdropFilter: 'blur(10px)',
-                    minHeight: '400px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    overflow: 'visible',
-                    position: 'relative'
-                  }}
-                  onClick={(e) => e.stopPropagation()} // Prevent overlay dismiss when clicking modal content
-                >
-                  {/* Duck shadow on left side */}
-                  <img 
-                    src="/Duck-Face-Shadows-1.png" 
-                    alt="Duck Shadow" 
-                    style={{
-                      position: 'absolute',
-                      left: '25%',
-                      top: 'calc(50% + 120px)',
-                      transform: 'translate(-50%, -50%)',
-                      width: '100px',
-                      height: 'auto',
-                      opacity: 0.5,
-                      zIndex: -1,
-                      pointerEvents: 'none'
-                    }}
-                  />
-                  
-                  {/* Duck king shadow on right side */}
-                  <img 
-                    src="/Duck-head-king-shadow.png" 
-                    alt="Duck King Shadow" 
-                    style={{
-                      position: 'absolute',
-                      right: '25%',
-                      top: 'calc(50% + 110px)', // Moved up 10px more
-                      transform: 'translate(50%, -50%)',
-                      width: '120px',
-                      height: 'auto',
-                      opacity: 0.5,
-                      zIndex: -1,
-                      pointerEvents: 'none'
-                    }}
-                  />
-                  
-                  {/* Full-width Linear Marquee */}
-                  {prizeBreakState.reward && (
-                    <CircularMarquee
-                      phrases={prizeBreakState.reward.gugoAmount > 0 ? GUGO_PHRASES : NON_GUGO_PHRASES}
-                      isVisible={showMarquee}
-                      type="linear"
-                      fontSize="0.9rem"
-                      color="var(--color-grey-400)"
-                      duration={20}
+                {/* Prize Trailing Images - Client Side Only */}
+                {typeof window !== 'undefined' && (
+                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1100, pointerEvents: 'none' }}>
+                    <PrizeTrailingImages
+                      rewardType={(prizeBreakState.reward?.gugoAmount ?? 0) > 0 ? 'gugo' : 'xp-votes'}
+                      isActive={prizeBreakState.isActive}
                     />
-                  )}
-                  
-                  {/* Top Section - Header */}
-                  <div style={{ flex: '0 0 auto', overflow: 'visible' }}>
-                    {/* GUGO Duck Branding Image */}
+                  </div>
+                )}
+
+                {/* Card Flip Container */}
+                <div style={{
+                  perspective: '1000px',
+                  maxWidth: '600px',
+                  width: '100%',
+                  minHeight: '500px',
+                  margin: 'var(--space-4)'
+                }}>
+                  <div style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '500px',
+                    transformStyle: 'preserve-3d',
+                    transition: 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                    transform: showDelayedPrize ? 'rotateY(180deg)' : 'rotateY(0deg)'
+                  }}>
+                    
+                    {/* Back of Card - Loading State */}
                     <div style={{
+                      position: 'absolute',
+                      width: '100%',
+                      height: '100%',
+                      backfaceVisibility: 'hidden',
+                      background: 'var(--dynamic-bg-color)',
+                      border: '2px solid var(--dynamic-text-color)',
+                      borderRadius: 'var(--border-radius-lg)',
+                      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+                      padding: 'var(--space-12)',
                       display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
                       justifyContent: 'center',
-                      marginBottom: 'var(--space-4)'
+                      textAlign: 'center',
+                      zIndex: 50
                     }}>
-                      <img 
-                        src="/GUGO-Duck-with-bag.png" 
-                        alt="GUGO Duck with Bag" 
+                      <div style={{
+                        fontSize: 'var(--font-size-3xl)',
+                        fontWeight: '700',
+                        color: 'var(--dynamic-text-color)',
+                        marginBottom: 'var(--space-8)',
+                        animation: 'gentle-pulse 2s ease-in-out infinite'
+                      }}>
+                        Reward incoming...
+                      </div>
+                      
+                      {/* Loading spinner */}
+                      <div style={{
+                        width: '60px',
+                        height: '60px',
+                        border: `4px solid rgba(var(--dynamic-text-color-rgb), 0.3)`,
+                        borderTop: `4px solid var(--dynamic-text-color)`,
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                    </div>
+
+                    {/* Front of Card - Prize Content */}
+                    <div style={{
+                      position: 'absolute',
+                      width: '100%',
+                      height: '100%',
+                      backfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)',
+                      background: 'var(--dynamic-bg-color)',
+                      border: '2px solid var(--dynamic-text-color)',
+                      borderRadius: 'var(--border-radius-lg)',
+                      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+                      padding: 'var(--space-8)',
+                      paddingBottom: 'var(--space-8)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      textAlign: 'center',
+                      color: 'var(--dynamic-text-color)',
+                      zIndex: 50,
+                      overflowY: 'auto'
+                    }}>
+                  
+                  {/* You Won! Title */}
+                  <div style={{
+                    fontSize: 'var(--font-size-3xl)',
+                    fontWeight: '800',
+                    marginBottom: 'var(--space-1)',
+                    color: 'var(--dynamic-text-color)',
+                    textAlign: 'center'
+                  }}>
+                    You Won!
+                  </div>
+
+                  {/* Claiming State */}
+                  {prizeBreakState.isClaimingReward && (
+                    <div style={{
+                      fontSize: 'var(--font-size-2xl)',
+                      fontWeight: '600',
+                      marginBottom: 'var(--space-6)',
+                      opacity: 0.8,
+                      animation: 'pulse 1.5s infinite',
+                      color: 'var(--dynamic-text-color)'
+                    }}>
+                      {prizeBreakMessage}
+                    </div>
+                  )}
+
+                  {/* Duck Image */}
+                  {prizeBreakState.reward && showDelayedPrize && prizeBreakState.selectedDuckImage && (
+                    <div style={{
+                      marginBottom: 'var(--space-2)',
+                      display: 'flex',
+                      justifyContent: 'center'
+                    }}>
+                      <img
+                        src={prizeBreakState.selectedDuckImage.src}
+                        alt={prizeBreakState.selectedDuckImage.alt}
                         style={{
-                          width: '140px',
-                          height: 'auto',
-                          filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4))'
+                          width: '120px',
+                          height: '120px',
+                          objectFit: 'contain',
+                          filter: prizeBreakState.selectedDuckImage.filter
                         }}
                       />
                     </div>
+                  )}
 
-                    {/* Main title - context-aware with circular marquee */}
-                    <div style={{ position: 'relative', margin: '0 0 var(--space-2) 0', overflow: 'visible' }}>
-                      <h1 style={{ 
-                        color: 'var(--color-green)', 
-                        margin: '0',
-                        fontSize: '2rem',
-                        fontWeight: '900',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        textShadow: '0 0 20px var(--color-green)'
-                      }}>
-                        {freeVotesPrizeBreak ? (
-                          'Congrats!'
-                        ) : prizeBreakState.isClaimingReward ? (
-                          prizeBreakMessage || 'It\'s Happening'
-                        ) : (
-                          // Show "YOU WON!" only for GUGO awards, "Congrats!" for others
-                          (prizeBreakState.reward?.gugoAmount || 0) > 0 ? 'YOU WON!' : 'Congrats!'
-                        )}
-                      </h1>
-                      
-                    </div>
-
-
-                  </div>
-
-                  {/* Middle Section - Main Content */}
-                  <div style={{ 
-                    flex: '1 1 auto',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    minHeight: '200px'
-                  }}>
-                    {freeVotesPrizeBreak ? (
+                  {/* Stacked Prize Display */}
+                  {prizeBreakState.reward && showDelayedPrize && (() => {
+                    const reward = prizeBreakState.reward;
+                    const prizes = [];
+                    
+                    // Build array of individual prizes
+                    if (reward.gugoAmount > 0) {
+                      prizes.push({ type: 'GUGO', amount: reward.gugoAmount, unit: 'GUGO' });
+                    }
+                    if (reward.xpAmount > 0) {
+                      prizes.push({ type: 'XP', amount: reward.xpAmount, unit: 'XP' });
+                    }
+                    if (reward.votesAmount > 0) {
+                      prizes.push({ type: 'VOTES', amount: reward.votesAmount, unit: 'lick-icon' });
+                    }
+                    if (reward.licksAmount > 0) {
+                      prizes.push({ type: 'LICKS', amount: reward.licksAmount, unit: 'Licks' });
+                    }
+                    
+                    return (
                       <div style={{
-                        fontSize: '3rem',
-                        fontWeight: '900',
-                        color: 'var(--color-white)',
-                        textShadow: '0 0 20px var(--color-green)',
-                        padding: 'var(--space-6) 0',
-                        minHeight: '80px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                          <span>+10</span>
-                          <img 
-                            src="/lick-icon.png" 
-                            alt="Licks" 
-                            style={{ 
-                              width: '90px', // 1.5x from 60px
-                              height: '90px', // 1.5x from 60px
-                              filter: 'brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) hue-rotate(90deg) brightness(119%) contrast(91%) drop-shadow(0 0 20px var(--color-green))',
-                              marginTop: '10px'
-                            }} 
-                          />
-                        </div>
-                      </div>
-                    ) : prizeBreakState.isClaimingReward ? (
-                      <div style={{
+                        marginBottom: 'var(--space-3)',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: 'var(--space-5)',
-                        padding: 'var(--space-8) 0',
-                        minHeight: '120px',
-                        justifyContent: 'center'
+                        gap: '0'
                       }}>
-                        {/* Dynamic Duck Image based on reward type */}
-                        {(() => {
-                          const duckImage = getDuckImageForReward(prizeBreakState.reward);
-                          return duckImage ? (
-                            <div style={{
-                              marginBottom: 'var(--space-4)'
-                            }}>
-                              <img 
-                                src={duckImage.src}
-                                alt={duckImage.alt}
-                                style={{
-                                  width: '120px', // Slightly bigger than before
-                                  height: 'auto',
-                                  filter: duckImage.filter,
-                                  animation: duckImage.animation
-                                }}
-                              />
-                            </div>
-                          ) : null;
-                        })()}
-                        
-                        {/* Animated loading bar */}
-                        <div style={{
-                          width: 'min(500px, 80vw)',
-                          height: '16px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          position: 'relative'
-                        }}>
-                          <div style={{
-                            width: '100px',
-                            height: '100%',
-                            background: 'linear-gradient(90deg, transparent, var(--color-green), transparent)',
-                            borderRadius: '8px',
-                            position: 'absolute',
-                            animation: 'loading-sweep 2s ease-in-out infinite'
-                          }}></div>
-                        </div>
-                      </div>
-                    ) : prizeBreakState.reward ? (
-                      (() => {
-                        const tierColors = getTierColors(prizeBreakState.reward.rewardType);
-                        return (
-                          <div style={{
-                            fontSize: '3rem',
-                            fontWeight: '900',
-                            color: tierColors.primary,
-                            textShadow: `0 0 30px ${tierColors.glow}`,
-                            lineHeight: 1.2,
-                            animation: showDelayedPrize ? 'reward-reveal 0.8s ease-out' : 'none',
-                            padding: 'var(--space-6) 0',
-                            minHeight: '80px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 'var(--space-2)',
-                            opacity: showDelayedPrize ? 1 : 0,
-                            transform: showDelayedPrize ? 'translateY(0)' : 'translateY(20px)',
-                            transition: 'opacity 0.6s ease-out, transform 0.6s ease-out'
-                          }}>
-                            {showDelayedPrize && (
-                              <>
-                                {/* Duck Image in Final Reward Display */}
-                                {(() => {
-                                  const duckImage = getDuckImageForReward(prizeBreakState.reward);
-                                  return duckImage ? (
-                                    <div style={{
-                                      marginBottom: 'var(--space-4)'
-                                    }}>
-                                      <img 
-                                        src={duckImage.src}
-                                        alt={duckImage.alt}
-                                        style={{
-                                          width: '100px',
-                                          height: 'auto',
-                                          filter: duckImage.filter,
-                                          animation: duckImage.animation
-                                        }}
-                                      />
-                                    </div>
-                                  ) : null;
-                                })()}
-                                
-                                {prizeBreakState.reward.xpAmount > 0 && (
-                                  <div>+{formatNumber(prizeBreakState.reward.xpAmount)} XP</div>
-                                )}
-                                {prizeBreakState.reward.votesAmount > 0 && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                                    <span>+{formatNumber(prizeBreakState.reward.votesAmount)}</span>
-                                    <img 
-                                      src="/lick-icon.png" 
-                                      alt="Licks" 
-                                      style={{ 
-                                        width: '60px', // 1.5x from 40px
-                                        height: '60px', // 1.5x from 40px
-                                        filter: (() => {
-                                          // Convert tier color to hue-rotate value
-                                          const getHueRotateForColor = (colorVar: string) => {
-                                            // Handle hex colors and CSS color names
-                                            if (colorVar.includes('green') || colorVar === '#10B981') return 'hue-rotate(90deg)'; // Green/Emerald
-                                            if (colorVar.includes('orange') || colorVar.includes('yellow') || colorVar === '#F59E0B' || colorVar === '#F97316' || colorVar === '#FFD700') return 'hue-rotate(45deg)'; // Orange/Amber/Gold
-                                            if (colorVar.includes('blue') || colorVar.includes('cyan') || colorVar === '#3B82F6' || colorVar === '#06B6D4') return 'hue-rotate(180deg)'; // Blue/Cyan
-                                            if (colorVar.includes('purple') || colorVar.includes('magenta') || colorVar === '#8B5CF6' || colorVar === '#EC4899') return 'hue-rotate(270deg)'; // Purple/Pink
-                                            if (colorVar.includes('red') || colorVar === '#EF4444') return 'hue-rotate(0deg)'; // Red
-                                            return 'hue-rotate(45deg)'; // Default to orange for Licks
-                                          };
-                                          const hueRotate = getHueRotateForColor(tierColors.primary);
-                                          return `brightness(0) saturate(100%) invert(64%) sepia(85%) saturate(2298%) ${hueRotate} brightness(119%) contrast(91%) drop-shadow(0 0 15px ${tierColors.glow})`;
-                                        })(),
-                                        marginTop: '10px'
-                                      }} 
-                                    />
-                                  </div>
-                                )}
-                                {prizeBreakState.reward.gugoAmount > 0 && (
-                                  <div>+{formatNumber(prizeBreakState.reward.gugoAmount)} GUGO</div>
-                                )}
-                                {prizeBreakState.reward.licksAmount > 0 && (
-                                  <div>+{formatNumber(prizeBreakState.reward.licksAmount)} LICKS</div>
-                                )}
-                              </>
+                        {prizes.map((prize, index) => (
+                          <div
+                            key={`${prize.type}-${index}`}
+                            style={{
+                              fontSize: 'var(--font-size-5xl)',
+                              fontWeight: '800',
+                              textAlign: 'center',
+                              background: 'linear-gradient(90deg, var(--dynamic-text-color) 0%, rgba(255,255,255,0.9) 50%, var(--dynamic-text-color) 100%)',
+                              backgroundSize: '200% 100%',
+                              backgroundClip: 'text',
+                              WebkitBackgroundClip: 'text',
+                              color: 'transparent',
+                              animation: 'shine 2s ease-in-out infinite, slow-pulse 3s ease-in-out infinite',
+                              lineHeight: '1.0',
+                              marginTop: index > 0 ? '-2px' : '0'
+                            }}
+                          >
+                            {prize.unit === 'lick-icon' ? (
+                              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                                +{prize.amount}
+                                <div
+                                  style={{
+                                    width: '60px',
+                                    height: '60px',
+                                    background: 'linear-gradient(90deg, var(--dynamic-text-color) 0%, rgba(255,255,255,0.9) 50%, var(--dynamic-text-color) 100%)',
+                                    backgroundSize: '200% 100%',
+                                    animation: 'shine 2s ease-in-out infinite',
+                                    WebkitMask: `url("/lick-icon.png") no-repeat center/contain`,
+                                    mask: `url("/lick-icon.png") no-repeat center/contain`,
+                                    transform: 'translateY(4px)'
+                                  }}
+                                />
+                              </span>
+                            ) : (
+                              `+${prize.amount} ${prize.unit}`
                             )}
                           </div>
-                        );
-                      })()
-                    ) : (
-                      <div style={{
-                        fontSize: '1.5rem',
-                        fontWeight: '900',
-                        color: 'var(--color-white)',
-                        textShadow: '0 0 20px var(--color-green)',
-                        padding: 'var(--space-6) 0',
-                        minHeight: '80px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        AWESOME!
+                        ))}
                       </div>
-                    )}
-                  </div>
-                  
-                  {/* Exit Button - "See more art" */}
-                  <div style={{ 
-                    flex: '0 0 auto',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    paddingTop: 'var(--space-4)'
-                  }}>
-                    <button
-                      onClick={async () => {
-                        console.log('🎨 User wants to see more art - exiting prize break...');
-                        try {
-                          // Trigger animations if rewards were received
-                          if (prizeBreakState.reward?.xpAmount && prizeBreakState.reward.xpAmount > 0) {
-                            console.log(`⚡ Triggering XP animation for +${prizeBreakState.reward.xpAmount} XP`);
-                            statusBarRef.current?.triggerXpAnimation(prizeBreakState.reward.xpAmount);
-                          }
-                          
-                          if (prizeBreakState.reward?.gugoAmount && prizeBreakState.reward.gugoAmount > 0) {
-                            console.log(`💰 Triggering wallet glow for +${prizeBreakState.reward.gugoAmount} GUGO`);
-                            statusBarRef.current?.triggerWalletGlow(prizeBreakState.reward.gugoAmount);
-                          }
-                          
-                          if (prizeBreakState.reward?.licksAmount && prizeBreakState.reward.licksAmount > 0) {
-                            console.log(`🎁 Triggering Licks animation for +${prizeBreakState.reward.licksAmount} Licks`);
-                            statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward.licksAmount);
-                          }
-                          
-                          // Refresh user data
-                          setTimeout(() => {
-                            statusBarRef.current?.refreshUserData();
-                          }, 500);
-                          
-                          const refillResult = await endPrizeBreak();
-                          setFreeVotesPrizeBreak(false);
-                          clearRewardState();
-                          if (refillResult) {
-                            console.log(`🔄 Queue refilled: +${refillResult.added.total} matchups`);
-                          }
-                          
-                          // Load new session
-                          if (!votingSession) {
-                            console.log('📭 Loading new voting session...');
-                            await loadVotingSession();
+                    );
+                  })()}
+
+                  {/* Linear Marquee - Between Prize and Button */}
+                  {showDelayedPrize && prizeBreakState.reward && (
+                    <div style={{
+                      marginTop: 'var(--space-4)',
+                      marginBottom: 'var(--space-3)',
+                      width: '100%',
+                      overflow: 'hidden',
+                      zIndex: 1000
+                    }}>
+                      <CircularMarquee
+                        phrases={prizeBreakState.reward.gugoAmount > 0 ? GUGO_PHRASES : NON_GUGO_PHRASES}
+                        prizeText=""
+                        isVisible={true}
+                        fontSize="16px"
+                        color="var(--dynamic-text-color)"
+                        duration={20}
+                        type="linear"
+                        width={800}
+                        contained={true}
+                      />
+                    </div>
+                  )}
+
+                  {/* Claim Button with Dynamic Styling */}
+                  {prizeBreakState.reward && showDelayedPrize && (() => {
+                    const tierColors = getTierColors(prizeBreakState.reward.rewardType);
+                    const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
+                    const buttonText = hasSession ? 'Accept Reward' : 'Start a Session to Claim Rewards';
+                    
+                    return (
+                      <button
+                        onClick={async () => {
+                          if (hasSession) {
+                            console.log('🎁 Accepting reward and ending prize break...');
+                            endPrizeBreak();
                           } else {
-                            console.log('✅ Session already loaded');
+                            console.log('🔑 Creating session to claim reward...');
+                            try {
+                              const success = await createSession();
+                              if (success) {
+                                console.log('✅ Session created successfully! Claiming reward...');
+                                endPrizeBreak();
+                              } else {
+                                console.log('❌ Session creation failed or was cancelled');
+                              }
+                            } catch (error) {
+                              console.error('❌ Error creating session:', error);
+                            }
                           }
-                        } catch (error) {
-                          console.error('❌ Error exiting prize break:', error);
-                          await endPrizeBreak();
-                          setFreeVotesPrizeBreak(false);
-                          clearRewardState();
-                          if (!votingSession) {
-                            await loadVotingSession();
+                        }}
+                        disabled={isCreatingSession}
+                        style={{
+                          marginTop: 'var(--space-2)',
+                          padding: 'var(--space-3) var(--space-4)',
+                          fontSize: 'var(--font-size-sm)',
+                          fontWeight: '600',
+                          background: isCreatingSession ? 'rgba(var(--dynamic-text-color-rgb), 0.7)' : 'var(--dynamic-text-color)',
+                          color: 'var(--dynamic-bg-color)',
+                          border: `1px solid var(--dynamic-text-color)`,
+                          borderRadius: 'var(--border-radius-md)',
+                          cursor: isCreatingSession ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: 'none',
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px',
+                          opacity: isCreatingSession ? 0.8 : 1
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isCreatingSession) {
+                            const target = e.target as HTMLElement;
+                            target.style.transform = 'translateY(-1px)';
+                            target.style.opacity = '0.8';
                           }
-                        }
-                      }}
-                      style={{
-                        padding: 'var(--space-3) var(--space-6)',
-                        background: 'var(--color-grey-300)',
-                        color: 'var(--color-black)',
-                        border: '2px solid var(--color-grey-300)',
-                        borderRadius: 'var(--border-radius)',
-                        fontSize: 'var(--font-size-base)',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        boxShadow: '0 4px 12px rgba(156, 163, 175, 0.3)',
-                        minWidth: '160px'
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--color-grey-300)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(156, 163, 175, 0.4)';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.background = 'var(--color-grey-300)';
-                        e.currentTarget.style.color = 'var(--color-black)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 163, 175, 0.3)';
-                      }}
-                    >
-                      See more art
-                    </button>
-                  </div>
-
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isCreatingSession) {
+                            const target = e.target as HTMLElement;
+                            target.style.transform = 'translateY(0)';
+                            target.style.opacity = '1';
+                          }
+                        }}
+                      >
+                        {isCreatingSession ? 'Creating Session...' : buttonText}
+                      </button>
+                    );
+                  })()}
                 </div>
-              </div>
+
+                {/* CSS Animations */}
+                <style jsx global>{`
+                  @keyframes gentle-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                  }
+                  
+                  @keyframes shine {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                  }
+                  
+                  @keyframes slow-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.02); }
+                  }
+                  
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+                    </div>
+                  </div>
+          </div>
             )}
-
-          </div>
-        </div>
-      </main>
-      
-      {/* Bottom Left Tagline */}
-      <div className="bottom-tagline-container" style={{
-        position: 'fixed',
-        bottom: 'var(--space-6)',
-        left: 0,
-        right: 0,
-        zIndex: 1,
-        pointerEvents: 'none'
-      }}>
-        <div className="bottom-tagline-wrapper" style={{
-          maxWidth: 'var(--max-width)',
-          margin: '0 auto',
-          paddingLeft: 'var(--space-6)',
-          paddingRight: 'var(--space-6)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 'var(--space-4)'
-        }}>
-          {/* Large background title at bottom */}
-          <h1 className="text-hero" style={{ 
-            color: '#aca9a9',
-            opacity: '0.10',
-            fontSize: 'clamp(3rem, 6vw, 5rem)',
-            lineHeight: '1.1',
-            whiteSpace: 'nowrap',
-            userSelect: 'none',
-            pointerEvents: 'none'
-          }}>
-            PROOF OF AESTHETIC<sup style={{ fontSize: '0.6em' }}>™</sup>
-          </h1>
-          
-          {/* Chain Info - Centered */}
-          <div className="chain-info" style={{
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: '600',
-            color: 'var(--color-grey-500)',
-            letterSpacing: '0.05em',
-            textAlign: 'center',
-            userSelect: 'none',
-            pointerEvents: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 'var(--space-4)',
-            flexWrap: 'wrap'
-          }}>
-            <span>You are viewing NFTs from the <span style={{ color: 'var(--color-green)', fontWeight: '600' }}>{currentChain}</span> blockchain</span>
-            <span style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 'var(--space-2)',
-              opacity: 0.8 
-            }}>
-              Taste Activity Today: 
-              <span style={{ 
-                color: 'var(--color-green)', 
-                fontWeight: '600'
-              }}>
-                {isLoadingActivity ? '...' : licksToday.toLocaleString()}
-              </span>
-              <img 
-                src="/lick-icon.png" 
-                alt="Licks" 
-                style={{ 
-                  width: '30px', 
-                  height: '30px',
-                  flexShrink: 0,
-                  filter: 'brightness(0) saturate(100%) invert(50%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(75%) contrast(100%)',
-                  opacity: 0.8,
-                  marginTop: '6px'
-                }} 
-              />
-            </span>
-
-            {/* 🎵 Audio Controls */}
-            <AudioControls />
-          </div>
-        </div>
-      </div>
       
       {/* Purchase Alert Modal */}
       {showPurchaseAlert && (
@@ -2271,7 +1910,8 @@ export default function Page() {
         />
       )}
       
-      {/* Session Prompt Modal */}
+      {/* Session Prompt Modal - Only for vote purchase now */}
+      {showSessionPrompt.trigger === 'vote-purchase' && (
       <SessionPrompt
         isOpen={showSessionPrompt.isOpen}
         trigger={showSessionPrompt.trigger}
@@ -2280,25 +1920,58 @@ export default function Page() {
         onClose={handleCloseSessionPrompt}
         isCreatingSession={isCreatingSession}
       />
+      )}
       
-      {/* Welcome Popup - Shows on first visit */}
-      <WelcomePopup
-        isOpen={shouldShowWelcome}
-        onAccept={handleWelcomeAccept}
-      />
 
-      {/* 🎉 Confetti for GUGO Prizes */}
+
+            {/* Confetti Effect */}
       {showConfetti && (
         <Confetti
           onComplete={() => {
-            console.log('🎊 Confetti animation completed, cleaning up...');
             setShowConfetti(false);
           }}
         />
       )}
 
+      {/* Audio Controls */}
+      <AudioControls />
 
+      {/* Bottom Center Info */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        textAlign: 'center',
+        fontSize: 'var(--font-size-sm)',
+        color: 'var(--dynamic-text-color)',
+        opacity: '1.0',
+        fontWeight: '300',
+        zIndex: 99999,
+        pointerEvents: 'none',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px'
+      }}>
+        <span>You are viewing NFTs from the <span style={{ color: '#22c55e' }}>{currentChain}</span> blockchain</span>
+        <span>&nbsp;&nbsp;</span>
+        <span>Taste Activity Today: {isLoadingActivity ? 'Loading...' : licksToday}</span>
+        <div style={{ 
+          width: '28px', 
+          height: '28px', 
+          marginLeft: '4px',
+          backgroundColor: 'var(--dynamic-text-color)',
+          WebkitMask: 'url(/lick-icon.png) center/contain no-repeat',
+          mask: 'url(/lick-icon.png) center/contain no-repeat'
+        }} />
+      </div>
 
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
+
+

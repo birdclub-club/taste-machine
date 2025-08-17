@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useFavorites } from '@/hooks/useFavorites';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 
@@ -140,28 +141,33 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
     }
   };
 
-  return (
+  if (!isOpen) return null;
+
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
       left: 0,
       width: '100vw',
       height: '100vh',
-      background: 'rgba(0, 0, 0, 0.9)',
+      background: 'rgba(0, 0, 0, 0.4)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 9999,
-      padding: 'var(--space-4)'
+      zIndex: 999999,
+      padding: 'var(--space-4)',
+      paddingTop: '80px',
+      isolation: 'isolate'
     }}>
       <div style={{
-        background: '#1a1a1a',
-        border: '1px solid var(--color-grey-600)',
+        background: 'var(--dynamic-bg-color, #1a1a1a)',
+        border: '1px solid var(--dynamic-text-color, var(--color-grey-600))',
         borderRadius: 'var(--border-radius-lg)',
         width: '100%',
         maxWidth: '1200px',
-        maxHeight: '90vh',
+        maxHeight: '85vh',
         display: 'flex',
+        margin: 'auto',
         flexDirection: 'column',
         position: 'relative'
       }}>
@@ -182,14 +188,15 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                 margin: 0,
                 fontSize: 'var(--font-size-2xl)',
                 fontWeight: '900',
-                color: 'var(--color-white)'
+                color: 'var(--dynamic-text-color, var(--color-white))'
               }}>
-                Favorites Gallery
+                Fire List
               </h2>
               <p style={{
                 margin: 'var(--space-2) 0 0 0',
                 fontSize: 'var(--font-size-sm)',
-                color: 'var(--color-grey-400)'
+                color: 'var(--dynamic-text-color, var(--color-grey-400))',
+                opacity: 0.7
               }}>
                 Your collection of FIRE votes and maximum slider votes
               </p>
@@ -201,9 +208,9 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                 width: '40px',
                 height: '40px',
                 borderRadius: '50%',
-                border: '2px solid #444',
-                background: '#2a2a2a',
-                color: 'var(--color-white)',
+                border: '2px solid var(--dynamic-text-color, #444)',
+                background: 'var(--dynamic-text-color, #2a2a2a)',
+                color: 'var(--dynamic-bg-color, var(--color-white))',
                 fontSize: 'var(--font-size-lg)',
                 cursor: 'pointer',
                 display: 'flex',
@@ -216,103 +223,22 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                 e.currentTarget.style.color = 'var(--color-green)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#444';
-                e.currentTarget.style.color = 'var(--color-white)';
+                e.currentTarget.style.borderColor = 'var(--dynamic-text-color, #444)';
+                e.currentTarget.style.background = 'var(--dynamic-text-color, #2a2a2a)';
+                e.currentTarget.style.color = 'var(--dynamic-bg-color, var(--color-white))';
               }}
             >
               ✕
             </button>
           </div>
 
-          {/* Bottom Row: Stats and Show Prices Toggle */}
+          {/* Bottom Row: Show Prices Toggle and Stats */}
           {favorites.length > 0 && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between'
             }}>
-              {/* Stats */}
-              <div style={{
-                display: 'flex',
-                gap: 'var(--space-4)',
-                flexWrap: 'wrap'
-              }}>
-                <div style={{
-                  background: '#2a2a2a',
-                  padding: 'var(--space-2)',
-                  borderRadius: 'var(--border-radius)',
-                  border: '1px solid #444',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-2)'
-                }}>
-                  <div style={{
-                    fontSize: 'var(--font-size-lg)',
-                    fontWeight: '700',
-                    color: 'var(--color-green)'
-                  }}>
-                    {favorites.length}
-                  </div>
-                  <div style={{
-                    fontSize: 'var(--font-size-xs)',
-                    color: 'var(--color-grey-400)',
-                    textTransform: 'uppercase'
-                  }}>
-                    Total
-                  </div>
-                </div>
-                
-                <div style={{
-                  background: '#2a2a2a',
-                  padding: 'var(--space-2)',
-                  borderRadius: 'var(--border-radius)',
-                  border: '1px solid #444',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-2)'
-                }}>
-                  <div style={{
-                    fontSize: 'var(--font-size-lg)',
-                    fontWeight: '700',
-                    color: '#ff6b35'
-                  }}>
-                    {favorites.filter(f => f.vote_type === 'fire').length}
-                  </div>
-                  <div style={{
-                    fontSize: 'var(--font-size-xs)',
-                    color: 'var(--color-grey-400)',
-                    textTransform: 'uppercase'
-                  }}>
-                    Fire
-                  </div>
-                </div>
-                
-                <div style={{
-                  background: '#2a2a2a',
-                  padding: 'var(--space-2)',
-                  borderRadius: 'var(--border-radius)',
-                  border: '1px solid #444',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-2)'
-                }}>
-                  <div style={{
-                    fontSize: 'var(--font-size-lg)',
-                    fontWeight: '700',
-                    color: '#3b82f6'
-                  }}>
-                    {favorites.filter(f => f.vote_type === 'slider_max').length}
-                  </div>
-                  <div style={{
-                    fontSize: 'var(--font-size-xs)',
-                    color: 'var(--color-grey-400)',
-                    textTransform: 'uppercase'
-                  }}>
-                    Slides
-                  </div>
-                </div>
-              </div>
-
               {/* Show Prices Toggle */}
               <div style={{
                 display: 'flex',
@@ -326,10 +252,10 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                     alignItems: 'center',
                     gap: 'var(--space-2)',
                     padding: 'var(--space-2) var(--space-3)',
-                    background: showPrices ? 'var(--color-grey-400)' : 'transparent',
-                    border: '1px solid var(--color-grey-400)',
+                    background: showPrices ? 'var(--dynamic-text-color, var(--color-grey-400))' : 'transparent',
+                    border: '1px solid var(--dynamic-text-color, var(--color-grey-400))',
                     borderRadius: 'var(--border-radius)',
-                    color: showPrices ? 'black' : 'var(--color-grey-400)',
+                    color: showPrices ? 'var(--dynamic-bg-color, black)' : 'var(--dynamic-text-color, var(--color-grey-400))',
                     fontSize: 'var(--font-size-sm)',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -337,14 +263,14 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                   }}
                   onMouseEnter={(e) => {
                     if (!showPrices) {
-                      e.currentTarget.style.background = 'var(--color-grey-400)';
-                      e.currentTarget.style.color = 'black';
+                      e.currentTarget.style.background = 'var(--dynamic-text-color, var(--color-grey-400))';
+                      e.currentTarget.style.color = 'var(--dynamic-bg-color, black)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!showPrices) {
                       e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--color-grey-400)';
+                      e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-grey-400))';
                     }
                   }}
                 >
@@ -354,11 +280,86 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                 {loadingPrices && (
                   <div style={{
                     fontSize: 'var(--font-size-xs)',
-                    color: 'var(--color-grey-400)'
+                    color: 'var(--dynamic-text-color, var(--color-grey-400))',
+                    opacity: 0.7
                   }}>
                     Loading...
                   </div>
                 )}
+              </div>
+
+              {/* Stats */}
+              <div style={{
+                display: 'flex',
+                gap: 'var(--space-4)',
+                alignItems: 'center',
+                flexWrap: 'wrap'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
+                }}>
+                  <div style={{
+                    fontSize: 'var(--font-size-lg)',
+                    fontWeight: '700',
+                    color: 'var(--color-green)'
+                  }}>
+                    {favorites.length}
+                  </div>
+                  <div style={{
+                    fontSize: 'var(--font-size-xs)',
+                    color: 'var(--dynamic-text-color, var(--color-grey-400))',
+                    textTransform: 'uppercase',
+                    opacity: 0.7
+                  }}>
+                    Total
+                  </div>
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
+                }}>
+                  <div style={{
+                    fontSize: 'var(--font-size-lg)',
+                    fontWeight: '700',
+                    color: '#ff6b35'
+                  }}>
+                    {favorites.filter(f => f.vote_type === 'fire').length}
+                  </div>
+                  <div style={{
+                    fontSize: 'var(--font-size-xs)',
+                    color: 'var(--dynamic-text-color, var(--color-grey-400))',
+                    textTransform: 'uppercase',
+                    opacity: 0.7
+                  }}>
+                    Fire
+                  </div>
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
+                }}>
+                  <div style={{
+                    fontSize: 'var(--font-size-lg)',
+                    fontWeight: '700',
+                    color: '#3b82f6'
+                  }}>
+                    {favorites.filter(f => f.vote_type === 'slider_max').length}
+                  </div>
+                  <div style={{
+                    fontSize: 'var(--font-size-xs)',
+                    color: 'var(--dynamic-text-color, var(--color-grey-400))',
+                    textTransform: 'uppercase',
+                    opacity: 0.7
+                  }}>
+                    Slides
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -376,7 +377,8 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
               alignItems: 'center',
               justifyContent: 'center',
               minHeight: '200px',
-              color: 'var(--color-grey-400)'
+              color: 'var(--dynamic-text-color, var(--color-grey-400))',
+              opacity: 0.7
             }}>
               <div style={{
                 width: '40px',
@@ -400,12 +402,13 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
           ) : favorites.length === 0 ? (
             <div style={{
               textAlign: 'center',
-              color: 'var(--color-grey-400)',
-              padding: 'var(--space-8)'
+              color: 'var(--dynamic-text-color, var(--color-grey-400))',
+              padding: 'var(--space-8)',
+              opacity: 0.8
             }}>
               <div style={{ fontSize: '4rem', marginBottom: 'var(--space-4)' }}>🔥</div>
               <h3 style={{ 
-                color: 'var(--color-white)', 
+                color: 'var(--dynamic-text-color, var(--color-white))', 
                 marginBottom: 'var(--space-2)' 
               }}>
                 No Favorites Yet
@@ -425,8 +428,8 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                   <div
                     key={favorite.id}
                     style={{
-                      background: '#2a2a2a',
-                      border: '1px solid #444',
+                      background: 'var(--dynamic-accent-color, #2a2a2a)',
+                      border: '1px solid var(--dynamic-text-color, #444)',
                       borderRadius: 'var(--border-radius-lg)',
                       overflow: 'hidden',
                       transition: 'all var(--transition-base)',
@@ -444,7 +447,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                     {/* Image */}
                     <div style={{
                       aspectRatio: '1',
-                      background: '#1a1a1a',
+                      background: 'var(--dynamic-bg-color, #1a1a1a)',
                       position: 'relative',
                       overflow: 'hidden'
                     }}>
@@ -521,7 +524,10 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'flex-start',
-                      position: 'relative'
+                      position: 'relative',
+                      background: '#f8f8f8',
+                      borderBottomLeftRadius: 'var(--border-radius-lg)',
+                      borderBottomRightRadius: 'var(--border-radius-lg)'
                     }}>
                       {/* Left column - Collection and Remove button */}
                       <div style={{
@@ -535,7 +541,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                           <div 
                             style={{
                               fontSize: 'var(--font-size-sm)',
-                              color: 'var(--color-grey-400)',
+                              color: '#666666',
                               fontWeight: '600',
                               cursor: 'pointer',
                               transition: 'color var(--transition-base)',
@@ -551,7 +557,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                               e.currentTarget.style.color = 'var(--color-green)';
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--color-grey-400)';
+                              e.currentTarget.style.color = '#666666';
                             }}
                           >
                             {favorite.collection_name}
@@ -564,22 +570,56 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         {showPrices && (
                           <div style={{
                             fontSize: 'var(--font-size-xs)',
-                            color: 'var(--color-grey-300)',
+                            color: '#888888',
                             fontWeight: '500',
-                            marginBottom: 'var(--space-1)'
+                            marginBottom: 'var(--space-1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--space-2)'
                           }}>
-                            {loadingPrices ? (
-                              'Loading...'
-                            ) : prices[favorite.nft_id] ? (
-                              prices[favorite.nft_id]?.price ? (
-                                `${prices[favorite.nft_id]!.price} ${prices[favorite.nft_id]!.currency}`
+                            <span>
+                              {loadingPrices ? (
+                                'Loading...'
+                              ) : prices[favorite.nft_id] ? (
+                                prices[favorite.nft_id]?.price ? (
+                                  `${prices[favorite.nft_id]!.price} ${prices[favorite.nft_id]!.currency}`
+                                ) : (
+                                  'Unlisted'
+                                )
+                              ) : favorite.collection_address && favorite.token_id ? (
+                                'Price unavailable'
                               ) : (
-                                'Unlisted'
-                              )
-                            ) : favorite.collection_address && favorite.token_id ? (
-                              'Price unavailable'
-                            ) : (
-                              'No contract data'
+                                'No contract data'
+                              )}
+                            </span>
+                            
+                            {/* Make Offer Link - Only show if we have contract data */}
+                            {favorite.collection_address && favorite.token_id && !loadingPrices && (
+                              <a
+                                href={getTokenMagicEdenUrl(favorite.collection_address, favorite.token_id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  console.log('🔗 Make Offer clicked for:', favorite.collection_address, favorite.token_id);
+                                }}
+                                style={{
+                                  fontSize: 'var(--font-size-xs)',
+                                  color: '#888888',
+                                  textDecoration: 'underline',
+                                  fontWeight: '500',
+                                  cursor: 'pointer',
+                                  transition: 'all var(--transition-base)'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = 'var(--color-green)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = '#888888';
+                                }}
+                              >
+                                Make Offer
+                              </a>
                             )}
                           </div>
                         )}
@@ -593,9 +633,9 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                           style={{
                             padding: 'var(--space-1) var(--space-2)',
                             background: 'transparent',
-                            border: '1px solid var(--color-grey-400)',
+                            border: '1px solid var(--dynamic-text-color, var(--color-grey-400))',
                             borderRadius: 'var(--border-radius-sm)',
-                            color: 'var(--color-grey-400)',
+                            color: 'var(--dynamic-text-color, var(--color-grey-400))',
                             fontSize: '10px',
                             cursor: 'pointer',
                             transition: 'all var(--transition-base)',
@@ -608,8 +648,8 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = 'var(--color-grey-400)';
-                            e.currentTarget.style.color = 'var(--color-grey-400)';
+                            e.currentTarget.style.borderColor = 'var(--dynamic-text-color, var(--color-grey-400))';
+                            e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-grey-400))';
                           }}
                         >
                           Remove
@@ -621,7 +661,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         style={{
                           fontSize: '2.5rem',
                           fontWeight: '900',
-                          color: 'var(--color-white)',
+                          color: '#333333',
                           fontFamily: 'monospace',
                           cursor: 'pointer',
                           transition: 'color var(--transition-base)',
@@ -639,7 +679,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                           e.currentTarget.style.opacity = '1';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.color = 'var(--color-white)';
+                          e.currentTarget.style.color = '#333333';
                           e.currentTarget.style.opacity = '0.8';
                         }}
                       >
@@ -652,6 +692,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
