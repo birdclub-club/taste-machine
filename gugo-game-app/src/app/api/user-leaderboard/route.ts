@@ -1,0 +1,137 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Taste Level calculation based on XP
+export function calculateTasteLevel(xp: number): { level: number; name: string; minXP: number; maxXP: number; progress: number } {
+  const tasteLevels = [
+    { level: 1, name: "Novice Taster", minXP: 0, maxXP: 99 },
+    { level: 2, name: "Apprentice Curator", minXP: 100, maxXP: 299 },
+    { level: 3, name: "Aesthetic Explorer", minXP: 300, maxXP: 599 },
+    { level: 4, name: "Visual Connoisseur", minXP: 600, maxXP: 999 },
+    { level: 5, name: "Taste Specialist", minXP: 1000, maxXP: 1599 },
+    { level: 6, name: "Art Critic", minXP: 1600, maxXP: 2399 },
+    { level: 7, name: "Aesthetic Master", minXP: 2400, maxXP: 3499 },
+    { level: 8, name: "Taste Virtuoso", minXP: 3500, maxXP: 4999 },
+    { level: 9, name: "Visual Sage", minXP: 5000, maxXP: 7499 },
+    { level: 10, name: "Taste Legend", minXP: 7500, maxXP: 9999 },
+    { level: 11, name: "Aesthetic Deity", minXP: 10000, maxXP: Infinity }
+  ];
+
+  const currentLevel = tasteLevels.find(level => xp >= level.minXP && xp <= level.maxXP) || tasteLevels[tasteLevels.length - 1];
+  
+  // Calculate progress within current level
+  const progress = currentLevel.maxXP === Infinity 
+    ? 100 
+    : Math.round(((xp - currentLevel.minXP) / (currentLevel.maxXP - currentLevel.minXP)) * 100);
+
+  return {
+    ...currentLevel,
+    progress: Math.min(progress, 100)
+  };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    console.log('👥 Fetching user leaderboard...');
+
+    // Get top users by XP and total votes
+    const { data: usersData, error: usersError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        wallet_address,
+        username,
+        avatar_url,
+        xp,
+        total_votes,
+        available_votes,
+        created_at
+      `)
+      .order('xp', { ascending: false })
+      .order('total_votes', { ascending: false })
+      .order('created_at', { ascending: true }) // Earlier users win ties
+      .limit(50); // Get top 50 users
+
+    if (usersError) {
+      console.error('❌ Error fetching users:', usersError);
+      return NextResponse.json(
+        { success: false, error: `Database error: ${usersError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!usersData || usersData.length === 0) {
+      console.log('📊 No users found');
+      return NextResponse.json({
+        success: true,
+        leaderboard: [],
+        metadata: {
+          totalUsers: 0,
+          topXP: 0,
+          topVotes: 0
+        }
+      });
+    }
+
+    // Process users and add taste levels and rankings
+    const processedUsers = usersData.map((user, index) => {
+      const tasteLevel = calculateTasteLevel(user.xp || 0);
+      
+      // Create display name (username or shortened wallet address)
+      const displayName = user.username || 
+        `${user.wallet_address.slice(0, 6)}...${user.wallet_address.slice(-4)}`;
+
+      return {
+        id: user.id,
+        wallet_address: user.wallet_address,
+        display_name: displayName,
+        username: user.username,
+        avatar_url: user.avatar_url,
+        xp: user.xp || 0,
+        total_votes: user.total_votes || 0,
+        available_votes: user.available_votes || 0,
+        created_at: user.created_at,
+        position: index + 1,
+        taste_level: tasteLevel,
+        // Calculate some additional stats
+        votes_per_day: user.total_votes ? Math.round((user.total_votes || 0) / Math.max(1, Math.ceil((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)))) : 0,
+        xp_per_vote: user.total_votes ? Math.round(((user.xp || 0) / Math.max(1, user.total_votes)) * 100) / 100 : 0
+      };
+    });
+
+    // Calculate metadata
+    const metadata = {
+      totalUsers: processedUsers.length,
+      topXP: processedUsers[0]?.xp || 0,
+      topVotes: Math.max(...processedUsers.map(u => u.total_votes)),
+      averageXP: Math.round(processedUsers.reduce((sum, u) => sum + u.xp, 0) / processedUsers.length),
+      averageVotes: Math.round(processedUsers.reduce((sum, u) => sum + u.total_votes, 0) / processedUsers.length),
+      tasteLevelDistribution: processedUsers.reduce((acc, user) => {
+        const levelName = user.taste_level.name;
+        acc[levelName] = (acc[levelName] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    };
+
+    console.log(`👥 User leaderboard generated: ${processedUsers.length} users`);
+    console.log(`🏆 Top user: ${processedUsers[0]?.display_name} with ${processedUsers[0]?.xp} XP and ${processedUsers[0]?.total_votes} votes`);
+    console.log(`🎯 Taste level distribution:`, metadata.tasteLevelDistribution);
+
+    return NextResponse.json({
+      success: true,
+      leaderboard: processedUsers,
+      metadata
+    });
+
+  } catch (error) {
+    console.error('❌ User leaderboard error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

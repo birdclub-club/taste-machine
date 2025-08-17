@@ -19,25 +19,56 @@ interface LeaderboardEntry {
   leaderboard_position: number;
 }
 
+interface UserLeaderboardEntry {
+  id: string;
+  wallet_address: string;
+  display_name: string;
+  username?: string;
+  avatar_url?: string;
+  xp: number;
+  total_votes: number;
+  available_votes: number;
+  created_at: string;
+  position: number;
+  taste_level: {
+    level: number;
+    name: string;
+    minXP: number;
+    maxXP: number;
+    progress: number;
+  };
+  votes_per_day: number;
+  xp_per_vote: number;
+}
+
 interface LeaderboardProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
+  const [activeTab, setActiveTab] = useState<'nfts' | 'users'>('nfts');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [userLeaderboard, setUserLeaderboard] = useState<UserLeaderboardEntry[]>([]);
   const [metadata, setMetadata] = useState<any>(null);
+  const [userMetadata, setUserMetadata] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [userLoading, setUserLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userError, setUserError] = useState<string | null>(null);
   const [showPrices, setShowPrices] = useState(false);
   const [prices, setPrices] = useState<Record<string, { price: number | null; currency: string } | null>>({});
   const [loadingPrices, setLoadingPrices] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchLeaderboard();
+      if (activeTab === 'nfts') {
+        fetchLeaderboard();
+      } else {
+        fetchUserLeaderboard();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, activeTab]);
 
   const fetchLeaderboard = async () => {
     setLoading(true);
@@ -58,6 +89,28 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
       setError('Failed to fetch leaderboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserLeaderboard = async () => {
+    setUserLoading(true);
+    setUserError(null);
+    
+    try {
+      const response = await fetch('/api/user-leaderboard');
+      const data = await response.json();
+      
+      if (data.success) {
+        setUserLeaderboard(data.leaderboard || []);
+        setUserMetadata(data.metadata || {});
+      } else {
+        setUserError(data.error || 'Failed to fetch user leaderboard data');
+      }
+    } catch (err) {
+      console.error('User leaderboard fetch error:', err);
+      setUserError('Failed to fetch user leaderboard data');
+    } finally {
+      setUserLoading(false);
     }
   };
 
@@ -236,7 +289,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
           borderBottom: '1px solid var(--dynamic-text-color, var(--color-grey-600))',
           paddingBottom: 'var(--space-4)'
         }}>
-          <div>
+          <div style={{ flex: 1 }}>
             <h2 style={{
               margin: 0,
               fontSize: 'var(--font-size-xl)',
@@ -249,13 +302,80 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
               TASTE LEADERBOARD
             </h2>
             <p style={{
-              margin: 'var(--space-1) 0 0 0',
+              margin: 'var(--space-1) 0 var(--space-3) 0',
               fontSize: 'var(--font-size-sm)',
               color: 'var(--dynamic-text-color, var(--color-grey-300))',
               opacity: 0.7
             }}>
-              Top 20 NFTs by aesthetic score on Abstract Chain
+              {activeTab === 'nfts' 
+                ? 'Top 20 NFTs by aesthetic score on Abstract Chain'
+                : 'Top users by XP and voting activity'
+              }
             </p>
+            
+            {/* Tabs */}
+            <div style={{
+              display: 'flex',
+              gap: 'var(--space-1)',
+              marginBottom: 'var(--space-2)'
+            }}>
+              <button
+                onClick={() => setActiveTab('nfts')}
+                style={{
+                  padding: 'var(--space-2) var(--space-4)',
+                  background: activeTab === 'nfts' ? 'var(--dynamic-text-color, var(--color-grey-400))' : 'transparent',
+                  border: '1px solid var(--dynamic-text-color, var(--color-grey-400))',
+                  borderRadius: 'var(--border-radius)',
+                  color: activeTab === 'nfts' ? 'var(--dynamic-bg-color, black)' : 'var(--dynamic-text-color, var(--color-grey-400))',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-base)'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== 'nfts') {
+                    e.currentTarget.style.background = 'var(--dynamic-text-color, var(--color-grey-400))';
+                    e.currentTarget.style.color = 'var(--dynamic-bg-color, black)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== 'nfts') {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-grey-400))';
+                  }
+                }}
+              >
+                🖼️ NFTs
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                style={{
+                  padding: 'var(--space-2) var(--space-4)',
+                  background: activeTab === 'users' ? 'var(--dynamic-text-color, var(--color-grey-400))' : 'transparent',
+                  border: '1px solid var(--dynamic-text-color, var(--color-grey-400))',
+                  borderRadius: 'var(--border-radius)',
+                  color: activeTab === 'users' ? 'var(--dynamic-bg-color, black)' : 'var(--dynamic-text-color, var(--color-grey-400))',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-base)'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== 'users') {
+                    e.currentTarget.style.background = 'var(--dynamic-text-color, var(--color-grey-400))';
+                    e.currentTarget.style.color = 'var(--dynamic-bg-color, black)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== 'users') {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--dynamic-text-color, var(--color-grey-400))';
+                  }
+                }}
+              >
+                👥 Users
+              </button>
+            </div>
           </div>
           
           <div style={{
@@ -263,8 +383,8 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
             alignItems: 'center',
             gap: 'var(--space-3)'
           }}>
-            {/* Show Prices Toggle - In Header */}
-            {leaderboard.length > 0 && (
+            {/* Show Prices Toggle - Only for NFTs tab */}
+            {activeTab === 'nfts' && leaderboard.length > 0 && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -346,37 +466,39 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
           overflowY: 'auto',
           overflowX: 'hidden'
         }}>
-          {loading ? (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 'var(--space-8)',
-              color: 'var(--color-grey-300)'
-            }}>
-              Loading leaderboard...
-            </div>
-          ) : error ? (
-            <div style={{
-              padding: 'var(--space-4)',
-              background: 'var(--color-red-900)',
-              border: '1px solid var(--color-red-600)',
-              borderRadius: 'var(--border-radius-md)',
-              color: 'var(--color-red-200)'
-            }}>
-              Error: {error}
-            </div>
-          ) : leaderboard.length === 0 ? (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 'var(--space-8)',
-              color: 'var(--color-grey-300)'
-            }}>
-              No leaderboard data available
-            </div>
-          ) : (
+          {activeTab === 'nfts' ? (
+            // NFT Leaderboard Content
+            loading ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-8)',
+                color: 'var(--dynamic-text-color, var(--color-grey-300))'
+              }}>
+                Loading NFT leaderboard...
+              </div>
+            ) : error ? (
+              <div style={{
+                padding: 'var(--space-4)',
+                background: 'var(--color-red-900)',
+                border: '1px solid var(--color-red-600)',
+                borderRadius: 'var(--border-radius-md)',
+                color: 'var(--color-red-200)'
+              }}>
+                Error: {error}
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-8)',
+                color: 'var(--dynamic-text-color, var(--color-grey-300))'
+              }}>
+                No NFT leaderboard data available
+              </div>
+            ) : (
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: '1fr 1fr', 
@@ -573,6 +695,164 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                 );
               })}
             </div>
+          )) : (
+            // User Leaderboard Content
+            userLoading ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-8)',
+                color: 'var(--dynamic-text-color, var(--color-grey-300))'
+              }}>
+                Loading user leaderboard...
+              </div>
+            ) : userError ? (
+              <div style={{
+                padding: 'var(--space-4)',
+                background: 'var(--color-red-900)',
+                border: '1px solid var(--color-red-600)',
+                borderRadius: 'var(--border-radius-md)',
+                color: 'var(--color-red-200)'
+              }}>
+                Error: {userError}
+              </div>
+            ) : userLeaderboard.length === 0 ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 'var(--space-8)',
+                color: 'var(--dynamic-text-color, var(--color-grey-300))'
+              }}>
+                No user leaderboard data available
+              </div>
+            ) : (
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-3)',
+                padding: 'var(--space-2)'
+              }}>
+                {userLeaderboard.map((user, index) => {
+                  const isTopThree = index < 3;
+                  const tasteLevelColor = user.taste_level.level >= 8 ? 'var(--color-green)' : 
+                                         user.taste_level.level >= 5 ? 'var(--color-yellow)' : 
+                                         'var(--dynamic-text-color, var(--color-grey-400))';
+                  
+                  return (
+                    <div
+                      key={user.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: 'var(--space-4)',
+                        background: 'var(--dynamic-text-color, var(--color-grey-800))',
+                        border: '1px solid var(--dynamic-bg-color, var(--color-grey-600))',
+                        borderRadius: 'var(--border-radius-lg)',
+                        transition: 'all var(--transition-base)',
+                        position: 'relative',
+                        minHeight: '80px'
+                      }}
+                    >
+                      {/* Position Badge */}
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        background: isTopThree ? 'var(--color-green)' : 'var(--dynamic-bg-color, var(--color-white))',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 'var(--font-size-lg)',
+                        fontWeight: '700',
+                        color: isTopThree ? 'white' : 'var(--dynamic-text-color, var(--color-black))',
+                        marginRight: 'var(--space-4)',
+                        flexShrink: 0
+                      }}>
+                        {user.position}
+                      </div>
+
+                      {/* User Info */}
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        flex: 1,
+                        gap: 'var(--space-1)'
+                      }}>
+                        {/* Display Name */}
+                        <div style={{
+                          fontSize: 'var(--font-size-lg)',
+                          fontWeight: '600',
+                          color: 'var(--dynamic-bg-color, var(--color-white))'
+                        }}>
+                          {user.display_name}
+                        </div>
+                        
+                        {/* Taste Level */}
+                        <div style={{
+                          fontSize: 'var(--font-size-sm)',
+                          color: tasteLevelColor,
+                          fontWeight: '500'
+                        }}>
+                          Level {user.taste_level.level}: {user.taste_level.name}
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div style={{
+                          width: '100%',
+                          height: '4px',
+                          background: 'var(--dynamic-bg-color, var(--color-grey-700))',
+                          borderRadius: '2px',
+                          overflow: 'hidden',
+                          marginTop: 'var(--space-1)'
+                        }}>
+                          <div style={{
+                            width: `${user.taste_level.progress}%`,
+                            height: '100%',
+                            background: tasteLevelColor,
+                            transition: 'width var(--transition-base)'
+                          }} />
+                        </div>
+                      </div>
+
+                      {/* Stats */}
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        gap: 'var(--space-1)',
+                        marginLeft: 'var(--space-4)'
+                      }}>
+                        <div style={{
+                          fontSize: 'var(--font-size-lg)',
+                          fontWeight: '700',
+                          color: 'var(--color-green)'
+                        }}>
+                          {user.xp.toLocaleString()} XP
+                        </div>
+                        <div style={{
+                          fontSize: 'var(--font-size-sm)',
+                          color: 'var(--dynamic-bg-color, var(--color-grey-300))',
+                          opacity: 0.8
+                        }}>
+                          {user.total_votes.toLocaleString()} votes
+                        </div>
+                        {user.votes_per_day > 0 && (
+                          <div style={{
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--dynamic-bg-color, var(--color-grey-400))',
+                            opacity: 0.6
+                          }}>
+                            {user.votes_per_day}/day avg
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       </div>
