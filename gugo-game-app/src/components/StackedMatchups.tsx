@@ -230,7 +230,7 @@ export default function StackedMatchups({
           position: 'absolute',
           top: '10px',
           right: '10px',
-          background: 'rgba(0,0,0,0.7)',
+          background: 'var(--dynamic-bg-color)',
           color: 'white',
           padding: '8px',
           borderRadius: '4px',

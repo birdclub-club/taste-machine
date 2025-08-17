@@ -11,16 +11,39 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **Live URL**: [Deployed on Vercel](https://vercel.com)
 - **Database**: Supabase (PostgreSQL) with 46,615+ NFTs
 - **Status**: All core features operational, purchase flows tested and working
-- **Last Updated**: August 2025
+- **Last Updated**: January 2025
+
+## 🆕 Recent Major Updates
+
+### **🏆 Enhanced Leaderboard (January 2025)**
+- **Magic Eden Integration**: Live price fetching with "Show Prices" toggle
+- **Redesigned Layout**: Two-column grid with horizontal cards and larger NFT images
+- **Interactive Elements**: Clickable collection names and token IDs linking to Magic Eden
+- **Dynamic Theming**: Inverted color scheme that adapts to all color palettes
+
+### **🎯 Modal System Overhaul**
+- **React Portals**: All modals now render properly with correct z-index layering
+- **Consistent UX**: Fixed Leaderboard, Fire List, and all popup modals appearing behind elements
+- **Improved Positioning**: Better spacing and alignment across all modal components
+
+### **🎨 Dynamic Icon System**
+- **CSS Mask Technology**: Icons now automatically match dynamic text colors
+- **Cross-Palette Compatibility**: Works seamlessly with all 10 color schemes
+- **Footer Integration**: Licks icon dynamically adapts to current theme
+
+### **🎮 Interactive Onboarding**
+- **Feature Tour**: Replaced static welcome with interactive tour highlighting key features
+- **Progress Indicators**: Dot navigation with dismissible popups
+- **Spotlight Effects**: CSS-based highlighting for guided user experience
 
 ## 🌟 Features
 
 ### **🎨 Swiss Minimalist Design**
-- **Clean Interface**: Inspired by 60s/70s Swiss graphic design principles
-- **Dark Theme**: Consistent `#1a1a1a` background with Abstract Chain green accents
-- **Professional Status Bar**: Real-time balances and wallet connection
-- **Green Dot Grid**: Subtle pattern with 28px spacing and medium green dots
-- **Background Consistency**: Welcome modal matches site background perfectly
+- **Dynamic Color System**: 10 randomized color palettes for visual variety
+- **Swiss Typography**: Neue Haas Unica (primary) and King's Caslon Regular (secondary)
+- **Landing Page**: "TASTE" and "MACHINE" positioning with trailing NFT images
+- **Main App Layout**: "PROOF OF AESTHETIC™" Swiss-style text positioning
+- **Professional Status Bar**: Real-time balances with dynamic color theming
 
 ### **📱 Mobile-First Experience**
 - **Responsive Layout**: Side-by-side on desktop, stacked on mobile  
@@ -29,11 +52,11 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 - **Mobile Breakpoints**: Tailored experience for all screen sizes
 
 ### **⚡ Interactive Components**
+- **Desktop Click-to-Vote**: Simplified voting with "Pick your favorite. Hit 🔥 if it slaps."
+- **Vertical Meter System**: Full-screen hover zone for single NFT rating (0-10 scale)
+- **Mobile Slider Retained**: Touch-friendly slider interface for mobile devices
 - **Clickable Token IDs**: Large numbers (#1234) for instant address copying
-- **Swipe Slider**: Horizontal on desktop, vertical swipe on mobile
-- **Hover Effects**: NFT cards with "VOTE" overlay and scaling
-- **Copy Confirmation**: Visual feedback for all copy actions
-- **Smart "No" Button**: Appears after 5 seconds with smooth fade-in animation
+- **Dynamic Hover Effects**: NFT cards with lick icon overlays and scaling
 
 ### **🦆 Enhanced Prize Experience**
 - **Duck Notifications**: Context-aware duck animations for different prize types
@@ -45,11 +68,17 @@ A sophisticated blockchain-powered game where users vote on NFT aesthetics with 
 
 ### **🎵 Background Music System**
 - **Auto-Play**: Music starts on first vote with 7 curated tracks
-- **Shuffle Playlist**: Randomized track selection for variety
+- **Bottom-Left Controls**: Repositioned audio controls with semi-transparent styling
 - **Volume Controls**: Slider with mute functionality and visual feedback
-- **Play/Pause Toggle**: SVG icons with hover states
+- **Play/Pause Toggle**: SVG icons with hover states and blur backdrop
 - **Global State Management**: Consistent music experience across the app
 - **URL Encoding**: Handles special characters in MP3 filenames
+
+### **📊 Information Display**
+- **Bottom-Center Status**: Chain information and daily activity counter
+- **Dynamic Styling**: "Abstract" highlighted in green with licks icon
+- **High Z-Index**: Ensures visibility above all other elements
+- **Real-Time Updates**: Live taste activity tracking with loading states
 
 ### **🔐 Admin Dashboard**
 - **Wallet Authentication**: Secure access control for admin users

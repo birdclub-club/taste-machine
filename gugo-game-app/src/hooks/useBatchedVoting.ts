@@ -354,8 +354,8 @@ export function useBatchedVoting() {
         };
         
         // Enhanced retry mechanism with timeout protection
-        const MAX_RETRIES = 3;
-        const TIMEOUT_MS = 5000; // 5 second timeout per update
+        const MAX_RETRIES = 2; // Reduced retries for faster failure
+        const TIMEOUT_MS = 3000; // Reduced to 3 second timeout per update
         let lastError = null;
         
         for (let retry = 0; retry <= MAX_RETRIES; retry++) {

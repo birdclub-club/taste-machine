@@ -40,14 +40,14 @@ export default function AudioControls({ className = '' }: AudioControlsProps) {
     <div style={{
       position: 'fixed',
       bottom: '20px',
-      right: '20px',
+      left: '20px',
       display: 'flex',
       alignItems: 'center',
       gap: 'var(--space-2)',
       zIndex: 99999,
       pointerEvents: 'auto',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      border: '1px solid rgba(255, 255, 255, 0.2)',
+      backgroundColor: 'var(--dynamic-text-color, rgba(255, 255, 255, 0.9))',
+      border: 'none',
       padding: '8px',
       borderRadius: '6px',
       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
@@ -63,7 +63,7 @@ export default function AudioControls({ className = '' }: AudioControlsProps) {
         style={{
           background: 'none',
           border: 'none',
-          color: 'var(--color-white)',
+          color: 'var(--dynamic-bg-color, var(--color-black))',
           cursor: 'pointer',
           padding: '4px',
           borderRadius: '4px',
@@ -117,7 +117,7 @@ export default function AudioControls({ className = '' }: AudioControlsProps) {
           style={{
             background: 'none',
             border: 'none',
-            color: 'var(--color-white)',
+            color: 'var(--dynamic-bg-color, var(--color-black))',
             cursor: 'pointer',
             padding: '4px',
             borderRadius: '4px',
@@ -168,10 +168,10 @@ export default function AudioControls({ className = '' }: AudioControlsProps) {
             left: '50%',
             transform: 'translateX(-50%)',
             marginBottom: '8px',
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            backgroundColor: 'var(--dynamic-text-color, rgba(255, 255, 255, 0.9))',
             padding: '8px',
             borderRadius: '4px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            border: 'none',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             flexDirection: 'column',
@@ -183,7 +183,7 @@ export default function AudioControls({ className = '' }: AudioControlsProps) {
             {/* Volume Percentage */}
             <span style={{
               fontSize: '10px',
-              color: 'var(--color-white)',
+              color: 'var(--dynamic-bg-color, var(--color-black))',
               fontWeight: '600'
             }}>
               {volumePercentage}%

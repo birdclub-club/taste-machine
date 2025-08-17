@@ -5,35 +5,40 @@ import { useState, useEffect } from 'react';
 export type CollectionPreference = 'bearish' | 'mix' | null;
 
 export function useCollectionPreference() {
-  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
+  const [hasSeenTour, setHasSeenTour] = useState(false);
 
-  // Load welcome status from localStorage on mount
+  // Load tour status from localStorage on mount
   useEffect(() => {
-    const hasSeenWelcomeStored = localStorage.getItem('has-seen-welcome');
-    if (hasSeenWelcomeStored === 'true') {
-      setHasSeenWelcome(true);
-      console.log('✅ User has seen welcome popup before');
+    const hasSeenTourStored = localStorage.getItem('has-seen-onboarding-tour');
+    if (hasSeenTourStored === 'true') {
+      setHasSeenTour(true);
+      console.log('✅ User has seen onboarding tour before');
     } else {
-      setHasSeenWelcome(false);
-      console.log('🆕 First-time user - welcome popup will show');
+      setHasSeenTour(false);
+      console.log('🎯 First-time user - onboarding tour will show');
     }
   }, []);
 
-  // Mark welcome as seen
-  const markWelcomeAsSeen = () => {
-    setHasSeenWelcome(true);
-    localStorage.setItem('has-seen-welcome', 'true');
-    console.log('✅ Welcome popup marked as seen');
+  // Mark tour as seen
+  const markTourAsSeen = () => {
+    setHasSeenTour(true);
+    localStorage.setItem('has-seen-onboarding-tour', 'true');
+    console.log('✅ Onboarding tour marked as seen');
   };
 
   // Always return 'mix' preference for maximum speed - no collection filtering
   const preference: CollectionPreference = 'mix';
 
+  // Simplified function - no longer needed for welcome logic
+  const setCollectionPreference = () => {
+    console.log('✅ Collection preference set to mix');
+  };
+
   return {
     preference,
-    hasSetPreference: hasSeenWelcome,
-    shouldShowWelcome: !hasSeenWelcome,
-    setCollectionPreference: markWelcomeAsSeen // Simplified - just marks welcome as seen
+    setCollectionPreference,
+    shouldShowTour: !hasSeenTour,
+    markTourAsSeen
   };
 }
 

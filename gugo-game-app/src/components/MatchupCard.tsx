@@ -215,7 +215,9 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
       className="nft-card"
       style={{
         flex: 1,
-        maxWidth: '500px',
+        maxWidth: '800px',
+        minWidth: '400px',
+        width: '800px',
         position: 'relative',
         opacity: 1,
         animation: 'none'
@@ -229,7 +231,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
         transform: 'translate(-50%, -50%)',
         width: '300%',
         height: '300%',
-        background: 'radial-gradient(circle, rgba(50, 50, 50, 0.6) 0%, rgba(35, 35, 35, 0.4) 40%, rgba(25, 25, 25, 0.3) 70%, transparent 100%)',
+        background: 'transparent', // Removed dark gradient
         zIndex: -1,
         pointerEvents: 'none'
       }} />
@@ -588,31 +590,45 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
   });
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column',
-      gap: 'var(--space-8)',
-      alignItems: 'center',
-      width: '100%',
-      maxWidth: '1200px',
-      margin: '0 auto',
-      position: 'relative',
-      zIndex: 5,
-      overflow: 'visible'
-    }}>
+    <div 
+      className="matchup-card"
+      style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        gap: 'var(--space-8)',
+        alignItems: 'center',
+        width: '100%',
+        maxWidth: '1800px',
+        margin: '0 auto',
+        position: 'relative',
+        zIndex: 5,
+        overflow: 'visible'
+      }}>
 
-      {/* Desktop: Side by Side, Mobile: Stacked */}
-      <div 
-        className="matchup-container"
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: 'var(--space-8)',
-          alignItems: 'center',
-          width: '100%',
-          overflow: 'visible'
-        }}
-      >
+
+
+      {/* Main Layout: Matchup + Slider */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+        gap: 'var(--space-6)',
+        alignItems: 'center',
+        width: '100%',
+        overflow: 'visible',
+        transform: 'translate(0px, -40px)'
+      }}>
+        {/* Desktop: Side by Side, Mobile: Stacked */}
+        <div 
+          className="matchup-container"
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 'var(--space-8)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'visible'
+          }}
+        >
         <NFTCard nft={nft1} position="left" />
         
         {/* VS indicator - Swiss minimal style */}
@@ -628,8 +644,9 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           <div style={{
             width: '80px',
             height: '80px',
-            background: 'var(--color-black)',
-            color: 'var(--color-white)',
+            background: 'var(--dynamic-text-color, var(--color-white))',
+            color: 'var(--dynamic-bg-color, var(--color-black))',
+            border: 'none',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -664,8 +681,8 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 transform: 'translateX(-50%)',
                 width: '80px',
                 height: '80px',
-                background: 'var(--color-black)',
-                color: 'var(--color-white)',
+                background: 'var(--dynamic-text-color, var(--color-white))',
+                color: 'var(--dynamic-bg-color, var(--color-black))',
                 border: 'none',
                 borderRadius: '50%',
                 fontSize: 'var(--font-size-xs)',
@@ -687,12 +704,12 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               onMouseEnter={(e) => {
                 const target = e.target as HTMLElement;
                 target.style.transform = 'translateX(-50%) scale(1.05)';
-                target.style.background = 'var(--color-grey-800)';
+                target.style.background = 'var(--dynamic-accent-color, var(--color-grey-600))';
               }}
               onMouseLeave={(e) => {
                 const target = e.target as HTMLElement;
                 target.style.transform = 'translateX(-50%) scale(1)';
-                target.style.background = 'var(--color-black)';
+                target.style.background = 'var(--dynamic-text-color, var(--color-white))';
               }}
               title="Don't like either option"
             >
@@ -702,39 +719,41 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           )}
         </div>
         
-        <NFTCard nft={nft2} position="right" />
-      </div>
-      
-      {/* Swipe to Vote Slider */}
+          <NFTCard nft={nft2} position="right" />
+        </div>
+        
+        {/* Vertical Slider on Right Side */}
       {!isVoting && (
         <div style={{
-          width: '100%',
-          maxWidth: '400px',
-          margin: 'var(--space-6) auto 0 auto',
-          position: 'relative'
+          width: '80px',
+          height: '400px',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
         }}>
           {/* Instruction Text */}
-          <div style={{
+          <div className="desktop-hide-slider" style={{
             textAlign: 'center',
             fontSize: 'var(--font-size-xs)',
             color: 'var(--color-grey-500)',
             marginBottom: 'var(--space-3)',
-            fontWeight: '500'
+            fontWeight: '500',
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed'
           }}>
-            <span className="desktop-instruction">
-              Tap or swipe to vote
-            </span>
             <span className="mobile-instruction" style={{ display: 'none' }}>
-              Tap or swipe to vote
+              Slide how much you like it
             </span>
           </div>
 
-          {/* Slider Track */}
+          {/* Vertical Slider Track */}
           <div
+            className="desktop-hide-slider"
             style={{
-              width: '100%',
-              height: '60px',
-              background: 'linear-gradient(90deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0.05) 100%)',
+              width: '60px',
+              height: '100%',
+              background: 'transparent',
               borderRadius: '30px',
               position: 'relative',
               border: '2px solid var(--color-grey-500)',
@@ -752,46 +771,46 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             {/* Vote Direction Indicators */}
             <div style={{
               position: 'absolute',
-              left: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
+              top: '16px',
+              left: '50%',
+              transform: 'translateX(-50%)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
               color: sliderPosition < 40 ? 'var(--color-green)' : 'var(--color-grey-500)',
               transition: 'color 0.2s ease-out',
               pointerEvents: 'none'
             }}>
-              ←
+              ↑
             </div>
             
             <div style={{
               position: 'absolute',
-              right: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
+              bottom: '16px',
+              left: '50%',
+              transform: 'translateX(-50%)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
               color: sliderPosition > 60 ? 'var(--color-green)' : 'var(--color-grey-500)',
               transition: 'color 0.2s ease-out',
               pointerEvents: 'none'
             }}>
-              →
+              ↓
             </div>
 
             {/* Slider Handle */}
             <div
               style={{
                 position: 'absolute',
-                left: `calc(${sliderPosition}% - 28px)`,
-                top: '50%',
-                transform: 'translateY(-50%)',
+                top: `calc(${sliderPosition}% - 24px)`,
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: '56px',
                 height: '48px',
                 background: isDragging ? 'var(--color-green)' : 'var(--color-white)',
                 borderRadius: '24px',
                 border: '2px solid var(--color-grey-300)',
                 boxShadow: isDragging ? '0 4px 12px rgba(0,211,149,0.3)' : '0 2px 8px rgba(0,0,0,0.1)',
-                transition: isDragging ? 'none' : 'left 0.3s ease-out, background 0.2s ease-out, box-shadow 0.2s ease-out',
+                transition: isDragging ? 'none' : 'top 0.3s ease-out, background 0.2s ease-out, box-shadow 0.2s ease-out',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -821,9 +840,9 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             {(sliderPosition < 30 || sliderPosition > 70) && (
               <div style={{
                 position: 'absolute',
-                top: '50%',
-                left: sliderPosition < 30 ? '20%' : '80%',
-                transform: 'translateY(-50%)',
+                left: '50%',
+                top: sliderPosition < 30 ? '20%' : '80%',
+                transform: 'translateX(-50%)',
                 fontSize: 'var(--font-size-xs)',
                 fontWeight: '600',
                 color: 'var(--color-green)',
@@ -837,7 +856,23 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           </div>
         </div>
       )}
+      </div>
 
+      {/* Desktop instruction text - centered below matchup */}
+      <div className="desktop-instruction" style={{
+        textAlign: 'center',
+        fontSize: 'var(--font-size-base)',
+        color: 'var(--dynamic-text-color)',
+        fontWeight: '500',
+        display: 'none', // Hidden by default, shown on desktop via CSS
+        maxWidth: '500px',
+        margin: 'calc(var(--space-6) - 50px) auto 0 auto',
+        position: 'relative',
+        zIndex: 10,
+        transform: 'translateX(-20px)'
+      }}>
+        Pick your favorite. 🔥 if it slaps.
+      </div>
 
     </div>
   );

@@ -12,6 +12,7 @@ interface CircularMarqueeProps {
   duration?: number; // Animation duration in seconds
   type?: 'circular' | 'linear'; // New prop to choose marquee type
   width?: number; // For linear marquee width
+  contained?: boolean; // New prop to make it contained within parent
 }
 
 export default function CircularMarquee({ 
@@ -23,35 +24,37 @@ export default function CircularMarquee({
   color = 'var(--color-grey-400)',
   duration = 20,
   type = 'circular',
-  width = 800
+  width = 800,
+  contained = false
 }: CircularMarqueeProps) {
   if (!isVisible || phrases.length === 0) return null;
 
-  // Get a random phrase from the array and memoize it to keep it consistent
+  // Get a random phrase from the array and memoize it to keep it consistent for the entire modal
   const randomPhrase = useMemo(() => {
     return phrases[Math.floor(Math.random() * phrases.length)];
-  }, [phrases]); // Only changes when phrases array changes
+  }, []); // Empty dependency array - only runs once per component mount
   
   // Create the text with prize info and phrases
   const baseText = prizeText ? `${prizeText} • ${randomPhrase}` : randomPhrase;
   
   if (type === 'linear') {
-    // For linear marquee, repeat the phrase many times for seamless infinite scroll
+    // For linear marquee, repeat the same phrase many times for seamless infinite scroll
     // Use a separator with spaces to ensure proper spacing
-    const separator = '   •   ';
+    const separator = '     ';
     const repeatedText = Array(50).fill(randomPhrase).join(separator);
     
     return (
       <div style={{
-        position: 'absolute',
-        top: '325px', // Position under "YOU WON!" title, moved up 15px more
-        left: '0',
-        right: '0',
-        width: '100%',
+        position: contained ? 'relative' : 'absolute',
+        top: contained ? '0' : '325px', // Position under "YOU WON!" title, moved up 15px more
+        left: contained ? '0' : '0',
+        right: contained ? '0' : '0',
+        width: contained ? `${width}px` : '100%',
         height: '50px',
         overflow: 'hidden', // This clips the text at edges
         pointerEvents: 'none',
-        zIndex: 10
+        zIndex: 10,
+        margin: contained ? '0 auto' : '0'
       }}>
         <svg
           width="600%" // Make SVG 6x wider for truly seamless scrolling
@@ -76,7 +79,7 @@ export default function CircularMarquee({
             textAnchor="start"
             style={{
               textShadow: '0 0 10px rgba(255, 255, 255, 0.3)',
-              fontFamily: 'var(--font-family)'
+              fontFamily: 'var(--font-family-secondary)'
             }}
           >
             <textPath href="#linearPath" startOffset="0%">
@@ -95,6 +98,7 @@ export default function CircularMarquee({
             }
           }
         `}</style>
+
       </div>
     );
   }
@@ -145,7 +149,7 @@ export default function CircularMarquee({
             textAnchor="start"
             style={{
               textShadow: '0 0 10px rgba(255, 255, 255, 0.3)',
-              fontFamily: 'var(--font-family)'
+              fontFamily: 'var(--font-family-secondary)'
             }}
           >
             <textPath href="#circle" startOffset="0%">

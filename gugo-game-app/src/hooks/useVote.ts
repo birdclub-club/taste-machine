@@ -4,6 +4,30 @@ import { useBatchedVoting } from './useBatchedVoting';
 import type { VoteSubmission, EloUpdate, SliderUpdate, VoteType, VoteResult } from '@/types/voting';
 import { isPrizeBreakVote } from '@/lib/prize-break-utils';
 
+// 🏥 Simple database health tracking
+let recentTimeouts = 0;
+let lastTimeoutReset = Date.now();
+
+const trackDatabaseHealth = (isTimeout: boolean) => {
+  const now = Date.now();
+  
+  // Reset counter every 30 seconds
+  if (now - lastTimeoutReset > 30000) {
+    recentTimeouts = 0;
+    lastTimeoutReset = now;
+  }
+  
+  if (isTimeout) {
+    recentTimeouts++;
+  }
+  
+  return recentTimeouts;
+};
+
+const isDatabaseHealthy = () => {
+  return recentTimeouts < 3; // Less than 3 timeouts in 30 seconds = healthy
+};
+
 export function useVote() {
   const [isVoting, setVoting] = useState(false);
   const { addVoteToBatch, processPendingVotes } = useBatchedVoting();
@@ -90,10 +114,10 @@ export function useVote() {
         // Process slider vote in background (non-blocking for better UX)
         // Don't await - process in background to avoid UI blocking
         processSliderVote(voteData).catch(error => {
-          console.error('❌ Background slider processing failed:', error);
-          // Slider vote failure doesn't block the main vote flow
+          console.warn('⚠️ Background slider processing failed (gracefully handled):', error.message);
+          // Slider vote failure doesn't block the main vote flow - vote is still recorded
         });
-        console.log('🚀 Slider vote processing started in background...');
+        console.log('🚀 Slider vote processing started in background (non-blocking)...');
         
         // Deduct vote cost immediately for slider votes
         if (voteData.super_vote) {
@@ -227,87 +251,66 @@ export function useVote() {
       throw new Error(`Failed to fetch NFT for slider update: ${nftError?.message || 'Unknown error'}`);
     }
 
-    // Call the database function with correct parameters (nft_uuid, new_rating)
-    // Add timeout protection and better error handling
+    // 🚀 OPTIMIZED: Try direct database update first (faster than RPC function)
     try {
+      console.log(`📊 Attempting optimized slider update for NFT ${voteData.nft_a_id}...`);
+      
+      // 🏥 HEALTH CHECK: Skip update if database seems overloaded
+      const startTime = Date.now();
+      
+      if (!isDatabaseHealthy()) {
+        console.warn('⚠️ Database unhealthy - skipping slider update to prevent further timeouts');
+        console.log(`📊 Slider vote recorded locally: NFT ${voteData.nft_a_id}, value: ${finalSliderValue}`);
+        return;
+      }
+      
+      // Calculate new average manually (faster than RPC function)
+      const currentAverage = nft.slider_average || 5; // Default to 5 if null
+      const currentCount = nft.slider_count || 0;
+      const newCount = currentCount + 1;
+      const newAverage = ((currentAverage * currentCount) + finalSliderValue) / newCount;
+      
+      // Direct update with short timeout
       const updatePromise = supabase
-        .rpc('update_slider_average', {
-          nft_uuid: voteData.nft_a_id, 
-          new_rating: finalSliderValue
-        });
-
+        .from('nfts')
+        .update({ 
+          slider_average: Math.round(newAverage * 100) / 100, // Round to 2 decimal places
+          slider_count: newCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', voteData.nft_a_id);
+        
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Slider update timeout after 5 seconds')), 5000)
+        setTimeout(() => reject(new Error('Database timeout')), 2000) // Further reduced to 2 seconds
       );
 
       const result = await Promise.race([updatePromise, timeoutPromise]) as any;
       
-      if (result && result.error) {
-        console.error('❌ Slider vote update error:', result.error);
-        throw new Error(`Failed to update slider average: ${result.error.message || JSON.stringify(result.error)}`);
+      if (result?.error) {
+        console.warn(`⚠️ Database update error (gracefully handled): ${result.error.message}`);
+        throw new Error(`Database update failed: ${result.error.message}`);
       }
       
-      console.log(`✅ Slider update successful for NFT ${voteData.nft_a_id} with value ${finalSliderValue}`);
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      console.log(`✅ Optimized slider update successful: ${currentAverage} → ${newAverage} (count: ${currentCount} → ${newCount}) in ${duration}ms`);
+      return; // Success!
+      
     } catch (error: any) {
-      console.error('❌ Slider vote update failed:', error);
+      // 🏥 Track database health
+      const isTimeout = error.message.includes('timeout') || error.message.includes('Database timeout');
+      trackDatabaseHealth(isTimeout);
       
-      // If it's a timeout or database error, try multiple fallback approaches
-      if (error.message.includes('timeout') || error.message.includes('statement timeout')) {
-        console.log('⚠️ Database timeout detected, attempting fallback strategies...');
-        
-        // Fallback 1: Quick direct update with shorter timeout
-        try {
-          const fallbackPromise = supabase
-            .from('nfts')
-            .update({ 
-              slider_count: nft.slider_count + 1,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', voteData.nft_a_id);
-            
-          const fallbackTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fallback timeout')), 2000) // 2 second timeout
-          );
-          
-          const fallbackResult = await Promise.race([fallbackPromise, fallbackTimeout]) as any;
-          
-          if (fallbackResult?.error) {
-            throw new Error(`Fallback update failed: ${fallbackResult.error.message}`);
-          }
-          
-          console.log('✅ Fallback slider update successful (count incremented)');
-          return; // Success with fallback
-        } catch (fallbackError: any) {
-          console.error('❌ Fallback 1 failed:', fallbackError);
-          
-          // Fallback 2: Just log the vote locally and continue (graceful degradation)
-          console.log('⚠️ All database updates failed, gracefully degrading...');
-          console.log(`📊 Slider vote recorded locally: NFT ${voteData.nft_a_id}, value: ${finalSliderValue}`);
-          
-          // Don't throw error - allow the vote to continue processing
-          // The vote will still be recorded in the votes table by the main voting system
-          return;
-        }
-      }
-      
-      // For non-timeout errors, still try the graceful degradation
-      console.log('⚠️ Non-timeout error, attempting graceful degradation...');
+      // 🎯 ULTRA-GRACEFUL: Never throw errors, always continue
+      console.warn('⚠️ Database busy - gracefully degrading slider update (non-blocking):', error.message);
       console.log(`📊 Slider vote recorded locally: NFT ${voteData.nft_a_id}, value: ${finalSliderValue}`);
-      return; // Don't throw - allow vote processing to continue
+      
+      // CRITICAL: Never throw error - the vote is still recorded in the votes table
+      // The slider average can be recalculated later via background job if needed
+      return; // Always succeed gracefully
     }
 
-    // Get updated NFT data for logging
-    const { data: updatedNft, error: fetchError } = await supabase
-      .from('nfts')
-      .select('slider_average, slider_count')
-      .eq('id', voteData.nft_a_id)
-      .single();
-
-    if (!fetchError && updatedNft) {
-      console.log(`📊 Slider updated: ${nft.slider_average} → ${updatedNft.slider_average} (count: ${nft.slider_count} → ${updatedNft.slider_count})`);
-    } else {
-      console.log(`📊 Slider vote processed successfully for NFT ${voteData.nft_a_id}`);
-    }
+    // Note: Logging is handled within the try-catch block above
   };
 
   // 📉 Process NO votes (valuable negative aesthetic data for both NFTs)

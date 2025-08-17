@@ -13,8 +13,8 @@ export default function PrizeProgressBar({ currentVotes, userXP, className = '' 
   const [animatedProgress, setAnimatedProgress] = useState(0);
   
   const threshold = getPrizeBreakThreshold(userXP);
-  const votesUntilPrize = currentVotes % threshold;
-  const progress = (votesUntilPrize / threshold) * 100;
+  const votesInCurrentCycle = currentVotes % threshold;
+  const progress = (votesInCurrentCycle / threshold) * 100;
   
   // Smooth animation for progress changes
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function PrizeProgressBar({ currentVotes, userXP, className = '' 
       <div style={{
         width: '120px',
         height: '4px',
-        backgroundColor: '#2d2d2d',
+        backgroundColor: 'var(--dynamic-text-color)',
         borderRadius: '2px',
         overflow: 'hidden',
         position: 'relative',
@@ -88,13 +88,13 @@ export default function PrizeProgressBar({ currentVotes, userXP, className = '' 
       
       {/* Vote Counter (Subtle) */}
       <span style={{
-        fontSize: '11px',
-        color: '#666',
-        fontWeight: '500',
-        minWidth: '32px',
+        fontSize: '14px',
+        color: 'var(--dynamic-text-color, #666)',
+        fontWeight: '600',
+        minWidth: '40px',
         textAlign: 'right'
       }}>
-        {votesUntilPrize}/{threshold}
+        {votesInCurrentCycle}/{threshold}
       </span>
       
       {/* CSS Animations */}

@@ -19,6 +19,11 @@
   --color-green-medium: #00a878; /* Visible dot green */
   --color-green-light: #4ade80;
   
+  /* Dynamic Theme Colors - Set by landing page */
+  --dynamic-bg-color: #fefcf3; /* Default to cream */
+  --dynamic-text-color: #212529; /* Default to dark grey */
+  --dynamic-accent-color: #00d395; /* Default to green */
+  
   /* Layout */
   --max-width: 1200px;
   --border-radius: 8px;
@@ -26,7 +31,9 @@
   --border-radius-lg: 12px;
   
   /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family: 'kings-caslon', 'Inter', -apple-system, BlinkMacSystemFont, serif; /* King's Caslon Regular as primary */
+  --font-family-primary: 'neue-haas-unica', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; /* Neue Haas Unica for titles */
+  --font-family-secondary: 'kings-caslon', 'Inter', -apple-system, BlinkMacSystemFont, serif; /* King's Caslon Regular for body text */
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -76,13 +83,11 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-family);
+  font-family: var(--font-family-secondary); /* King's Caslon Regular for body text */
   font-size: var(--font-size-base);
   line-height: 1.6;
-  color: var(--color-grey-800);
-  background: #1a1a1a;
-  background-image: radial-gradient(rgba(50, 168, 82, 0.6) 1.5px, transparent 1.5px);
-  background-size: 28px 28px;
+  color: var(--dynamic-text-color, var(--color-grey-800));
+  background: var(--dynamic-bg-color, var(--color-cream));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -365,6 +370,10 @@ body {
     gap: var(--space-4);
   }
   
+  .main-content-spaced {
+    padding: calc(var(--space-4) + 80px) var(--space-4) var(--space-4) var(--space-4) !important;
+  }
+  
   .text-hero {
     font-size: var(--font-size-4xl);
     line-height: 1.0;
@@ -400,48 +409,7 @@ body {
   /* Mobile bottom tagline adjustments */
   .bottom-tagline {
     font-size: var(--font-size-xs) !important;
-  }
-  
-  /* Mobile bottom tagline container adjustments */
-  .bottom-tagline-container {
-    bottom: var(--space-4) !important;
-  }
-  
-  .bottom-tagline-wrapper {
-    padding-left: var(--space-4) !important;
-    padding-right: var(--space-4) !important;
-    flex-direction: column !important;
-    gap: var(--space-2) !important;
-    align-items: flex-start !important;
-  }
-  
-  .chain-info {
-    text-align: left !important;
-  }
-  
-  /* Hide testnet labels on mobile for cleaner look */
-  .testnet-label {
-    display: none !important;
-  }
-  
-  .dot-grid {
-    background-size: 22px 22px;
-    opacity: 0.4;
-  }
-  
-  .halftone-bg {
-    background-size: 16px 16px;
-  }
-  
-  /* Mobile logo adjustments */
-  .hero-logo {
-    width: 120px !important;
-    height: 120px !important;
-  }
-  
-  .status-logo {
-    width: 36px !important;
-    height: 36px !important;
+    padding: var(--space-2) var(--space-4) !important;
   }
   
   /* Mobile StatusBar adjustments */
@@ -466,6 +434,39 @@ body {
     gap: var(--space-2) !important;
     justify-content: space-between !important;
     width: 100% !important;
+  }
+}
+
+/* Desktop Optimizations - Hide slider on larger screens */
+@media (min-width: 769px) {
+  .desktop-hide-slider {
+    display: none !important;
+  }
+  
+  .desktop-instruction {
+    display: block !important;
+  }
+  
+  .mobile-instruction {
+    display: none !important;
+  }
+  
+  /* Restore horizontal layout for desktop */
+  .matchup-container {
+    flex-direction: row !important;
+    gap: var(--space-8) !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+  }
+  
+  /* Allow medium cards on desktop for slider */
+  .nft-card {
+    max-width: 450px !important;
+    min-width: 340px !important;
+    width: 450px !important;
   }
 }
 
@@ -691,5 +692,118 @@ body.wallet-connected {
   }
   50% {
     text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 25px rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* 🎨 LANDING PAGE STYLES - Swiss Minimalist Design */
+
+.landing-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  /* Background color set via inline style for dynamic palettes */
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.landing-text {
+  position: absolute;
+  font-family: var(--font-family-primary);
+  font-weight: 300;
+  font-size: clamp(5rem, 15vw, 16rem);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  color: var(--landing-text-color, #E55C26);
+  text-transform: uppercase;
+  user-select: none;
+  pointer-events: none;
+  opacity: 0;
+  animation: fadeInLanding 2s ease-out 0.5s forwards;
+}
+
+.landing-taste {
+  top: 5vh;
+  left: 5vw;
+  animation-delay: 0.8s;
+}
+
+.landing-machine {
+  bottom: 5vh;
+  right: 5vw;
+  text-align: right;
+  animation-delay: 1.2s;
+}
+
+.landing-enter-btn {
+  position: absolute;
+  bottom: 8vh;
+  left: 5vw;
+  background: transparent;
+  border: 1px solid var(--landing-border-color, rgba(229, 92, 38, 0.3));
+  color: var(--landing-text-color, #E55C26);
+  padding: 1rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  animation: fadeInLanding 1s ease-out 2s forwards;
+  z-index: 10;
+}
+
+.landing-enter-btn:hover {
+  border-color: var(--landing-border-hover, rgba(229, 92, 38, 0.6));
+  background: var(--landing-bg-hover, rgba(229, 92, 38, 0.05));
+  transform: translateX(4px);
+}
+
+.landing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+@keyframes fadeInLanding {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsive Landing */
+@media (max-width: 768px) {
+  .landing-text {
+    font-size: clamp(3rem, 12vw, 7rem);
+  }
+  
+  .landing-taste {
+    top: 8vh;
+    left: 8vw;
+  }
+  
+  .landing-machine {
+    bottom: 8vh;
+    right: 8vw;
+  }
+  
+  .landing-enter-btn {
+    bottom: 12vh;
+    left: 8vw;
+    padding: 0.8rem;
+  }
+}
+
+/* Tablet Responsive Landing */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .landing-text {
+    font-size: clamp(4rem, 12vw, 12rem);
   }
 }

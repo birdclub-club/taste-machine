@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSessionVotePurchase } from '@/hooks/useSessionVotePurchase';
 import { useSessionKey } from '@/hooks/useSessionKey';
 
@@ -132,7 +133,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
 
   const isValidPurchase = currentLickCount >= 10;
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -143,12 +144,14 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
-      padding: 'var(--space-4)'
+      zIndex: 999999,
+      padding: 'var(--space-4)',
+      paddingTop: '80px',
+      isolation: 'isolate'
     }}>
       <div style={{
-        background: 'var(--color-black)',
-        border: '1px solid #444',
+        background: 'var(--dynamic-bg-color, var(--color-black))',
+        border: '1px solid var(--dynamic-text-color, #444)',
         borderRadius: 'var(--border-radius)',
         padding: 'var(--space-4)',
         maxWidth: '400px',
@@ -210,7 +213,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
         }}>
           <div style={{
             display: 'flex',
-            background: '#2a2a2a',
+            background: 'var(--dynamic-bg-color)',
             border: '1px solid #444',
             borderRadius: 'var(--border-radius)',
             padding: '2px'
@@ -274,9 +277,9 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               style={{
                 position: 'relative',
                 padding: 'var(--space-2)',
-                background: selectedOption === option.id ? '#333' : 'transparent',
+                background: selectedOption === option.id ? 'var(--dynamic-accent-color, #333)' : 'transparent',
                 color: 'var(--color-white)',
-                border: selectedOption === option.id ? '1px solid #666' : '1px solid #444',
+                border: selectedOption === option.id ? '1px solid var(--dynamic-text-color, #666)' : '1px solid var(--dynamic-text-color, #444)',
                 borderRadius: 'var(--border-radius)',
                 cursor: isPurchasing ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
@@ -386,7 +389,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               style={{
                 width: '100%',
                 padding: 'var(--space-3)',
-                background: '#2a2a2a',
+                background: 'var(--dynamic-bg-color)',
                 border: '2px solid #444',
                 borderRadius: 'var(--border-radius)',
                 color: 'var(--color-white)',
@@ -407,7 +410,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
         {/* Cost Summary */}
         {currentLickCount > 0 && (
           <div style={{
-            background: '#1a1a1a',
+            background: 'var(--dynamic-bg-color)',
             border: '1px solid #333',
             borderRadius: 'var(--border-radius)',
             padding: 'var(--space-3)',
@@ -530,6 +533,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
