@@ -29,6 +29,7 @@ import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-g
 import { supabase } from '@lib/supabase';
 import { useActivityCounter } from '@/hooks/useActivityCounter';
 import { useFavorites } from '@/hooks/useFavorites';
+import OnboardingTour from '@/components/OnboardingTour';
 
 // 🎯 Circular marquee phrases for different prize types
 const GUGO_PHRASES = [
@@ -193,7 +194,9 @@ export default function Page() {
   } = useSessionKey();
   const { 
     preference, 
-    setCollectionPreference 
+    setCollectionPreference,
+    shouldShowTour,
+    markTourAsSeen
   } = useCollectionPreference();
   const statusBarRef = useRef<StatusBarRef>(null);
   const { licksToday, isLoading: isLoadingActivity } = useActivityCounter();
@@ -1406,6 +1409,7 @@ export default function Page() {
       width: '100%'
     }}>
       
+
       {/* Network Status Alert */}
       <NetworkStatus />
       
@@ -1960,6 +1964,19 @@ export default function Page() {
       {/* Audio Controls */}
       <AudioControls />
 
+      {/* Onboarding Tour */}
+      <OnboardingTour
+        isOpen={shouldShowTour && isConnected && !loading}
+        onComplete={() => {
+          console.log('🎉 Onboarding tour completed');
+          markTourAsSeen();
+        }}
+        onSkip={() => {
+          console.log('⏭️ Onboarding tour skipped');
+          markTourAsSeen();
+        }}
+      />
+      
 
 
           </div>

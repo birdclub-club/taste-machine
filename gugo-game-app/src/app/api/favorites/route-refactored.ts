@@ -19,7 +19,7 @@ import {
   extractWalletAddress,
   isValidWalletAddress
 } from '../../../lib/api-utils';
-import { supabase } from '@lib/supabase';
+import { supabase } from '../../../../lib/supabase';
 
 // ================================
 // 📚 GET - Fetch user's favorites

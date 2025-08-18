@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     
     try {
       // Import Supabase client
-      const { supabase } = await import('@lib/supabase');
+      const { supabase } = await import('../../../../../lib/supabase');
       
       console.log('💾 Storing reward and updating user balances directly...');
 

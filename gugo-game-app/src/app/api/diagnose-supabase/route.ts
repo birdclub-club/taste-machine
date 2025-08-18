@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Test 2: Try the imported client
     console.log('🧪 Test 2: Imported Supabase client...');
-    const { supabase } = await import('@lib/supabase');
+    const { supabase } = await import('../../../../lib/supabase');
     
     const { data: importedData, error: importedError } = await supabase
       .from('nfts')
