@@ -371,7 +371,7 @@ body {
   }
   
   .main-content-spaced {
-    padding: calc(var(--space-4) + 80px) var(--space-4) var(--space-4) var(--space-4) !important;
+    padding: calc(var(--space-2) + 60px) var(--space-2) var(--space-2) var(--space-2) !important; /* Reduced padding to prevent image cropping */
   }
   
   .text-hero {
@@ -390,11 +390,83 @@ body {
   
   .matchup-container {
     flex-direction: column !important;
-    gap: var(--space-6) !important;
+    gap: var(--space-3) !important;
+    max-height: none !important; /* Remove height restriction to prevent cropping */
+    overflow: visible !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   .nft-card {
-    max-width: 90vw !important;
+    max-width: 70vw !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Aggressively remove ALL white card backgrounds */
+  .matchup-card div[style*="background: var(--color-white)"],
+  .matchup-card div[style*="background:var(--color-white)"],
+  .matchup-card div[style*="background: white"],
+  .matchup-card div[style*="background:white"],
+  .matchup-card div[style*="background: #fff"],
+  .matchup-card div[style*="background:#fff"],
+  .matchup-card div[style*="background: #ffffff"],
+  .matchup-card div[style*="background:#ffffff"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target any white backgrounds in NFT cards */
+  .matchup-card > div > div[style*="background"],
+  .matchup-card [style*="background: var(--color-white)"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Nuclear option - remove ALL backgrounds from matchup card children */
+  .matchup-card * {
+    background-color: transparent !important;
+  }
+  
+  /* But keep the NFT image backgrounds */
+  .matchup-card img {
+    background: initial !important;
+  }
+  
+  /* Aggressively reduce all spacing in the matchup area */
+  .matchup-card div[style*="flexShrink"] {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target any div with margin styles */
+  .matchup-card div[style*="margin"] {
+    margin: 0 !important;
+  }
+  
+  /* Force the VS indicator container to have no spacing */
+  .matchup-card div[style*="margin: 0 var(--space-8)"],
+  .matchup-card div[style*="margin:0 var(--space-8)"] {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target the main flex container that holds the NFTs - allow React to control gap */
+  .matchup-card > div[style*="display: flex"] {
+    margin: 0 !important;
+    padding: 0 !important;
   }
   
   /* Mobile slider instructions */
@@ -805,5 +877,160 @@ body.wallet-connected {
 @media (min-width: 769px) and (max-width: 1024px) {
   .landing-text {
     font-size: clamp(4rem, 12vw, 12rem);
+  }
+}
+
+/* Mobile Branding Adjustments */
+@media (max-width: 768px) {
+  .proof-of-element {
+    top: calc(5vh + 60px) !important;
+    font-size: clamp(2rem, 12vw, 10rem) !important;
+  }
+  
+  /* Optimize matchup card layout for mobile viewport */
+  .matchup-card {
+    padding: 2vh 0 !important; /* Add padding to prevent cropping */
+    gap: 0 !important;
+    min-height: auto !important;
+    margin-top: 22.5vh !important; /* Split the difference between 15vh and 30vh */
+    max-height: none !important; /* Remove height restriction to prevent cropping */
+    overflow: visible !important;
+    justify-content: center !important;
+    align-items: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Force all children of matchup card to have minimal spacing */
+  .matchup-card > * {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target the container that holds both NFT cards - force extreme closeness */
+  .matchup-card > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  
+  /* Target the flex container holding both NFT cards specifically */
+  .matchup-card > div[style*="flex-direction: column"] {
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Force any div with column layout to have zero gap */
+  .matchup-card div[style*="column"] {
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Make NFT images larger (30% increase) with white outline and compact spacing */
+  .nft-card img {
+    width: 85vw !important;
+    height: 85vw !important;
+    max-height: 30vh !important;
+    max-width: 30vh !important;
+    object-fit: cover !important;
+    border-radius: 12px !important;
+    display: block !important;
+    margin: -8vh 0 -8vh 2vw !important; /* Move images slightly to the left with small left offset */
+    aspect-ratio: 1 / 1 !important;
+    border: 4px solid #ffffff !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+  }
+
+  /* Make NFT cards themselves with compact spacing on mobile */
+  .nft-card {
+    margin: -8vh auto !important; /* More aggressive negative margin to pull cards much closer together */
+    padding: 0 !important;
+  }
+  
+  /* Clean image container */
+  .nft-card .image-container {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 2vh 0 !important; /* Add padding to prevent cropping */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin: -8vh 0 !important; /* Adjust margin to compensate for padding */
+  }
+  
+  /* Compact the voting controls */
+  .matchup-card > div {
+    margin: 0 !important;
+    padding: var(--space-1) 0 !important;
+  }
+  
+  /* Reduce slider height on mobile */
+  .matchup-card .slider-container {
+    height: 200px !important;
+    margin: var(--space-2) 0 !important;
+  }
+  
+  /* Hide NFT card metadata on mobile */
+  .nft-card .card-footer {
+    display: none !important;
+  }
+  
+  /* Hide unnecessary card elements on mobile */
+  .nft-card .card-header {
+    display: none !important;
+  }
+  
+  /* Style collection name and token info */
+  .nft-card .collection-name {
+    font-weight: 600 !important;
+    font-size: var(--font-size-sm) !important;
+    color: var(--dynamic-text-color, #ffffff) !important;
+  }
+  
+  .nft-card .token-info {
+    font-size: var(--font-size-xs) !important;
+    color: var(--dynamic-text-color-secondary, #cccccc) !important;
+  }
+  
+  /* Reduce VS container margin on mobile */
+  .matchup-card div[style*="margin: 0 var(--space-8)"] {
+    margin: 0 !important;
+  }
+  
+  /* Target the VS circle and replace with Powered by GUGO */
+  .matchup-card div[style*="border-radius: 50%"] {
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: var(--space-1) 0 !important;
+    font-size: 0 !important; /* Hide original VS text */
+    font-weight: 500 !important;
+    color: var(--dynamic-text-color-secondary, #666666) !important;
+    letter-spacing: 0.5px !important;
+  }
+  
+  /* Show Powered by GUGO text */
+  .matchup-card div[style*="border-radius: 50%"]::before {
+    content: "Powered by GUGO" !important;
+    display: block !important;
+    font-size: 10px !important;
+    font-weight: 400 !important;
+    color: var(--dynamic-text-color-secondary, #666666) !important;
+    letter-spacing: 0.5px !important;
+    margin: 0 !important;
+    padding: 2px 0 !important;
+  }
+  
+  /* Make No button more compact */
+  .matchup-card .no-button {
+    padding: var(--space-1) var(--space-2) !important;
+    font-size: var(--font-size-xs) !important;
   }
 }

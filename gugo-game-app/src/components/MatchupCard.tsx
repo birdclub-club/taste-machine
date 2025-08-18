@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 
 interface NFTData {
@@ -40,6 +40,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
   const [isDragging, setIsDragging] = useState(false);
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
   const [showNoButton, setShowNoButton] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [voteAnimationState, setVoteAnimationState] = useState<{
     winnerId: string | null;
     isAnimating: boolean;
@@ -47,28 +48,73 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     isFireVote: boolean;
   }>({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
   
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileSize = window.innerWidth <= 900; // Increased breakpoint for tablets/larger phones
+      setIsMobile(isMobileSize);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
 
 
-  // Show "No" button after 5 seconds - reset timer for each new matchup
+  // Show "No" button after 3 seconds - reset timer for each new matchup
   useEffect(() => {
     // Reset button visibility when new matchup loads
     setShowNoButton(false);
     
     const timer = setTimeout(() => {
       setShowNoButton(true);
-    }, 5000);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, [nft1.id, nft2.id]);
 
   // Clear glow animation when new NFTs load
   useEffect(() => {
+    console.log(`🎨 New NFTs loaded: ${nft1.id.substring(0,8)} vs ${nft2.id.substring(0,8)} - clearing animation state`);
+    console.log('🖼️ NFT1 image URL:', nft1.image);
+    console.log('🖼️ NFT2 image URL:', nft2.image);
+    console.log('🔧 NFT1 fixed URL:', fixImageUrl(nft1.image));
+    console.log('🔧 NFT2 fixed URL:', fixImageUrl(nft2.image));
+    
+    // Clear any existing timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+    
+    // Reset animation state immediately
     setVoteAnimationState({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
   }, [nft1.id, nft2.id]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // ⚡ OPTIMIZED: Glow stays until new cards appear (no gap)
   const handleVoteWithAnimation = async (winnerId: string, superVote: boolean = false) => {
     if (isVoting || voteAnimationState.isAnimating) return;
+    
+    console.log(`🗳️ Vote animation starting for NFT: ${winnerId.substring(0,8)} (superVote: ${superVote})`);
+    
+    // Clear any existing timeout first
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
     
     // 1. Instant glow feedback (white for regular, fire for super votes)
     setVoteAnimationState({ winnerId, isAnimating: true, fadeOutGlow: false, isFireVote: superVote });
@@ -76,7 +122,14 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     // 2. Call the vote function immediately (no waiting for UI)
     onVote(winnerId, superVote);
     
-    // 3. Glow stays on until useEffect clears it when new NFTs load - no gap!
+    // 3. Reduced safety timeout to clear animation state if useEffect doesn't trigger
+    animationTimeoutRef.current = setTimeout(() => {
+      console.log('⏰ Safety timeout: clearing animation state after 1.5 seconds');
+      setVoteAnimationState({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
+      animationTimeoutRef.current = null;
+    }, 1500); // Reduced from 3 to 1.5 seconds for faster recovery
+    
+    // 4. Glow stays on until useEffect clears it when new NFTs load - no gap!
   }; // Reset timer when NFTs change
 
   const handleCopyAddress = async (address: string, type: 'collection' | 'nft', nftId: string) => {
@@ -240,7 +293,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
         border: isWinner ? (isFireVote ? '4px solid #ff6b35' : '4px solid white') : 
                 hoveredNft === nft.id && !voteAnimationState.isAnimating ? '3px solid var(--color-black)' : '2px solid var(--color-grey-200)',
         borderRadius: 'var(--border-radius-lg)',
-        overflow: 'hidden',
+        overflow: 'visible', // Changed from 'hidden' to 'visible' to prevent border cropping
         transition: 'transform 0.2s ease-out',
         transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)',
         boxShadow: isWinner && isFireVote ? 
@@ -259,7 +312,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           style={{
             aspectRatio: '1',
             position: 'relative',
-            overflow: 'hidden',
+            overflow: 'visible', // Changed from 'hidden' to 'visible' to prevent image cropping
             background: 'var(--color-grey-100)',
             cursor: isVoting ? 'not-allowed' : 'pointer'
           }}
@@ -622,13 +675,16 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           className="matchup-container"
           style={{
             display: 'flex',
-            flexDirection: 'row',
-            gap: 'var(--space-8)',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? '0px' : 'var(--space-8)', // No gap on mobile
             alignItems: 'center',
             justifyContent: 'center',
             overflow: 'visible'
           }}
         >
+
+
+
         <NFTCard nft={nft1} position="left" />
         
         {/* VS indicator - Swiss minimal style */}
@@ -638,7 +694,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          margin: '0 var(--space-8)',
+          margin: isMobile ? '0' : '0 var(--space-8)', // No margin on mobile
           zIndex: 15
         }}>
           <div style={{
@@ -661,7 +717,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             VS.
           </div>
           
-          {/* "No" Button - Fades in after 5 seconds */}
+          {/* "No" Button - Fades in after 3 seconds */}
           {!isVoting && onNoVote && (
             <button
               onClick={() => {
@@ -669,10 +725,10 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 setShowNoButton(false);
                 // Call the no vote function
                 onNoVote();
-                // Reset button to appear again after 5 seconds
+                // Reset button to appear again after 3 seconds
                 setTimeout(() => {
                   setShowNoButton(true);
-                }, 5000);
+                }, 3000);
               }}
               style={{
                 position: 'absolute',

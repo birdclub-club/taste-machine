@@ -10,6 +10,7 @@ export interface EnhancedMatchupOptions {
   userWallet?: string;
   maxCandidates?: number;
   prioritizeInformation?: boolean;
+  excludePairs?: Set<string>; // Pass seen pairs from preloader
 }
 
 export interface EnhancedMatchupResult {
@@ -37,12 +38,56 @@ export interface EnhancedMatchupResult {
 export class EnhancedMatchupIntegration {
   private static instance: EnhancedMatchupIntegration;
   private enhancedEngineAvailable: boolean | null = null;
+  
+  // 🚀 Performance caching system
+  private cache = new Map<string, { result: any, timestamp: number }>();
+  private readonly CACHE_TTL = 1 * 60 * 1000; // 1 minute cache TTL for more variety
+  private readonly MAX_CACHE_SIZE = 100; // Limit cache size to prevent memory issues
 
   static getInstance(): EnhancedMatchupIntegration {
     if (!EnhancedMatchupIntegration.instance) {
       EnhancedMatchupIntegration.instance = new EnhancedMatchupIntegration();
     }
     return EnhancedMatchupIntegration.instance;
+  }
+
+  /**
+   * 🚀 Cache management methods
+   */
+  private getCacheKey(functionName: string, params: any): string {
+    return `${functionName}_${JSON.stringify(params)}`;
+  }
+
+  private getCachedResult(cacheKey: string): any | null {
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      console.log(`💾 Cache hit for ${cacheKey}`);
+      return cached.result;
+    }
+    if (cached) {
+      this.cache.delete(cacheKey); // Remove expired cache
+    }
+    return null;
+  }
+
+  private setCachedResult(cacheKey: string, result: any): void {
+    // Implement LRU cache by removing oldest entries if cache is full
+    if (this.cache.size >= this.MAX_CACHE_SIZE) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+    this.cache.set(cacheKey, { result, timestamp: Date.now() });
+  }
+
+  private clearExpiredCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.timestamp > this.CACHE_TTL) {
+        this.cache.delete(key);
+      }
+    }
   }
 
   /**
@@ -77,16 +122,32 @@ export class EnhancedMatchupIntegration {
       return null; // Fall back to existing logic
     }
 
+    // 🚀 Check cache first - include user wallet to prevent same NFT for same user
+    const cacheKey = this.getCacheKey('slider', { 
+      maxCandidates: options.maxCandidates || 5,
+      userWallet: options.userWallet || 'anonymous',
+      timestamp: Math.floor(Date.now() / 30000) // 30-second cache windows to ensure variety
+    });
+    const cachedResult = this.getCachedResult(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     try {
       console.log('🧠 Using enhanced slider selection...');
       
-      // Add timeout protection to individual RPC calls
-      const rpcPromise = supabase.rpc('find_optimal_slider_nft', {
+      // Clean expired cache entries periodically (more frequently for variety)
+      if (Math.random() < 0.3) { // 30% chance to clean cache for more variety
+        this.clearExpiredCache();
+      }
+      
+      // Add timeout protection to individual RPC calls (using optimized V2 function)
+      const rpcPromise = supabase.rpc('find_optimal_slider_nft_v2', {
         max_candidates: options.maxCandidates || 5
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('RPC timeout')), 1000)
+        setTimeout(() => reject(new Error('RPC timeout')), 1200)  // Increased from 1000ms
       );
       
       let sliderData, error;
@@ -137,14 +198,19 @@ export class EnhancedMatchupIntegration {
 
       console.log(`✨ Enhanced slider: ${nft.collection_name}/${nft.name} (Score: ${optimal.information_score}, Reason: ${optimal.selection_reason})`);
 
-      return {
+      const result = {
         nft: this.mapNFTData(nft),
-        vote_type: 'slider',
+        vote_type: 'slider' as VoteType,
         information_score: optimal.information_score,
         selection_reason: optimal.selection_reason,
         uncertainty_a: optimal.uncertainty,
         enhanced: true
       };
+
+      // 🚀 Cache the result
+      this.setCachedResult(cacheKey, result);
+      
+      return result;
     } catch (error) {
       console.error('❌ Enhanced slider selection error:', error);
       return null;
@@ -166,14 +232,18 @@ export class EnhancedMatchupIntegration {
     try {
       console.log('🧠 Using enhanced same-collection selection...');
       
-      // Add timeout protection to individual RPC calls
-      const rpcPromise = supabase.rpc('find_optimal_same_collection_matchup_lite', {
+      // Add randomization to prevent same results + exclude seen pairs
+      const randomOffset = Math.floor(Math.random() * 5); // 0-4 random offset
+      const maxCandidates = (options.maxCandidates || 8) + randomOffset;
+
+      // Add timeout protection to individual RPC calls (using optimized V2 function)
+      const rpcPromise = supabase.rpc('find_optimal_same_collection_matchup_v2', {
         target_collection: options.collectionFilter || null,
-        max_candidates: options.maxCandidates || 10
+        max_candidates: maxCandidates
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('RPC timeout')), 1000)
+        setTimeout(() => reject(new Error('RPC timeout')), 1500)  // Increased from 1000ms
       );
       
       let matchupData, error;
@@ -191,7 +261,27 @@ export class EnhancedMatchupIntegration {
         return null;
       }
 
-      const optimal = matchupData[0];
+      // Add variety by not always picking the first result
+      let optimal = matchupData[0];
+      
+      // If we have multiple candidates and excludePairs, try to find a non-excluded pair
+      if (matchupData.length > 1 && options.excludePairs) {
+        for (const candidate of matchupData) {
+          const pairKey = [candidate.nft_a_id, candidate.nft_b_id].sort().join('|');
+          if (!options.excludePairs.has(pairKey)) {
+            optimal = candidate;
+            console.log(`🔄 Found non-excluded same-coll pair: ${candidate.nft_a_id.substring(0,8)} vs ${candidate.nft_b_id.substring(0,8)}`);
+            break;
+          }
+        }
+      } else if (matchupData.length > 1) {
+        // Add some randomness even without excludePairs
+        const randomIndex = Math.floor(Math.random() * Math.min(3, matchupData.length)); // Pick from top 3
+        optimal = matchupData[randomIndex];
+        if (randomIndex > 0) {
+          console.log(`🎲 Selected random same-coll candidate #${randomIndex + 1} for variety`);
+        }
+      }
       
       // Fetch both NFTs
       const [nft1Result, nft2Result] = await Promise.all([
@@ -246,13 +336,17 @@ export class EnhancedMatchupIntegration {
     try {
       console.log('🧠 Using enhanced cross-collection selection...');
       
-      // Add timeout protection to individual RPC calls
-      const rpcPromise = supabase.rpc('find_optimal_cross_collection_matchup_lite', {
-        max_candidates: options.maxCandidates || 10
+      // Add randomization to prevent same results + exclude seen pairs
+      const randomOffset = Math.floor(Math.random() * 5); // 0-4 random offset
+      const maxCandidates = (options.maxCandidates || 8) + randomOffset;
+
+      // Add timeout protection to individual RPC calls (using optimized V2 function)
+      const rpcPromise = supabase.rpc('find_optimal_cross_collection_matchup_v2', {
+        max_candidates: maxCandidates
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('RPC timeout')), 1000)
+        setTimeout(() => reject(new Error('RPC timeout')), 1500)  // Increased from 1000ms
       );
       
       let matchupData, error;
@@ -270,7 +364,27 @@ export class EnhancedMatchupIntegration {
         return null;
       }
 
-      const optimal = matchupData[0];
+      // Add variety by not always picking the first result
+      let optimal = matchupData[0];
+      
+      // If we have multiple candidates and excludePairs, try to find a non-excluded pair
+      if (matchupData.length > 1 && options.excludePairs) {
+        for (const candidate of matchupData) {
+          const pairKey = [candidate.nft_a_id, candidate.nft_b_id].sort().join('|');
+          if (!options.excludePairs.has(pairKey)) {
+            optimal = candidate;
+            console.log(`🔄 Found non-excluded cross-coll pair: ${candidate.nft_a_id.substring(0,8)} vs ${candidate.nft_b_id.substring(0,8)}`);
+            break;
+          }
+        }
+      } else if (matchupData.length > 1) {
+        // Add some randomness even without excludePairs
+        const randomIndex = Math.floor(Math.random() * Math.min(3, matchupData.length)); // Pick from top 3
+        optimal = matchupData[randomIndex];
+        if (randomIndex > 0) {
+          console.log(`🎲 Selected random cross-coll candidate #${randomIndex + 1} for variety`);
+        }
+      }
       
       // Fetch both NFTs
       const [nft1Result, nft2Result] = await Promise.all([

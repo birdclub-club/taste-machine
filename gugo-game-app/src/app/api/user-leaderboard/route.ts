@@ -61,7 +61,7 @@ async function calculateVotingStreak(userId: string): Promise<number> {
 }
 
 // Taste Level calculation based on XP
-export function calculateTasteLevel(xp: number): { level: number; name: string; minXP: number; maxXP: number; progress: number } {
+function calculateTasteLevel(xp: number): { level: number; name: string; minXP: number; maxXP: number; progress: number } {
   const tasteLevels = [
     { level: 1, name: "Novice Taster", minXP: 0, maxXP: 99 },
     { level: 2, name: "Apprentice Curator", minXP: 100, maxXP: 299 },
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
   try {
     console.log('👥 Fetching user leaderboard...');
 
-    // Get top users by XP and total votes
+    // Get top users by XP and total votes (excluding users with 0 votes)
     const { data: usersData, error: usersError } = await supabase
       .from('users')
       .select(`
@@ -106,6 +106,7 @@ export async function GET(request: NextRequest) {
         available_votes,
         created_at
       `)
+      .gt('total_votes', 0) // Only include users with at least 1 vote
       .order('xp', { ascending: false })
       .order('total_votes', { ascending: false })
       .order('created_at', { ascending: true }) // Earlier users win ties
@@ -135,6 +136,15 @@ export async function GET(request: NextRequest) {
     // Process users and add taste levels, rankings, and streaks
     const processedUsers = await Promise.all(usersData.map(async (user, index) => {
       const tasteLevel = calculateTasteLevel(user.xp || 0);
+      
+      // Debug logging for first user
+      if (index === 0) {
+        console.log('🎯 First user taste level debug:', {
+          xp: user.xp,
+          tasteLevel,
+          wallet: user.wallet_address.slice(0, 10)
+        });
+      }
       
       // Create display name (username or shortened wallet address)
       const displayName = user.username || 
