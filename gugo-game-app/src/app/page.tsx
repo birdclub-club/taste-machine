@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import MatchupCard from '@/components/MatchupCard';
 import StatusBar, { StatusBarRef } from '@/components/StatusBar';
 import PurchaseAlert from '@/components/PurchaseAlert';
+import { SimplifiedInsufficientVotesAlert } from '@/components/SimplifiedInsufficientVotesAlert';
 import NetworkStatus from '@/components/NetworkStatus';
 import { SessionPrompt } from '@/components/SessionPrompt';
 
@@ -1437,24 +1438,25 @@ export default function Page() {
             overflow: 'visible'
           }}>
             
-            {/* Swiss-style typography layout */}
-                <div style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
+            {/* Colossal Text Container - Below Status Bar */}
+            <div className="colossal-text-container" style={{
+              position: 'fixed',
+              top: '45px',
+              left: 0,
               width: '100vw',
-              height: '100vh',
+              height: 'calc(100vh - 45px)',
               pointerEvents: 'none',
-              zIndex: 0
+              zIndex: 0,
+              overflow: 'hidden'
             }}>
-              {/* PROOF OF - Top Left */}
+              {/* PROOF OF - Top Left Corner */}
               <div className="proof-of-element" style={{
-                      position: 'absolute',
-                top: 'calc(5vh + 25px)',
+                position: 'absolute',
+                top: '2vh',
                 left: '5vw',
                 fontFamily: 'var(--font-family-primary)',
                 fontWeight: '300',
-                fontSize: 'clamp(3rem, 12vw, 10rem)',
+                fontSize: 'clamp(2rem, 12vw, 10rem)',
                 lineHeight: '0.8',
                 letterSpacing: '-0.02em',
                 color: 'var(--dynamic-text-color)',
@@ -1466,29 +1468,29 @@ export default function Page() {
               }}>
                 <div>PROOF</div>
                 <div>OF</div>
-                    </div>
+              </div>
 
-              {/* AEST HETIC™ - Bottom Right */}
+              {/* AEST HETIC™ - Bottom Right Corner */}
               <div className="aest-hetic-element" style={{
                 position: 'absolute',
                 bottom: '5vh',
                 right: '5vw',
                 fontFamily: 'var(--font-family-primary)',
                 fontWeight: '300',
-                fontSize: 'clamp(3rem, 12vw, 10rem)',
+                fontSize: 'clamp(2rem, 12vw, 10rem)',
                 lineHeight: '0.8',
                 letterSpacing: '-0.02em',
                 color: 'var(--dynamic-text-color)',
-                        textTransform: 'uppercase',
+                textTransform: 'uppercase',
                 opacity: '1',
                 userSelect: 'none',
                 textAlign: 'right',
                 transform: showContent ? 'translateX(100vw)' : 'translateX(0)',
                 transition: 'none'
               }}>
-                <div>AEST</div>
+                <div>AES</div>
                 <div style={{ position: 'relative' }}>
-                  HETIC
+                  THETIC
                   <sup style={{ 
                     fontSize: '0.4em', 
                     position: 'absolute',
@@ -1496,44 +1498,61 @@ export default function Page() {
                     right: '-0.8em',
                     lineHeight: '1'
                   }}>™</sup>
-                    </div>
+                </div>
               </div>
-                  </div>
 
-                        {/* Powered by GUGO - Above voting */}
-            <div className="powered-by-element" style={{ 
-                    textAlign: 'center',
-              paddingTop: 'calc(var(--space-6) + 120px)',
-              position: 'relative',
-              zIndex: 1,
-              transform: showContent ? 'translateX(100vw)' : 'translateX(0)',
-              transition: 'none'
-            }}>
-              <p className="text-subtitle" style={{ 
+              {/* Bottom Center Info - Within colossal container */}
+              <div style={{
+                position: 'absolute',
+                bottom: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                textAlign: 'center',
+                fontSize: 'var(--font-size-sm)',
                 color: 'var(--dynamic-text-color)',
-                maxWidth: '500px',
-                margin: '0 auto',
-                fontWeight: '300',
                 opacity: '1.0',
-                transform: 'translateY(-30px) translateX(-15px)'
+                fontWeight: '300',
+                zIndex: 10,
+                pointerEvents: 'none',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
               }}>
-                Powered by GUGO
-              </p>
-                        </div>
+                <span>NFTs from the <span style={{ color: '#22c55e' }}>{currentChain}</span> blockchain</span>
+                <span>&nbsp;&nbsp;</span>
+                <span>Taste Activity Today: {isLoadingActivity ? 'Loading...' : licksToday}</span>
+                <div style={{ 
+                  width: '28px', 
+                  height: '28px', 
+                  marginLeft: '4px',
+                  backgroundColor: 'var(--dynamic-text-color)',
+                  WebkitMask: 'url(/lick-icon.png) center/contain no-repeat',
+                  mask: 'url(/lick-icon.png) center/contain no-repeat'
+                }} />
+              </div>
 
-            {/* Voting Section - Centered */}
-            <section style={{ 
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-              gap: 'var(--space-8)',
-              paddingTop: 'var(--space-2)',
-              paddingBottom: 'var(--space-8)',
-              width: '100%'
-            }}>
-              {renderVotingContent()}
-            </section>
+              {/* Voting Section - Centered within colossal container */}
+              <section style={{ 
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 5,
+                overflow: 'visible',
+                pointerEvents: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 'var(--space-8)',
+                paddingTop: 'var(--space-2)',
+                paddingBottom: 'var(--space-8)'
+              }}>
+                {renderVotingContent()}
+              </section>
+            </div>
+            {/* End of main composition container */}
 
             {/* Duck images now embedded in prize break modal below */}
             {false && (
@@ -1826,7 +1845,9 @@ export default function Page() {
                             try {
                               const success = await createSession();
                               if (success) {
-                                console.log('✅ Session created successfully! Claiming reward...');
+                                console.log('✅ Session created successfully! Green indicator should now be visible.');
+                                // Small delay to ensure state propagation before claiming reward
+                                await new Promise(resolve => setTimeout(resolve, 100));
                                 endPrizeBreak();
                               } else {
                                 console.log('❌ Session creation failed or was cancelled');
@@ -1901,14 +1922,17 @@ export default function Page() {
           </div>
             )}
       
-      {/* Purchase Alert Modal */}
-      {showPurchaseAlert && (
-        <PurchaseAlert
-          requiredVotes={requiredVotes}
-          onPurchase={handlePurchaseVotes}
-          onClose={handleClosePurchaseAlert}
-        />
-      )}
+      {/* Simplified Purchase Alert Modal */}
+      <SimplifiedInsufficientVotesAlert
+        isOpen={showPurchaseAlert}
+        requiredVotes={requiredVotes}
+        onClose={handleClosePurchaseAlert}
+        onPurchaseComplete={(licksCount) => {
+          console.log(`🎉 Purchased ${licksCount} Licks from insufficient votes alert`);
+          // Refresh user data to update vote count
+          statusBarRef.current?.refreshUserData();
+        }}
+      />
       
       {/* Session Prompt Modal - Only for vote purchase now */}
       {showSessionPrompt.trigger === 'vote-purchase' && (
@@ -1936,36 +1960,7 @@ export default function Page() {
       {/* Audio Controls */}
       <AudioControls />
 
-      {/* Bottom Center Info */}
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        textAlign: 'center',
-        fontSize: 'var(--font-size-sm)',
-        color: 'var(--dynamic-text-color)',
-        opacity: '1.0',
-        fontWeight: '300',
-        zIndex: 99999,
-        pointerEvents: 'none',
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px'
-      }}>
-        <span>You are viewing NFTs from the <span style={{ color: '#22c55e' }}>{currentChain}</span> blockchain</span>
-        <span>&nbsp;&nbsp;</span>
-        <span>Taste Activity Today: {isLoadingActivity ? 'Loading...' : licksToday}</span>
-        <div style={{ 
-          width: '28px', 
-          height: '28px', 
-          marginLeft: '4px',
-          backgroundColor: 'var(--dynamic-text-color)',
-          WebkitMask: 'url(/lick-icon.png) center/contain no-repeat',
-          mask: 'url(/lick-icon.png) center/contain no-repeat'
-        }} />
-      </div>
+
 
           </div>
         </div>

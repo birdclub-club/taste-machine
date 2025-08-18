@@ -150,8 +150,14 @@ export function useSessionKey() {
         actions: sessionData.actionsAllowed
       });
       
-      // Update session status
+      // Update session status immediately
       updateSessionStatus();
+      
+      // Force a second update after a brief delay to ensure UI refresh
+      setTimeout(() => {
+        updateSessionStatus();
+        console.log('🔄 Session status force-refreshed for UI update');
+      }, 50);
       
       return true;
       

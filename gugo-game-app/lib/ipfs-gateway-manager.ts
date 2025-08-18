@@ -15,7 +15,7 @@ class IPFSGatewayManager {
   private static instance: IPFSGatewayManager;
   private gateways: GatewayHealth[] = [];
   private readonly HEALTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
-  private readonly SUCCESS_THRESHOLD = 0.7; // 70% success rate
+  private readonly SUCCESS_THRESHOLD = 0.3; // 30% success rate (more forgiving)
   private readonly RECENT_WINDOW = 10 * 60 * 1000; // 10 minutes
 
   constructor() {
@@ -31,13 +31,16 @@ class IPFSGatewayManager {
   }
 
   private initializeGateways() {
-    // 🚀 ULTRA-OPTIMIZED: HTTP gateways for maximum speed
+    // 🔒 SECURE & COMPATIBLE: HTTPS gateways for maximum compatibility
     const gatewayUrls = [
-      'http://ipfs.io/ipfs/',              // Most reliable and fast (HTTP for speed)
-      'http://dweb.link/ipfs/',            // BEST for Final Bosu/Fugz (v1 hashes, HTTP for speed)
-      'http://gateway.ipfs.io/ipfs/',      // Fast general purpose (HTTP for speed)
-      'http://ipfs.filebase.io/ipfs/'      // Good backup (HTTP for speed)
-      // Using HTTP instead of HTTPS for maximum loading speed
+      'https://ipfs.io/ipfs/',             // Most reliable and secure
+      'https://dweb.link/ipfs/',           // BEST for Final Bosu/Fugz (v1 hashes)
+      'https://gateway.ipfs.io/ipfs/',     // Fast general purpose
+      'https://ipfs.filebase.io/ipfs/',    // Good backup
+      'https://cloudflare-ipfs.com/ipfs/', // Cloudflare CDN for speed
+      'https://cf-ipfs.com/ipfs/',         // Alternative Cloudflare
+      'https://w3s.link/ipfs/',            // Web3.Storage gateway
+      'https://nftstorage.link/ipfs/'      // NFT.Storage gateway
     ];
 
     this.gateways = gatewayUrls.map(url => ({
@@ -57,6 +60,7 @@ class IPFSGatewayManager {
     
     if (healthyGateways.length === 0) {
       console.warn('⚠️ No healthy gateways found, using fallback');
+      console.warn('🔍 Gateway status:', this.gateways.map(g => ({ url: g.url, healthy: g.isHealthy, failures: g.failureCount, successes: g.successCount })));
       return this.gateways[0]?.url || 'https://ipfs.io/ipfs/';
     }
 
@@ -242,10 +246,10 @@ export const fixImageUrl = (imageUrl: string): string => {
   if (imageUrl.startsWith('ipfs://')) {
     const ipfsHash = imageUrl.replace('ipfs://', '');
     
-    // 🚀 SPEED HACK: Force HTTP dweb.link for Final Bosu/Fugz (v1 hashes starting with 'bafy')
+    // 🎯 OPTIMIZED: Use secure HTTPS dweb.link for Final Bosu/Fugz (v1 hashes starting with 'bafy')
     if (ipfsHash.startsWith('bafybeie') || ipfsHash.startsWith('bafybeig')) {
-      console.log(`🎯 Using optimized HTTP gateway for Final Bosu/Fugz: ${ipfsHash.substring(0,12)}...`);
-      return `http://dweb.link/ipfs/${ipfsHash}`;
+      console.log(`🎯 Using optimized HTTPS gateway for Final Bosu/Fugz: ${ipfsHash.substring(0,12)}...`);
+      return `https://dweb.link/ipfs/${ipfsHash}`;
     }
     
     const bestGateway = ipfsGatewayManager.getBestGateway();

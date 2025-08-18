@@ -65,7 +65,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
   useEffect(() => {
     if (isOpen) {
       if (activeTab === 'nfts') {
-        fetchLeaderboard();
+      fetchLeaderboard();
       } else {
         fetchUserLeaderboard();
       }
@@ -103,6 +103,13 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
       const data = await response.json();
       
       if (data.success) {
+        // Debug first user
+        if (data.leaderboard && data.leaderboard.length > 0) {
+          console.log('🎯 Frontend first user debug:', {
+            user: data.leaderboard[0],
+            tasteLevel: data.leaderboard[0].taste_level
+          });
+        }
         setUserLeaderboard(data.leaderboard || []);
         setUserMetadata(data.metadata || {});
       } else {
@@ -180,49 +187,49 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     try {
       // Fetch prices for each item that has collection_address and token_id - EXACT COPY from FavoritesGallery
       const pricePromises = eligibleItems.map(async (item) => {
-          const startTime = Date.now();
+        const startTime = Date.now();
           console.log(`💰 Starting price fetch for ${item.nft_id} (${item.collection_address}:${item.token_id})`);
-          
-          try {
+        
+        try {
             // Add timeout to prevent hanging
-            const controller = new AbortController();
+          const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-            
+          
             const response = await fetch(`/api/nft-price?collection=${item.collection_address}&token=${item.token_id}`, {
-              signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            const elapsed = Date.now() - startTime;
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          const elapsed = Date.now() - startTime;
             console.log(`💰 Price API response for ${item.nft_id}: ${response.status} (${elapsed}ms)`);
-            
-            if (!response.ok) {
+          
+          if (!response.ok) {
               console.warn(`Price API error for ${item.nft_id}: ${response.status}`);
               newPrices[item.nft_id] = null;
-              return;
-            }
+            return;
+          }
 
-            const text = await response.text();
-            if (!text.trim()) {
+          const text = await response.text();
+          if (!text.trim()) {
               console.warn(`Empty response for ${item.nft_id}`);
               newPrices[item.nft_id] = null;
-              return;
-            }
+            return;
+          }
 
-            const data = JSON.parse(text);
+          const data = JSON.parse(text);
             console.log(`💰 Price data for ${item.nft_id}:`, data);
-            
+          
             newPrices[item.nft_id] = {
-              price: data.price,
-              currency: data.currency || 'ETH'
-            };
-            
+            price: data.price,
+            currency: data.currency || 'ETH'
+          };
+          
             console.log(`✅ Price fetch completed for ${item.nft_id}: ${data.price ? `${data.price} ${data.currency}` : 'unlisted'}`);
-          } catch (error) {
-            const elapsed = Date.now() - startTime;
+        } catch (error) {
+          const elapsed = Date.now() - startTime;
             console.error(`❌ Failed to fetch price for ${item.nft_id} after ${elapsed}ms:`, error);
             newPrices[item.nft_id] = null;
-          }
+        }
       });
 
       await Promise.all(pricePromises);
@@ -347,7 +354,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                   }
                 }}
               >
-                🖼️ NFTs
+                NFTs
               </button>
               <button
                 onClick={() => setActiveTab('users')}
@@ -375,7 +382,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                   }
                 }}
               >
-                👥 Users
+                Users
               </button>
             </div>
           </div>
@@ -471,36 +478,36 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
           {activeTab === 'nfts' ? (
             // NFT Leaderboard Content
             loading ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 'var(--space-8)',
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 'var(--space-8)',
                 color: 'var(--dynamic-text-color, var(--color-grey-300))'
-              }}>
+            }}>
                 Loading NFT leaderboard...
-              </div>
-            ) : error ? (
-              <div style={{
-                padding: 'var(--space-4)',
-                background: 'var(--color-red-900)',
-                border: '1px solid var(--color-red-600)',
-                borderRadius: 'var(--border-radius-md)',
-                color: 'var(--color-red-200)'
-              }}>
-                Error: {error}
-              </div>
-            ) : leaderboard.length === 0 ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 'var(--space-8)',
+            </div>
+          ) : error ? (
+            <div style={{
+              padding: 'var(--space-4)',
+              background: 'var(--color-red-900)',
+              border: '1px solid var(--color-red-600)',
+              borderRadius: 'var(--border-radius-md)',
+              color: 'var(--color-red-200)'
+            }}>
+              Error: {error}
+            </div>
+          ) : leaderboard.length === 0 ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 'var(--space-8)',
                 color: 'var(--dynamic-text-color, var(--color-grey-300))'
-              }}>
+            }}>
                 No NFT leaderboard data available
-              </div>
-            ) : (
+            </div>
+          ) : (
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: '1fr 1fr', 
@@ -627,18 +634,18 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                           gap: 'var(--space-2)'
                         }}>
                           <span>
-                            {loadingPrices ? (
-                              'Loading...'
-                            ) : prices[nft.id] ? (
-                              prices[nft.id]?.price ? (
-                                `${prices[nft.id]!.price} ${prices[nft.id]!.currency}`
-                              ) : (
-                                'Unlisted'
-                              )
-                            ) : (nft.contract_address || COLLECTION_CONTRACTS[nft.collection_name]) && nft.token_id ? (
-                              'Price unavailable'
+                          {loadingPrices ? (
+                            'Loading...'
+                          ) : prices[nft.id] ? (
+                            prices[nft.id]?.price ? (
+                              `${prices[nft.id]!.price} ${prices[nft.id]!.currency}`
                             ) : (
-                              'No contract data'
+                              'Unlisted'
+                            )
+                            ) : (nft.contract_address || COLLECTION_CONTRACTS[nft.collection_name]) && nft.token_id ? (
+                            'Price unavailable'
+                          ) : (
+                            'No contract data'
                             )}
                           </span>
                           
@@ -779,31 +786,32 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         {user.position}
                       </div>
 
-                      {/* User Info - All Inline */}
+                      {/* User Info - Single Line Layout */}
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         flex: 1,
-                        gap: 'var(--space-4)',
-                        fontSize: 'var(--font-size-sm)',
-                        flexWrap: 'wrap'
+                        gap: 'var(--space-3)',
+                        fontSize: 'var(--font-size-sm)'
                       }}>
                         {/* Display Name */}
                         <div style={{
                           fontSize: 'var(--font-size-md)',
                           fontWeight: '600',
                           color: 'var(--dynamic-bg-color, var(--color-white))',
-                          minWidth: '120px'
+                          minWidth: '120px',
+                          flexShrink: 0
                         }}>
                           {user.display_name}
                         </div>
                         
                         {/* XP */}
                         <div style={{
-                          fontSize: 'var(--font-size-md)',
-                          fontWeight: '700',
-                          color: 'var(--color-green)',
-                          minWidth: '80px'
+                          fontSize: 'var(--font-size-sm)',
+                          fontWeight: '500',
+                          color: 'var(--dynamic-bg-color, var(--color-white))',
+                          minWidth: '80px',
+                          flexShrink: 0
                         }}>
                           {user.xp.toLocaleString()} XP
                         </div>
@@ -811,40 +819,50 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         {/* Taste Level */}
                         <div style={{
                           fontSize: 'var(--font-size-sm)',
-                          color: tasteLevelColor,
+                          color: tasteLevelColor === 'var(--dynamic-text-color, var(--color-grey-400))' 
+                            ? 'var(--dynamic-bg-color, var(--color-white))' 
+                            : tasteLevelColor,
                           fontWeight: '500',
-                          minWidth: '140px'
+                          minWidth: '140px',
+                          flexShrink: 0
                         }}>
-                          L{user.taste_level.level}: {user.taste_level.name}
+                          {user.taste_level?.name || 'Unknown'}
                         </div>
                         
                         {/* Total Votes */}
                         <div style={{
                           fontSize: 'var(--font-size-sm)',
-                          color: 'var(--dynamic-bg-color, var(--color-grey-300))',
-                          minWidth: '80px'
+                          color: 'var(--dynamic-bg-color, var(--color-white))',
+                          fontWeight: '500',
+                          minWidth: '80px',
+                          flexShrink: 0
                         }}>
                           {user.total_votes.toLocaleString()} votes
                         </div>
                         
                         {/* Voting Streak */}
-                        {user.voting_streak > 0 && (
-                          <div style={{
-                            fontSize: 'var(--font-size-sm)',
-                            color: streakColor,
-                            fontWeight: '500',
-                            minWidth: '60px'
-                          }}>
-                            🔥 {user.voting_streak} day{user.voting_streak !== 1 ? 's' : ''}
-                          </div>
-                        )}
+                        <div style={{
+                          fontSize: 'var(--font-size-sm)',
+                          color: user.voting_streak > 0 
+                            ? (streakColor === 'var(--dynamic-text-color, var(--color-grey-400))' 
+                                ? 'var(--dynamic-bg-color, var(--color-white))' 
+                                : streakColor)
+                            : 'var(--dynamic-bg-color, var(--color-white))',
+                          fontWeight: '500',
+                          minWidth: '60px',
+                          flexShrink: 0,
+                          opacity: user.voting_streak > 0 ? 1 : 0.5
+                        }}>
+                          {user.voting_streak > 0 ? `🔥 ${user.voting_streak}d` : '—'}
+                        </div>
                         
                         {/* Votes per day */}
                         <div style={{
                           fontSize: 'var(--font-size-xs)',
-                          color: 'var(--dynamic-bg-color, var(--color-grey-400))',
+                          color: 'var(--dynamic-bg-color, var(--color-white))',
                           opacity: 0.8,
-                          minWidth: '60px'
+                          minWidth: '50px',
+                          flexShrink: 0
                         }}>
                           {user.votes_per_day}/day
                         </div>
@@ -852,9 +870,10 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         {/* Days since joining */}
                         <div style={{
                           fontSize: 'var(--font-size-xs)',
-                          color: 'var(--dynamic-bg-color, var(--color-grey-400))',
-                          opacity: 0.6,
-                          minWidth: '60px'
+                          color: 'var(--dynamic-bg-color, var(--color-white))',
+                          opacity: 0.7,
+                          minWidth: '50px',
+                          flexShrink: 0
                         }}>
                           {user.days_since_joining}d old
                         </div>

@@ -534,11 +534,11 @@ body {
     margin: 0 auto !important;
   }
   
-  /* Allow medium cards on desktop for slider */
+  /* Responsive NFT cards on desktop - scale with viewport */
   .nft-card {
-    max-width: 450px !important;
-    min-width: 340px !important;
-    width: 450px !important;
+    width: clamp(300px, 25vw, 500px) !important;
+    max-width: 500px !important;
+    min-width: 300px !important;
   }
 }
 
@@ -880,6 +880,13 @@ body.wallet-connected {
   }
 }
 
+/* Removed ::before pseudo-element approach */
+
+
+
+
+
+
 /* Mobile Branding Adjustments */
 @media (max-width: 768px) {
   .proof-of-element {
@@ -1002,35 +1009,13 @@ body.wallet-connected {
     margin: 0 !important;
   }
   
-  /* Target the VS circle and replace with Powered by GUGO */
-  .matchup-card div[style*="border-radius: 50%"] {
-    width: auto !important;
-    height: auto !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: var(--space-1) 0 !important;
-    font-size: 0 !important; /* Hide original VS text */
-    font-weight: 500 !important;
-    color: var(--dynamic-text-color-secondary, #666666) !important;
-    letter-spacing: 0.5px !important;
-  }
-  
-  /* Show Powered by GUGO text */
-  .matchup-card div[style*="border-radius: 50%"]::before {
-    content: "Powered by GUGO" !important;
-    display: block !important;
-    font-size: 10px !important;
-    font-weight: 400 !important;
-    color: var(--dynamic-text-color-secondary, #666666) !important;
-    letter-spacing: 0.5px !important;
-    margin: 0 !important;
-    padding: 2px 0 !important;
-  }
   
   /* Make No button more compact */
   .matchup-card .no-button {
-    padding: var(--space-1) var(--space-2) !important;
-    font-size: var(--font-size-xs) !important;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
   }
 }
+
+
+

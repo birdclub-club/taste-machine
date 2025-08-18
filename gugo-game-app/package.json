@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "optimize:performance": "node scripts/apply-performance-optimizations.js",
+    "test:performance": "curl -s http://localhost:3000/api/test-enhanced-performance | jq ."
   },
   "dependencies": {
     "@abstract-foundation/agw-client": "^1.8.7",

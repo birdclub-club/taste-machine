@@ -293,7 +293,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
         border: isWinner ? (isFireVote ? '4px solid #ff6b35' : '4px solid white') : 
                 hoveredNft === nft.id && !voteAnimationState.isAnimating ? '3px solid var(--color-black)' : '2px solid var(--color-grey-200)',
         borderRadius: 'var(--border-radius-lg)',
-        overflow: 'visible', // Changed from 'hidden' to 'visible' to prevent border cropping
+        overflow: isMobile ? 'visible' : 'hidden', // Visible on mobile to prevent cropping, hidden on desktop for proper containment
         transition: 'transform 0.2s ease-out',
         transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)',
         boxShadow: isWinner && isFireVote ? 
@@ -312,7 +312,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           style={{
             aspectRatio: '1',
             position: 'relative',
-            overflow: 'visible', // Changed from 'hidden' to 'visible' to prevent image cropping
+            overflow: isMobile ? 'visible' : 'hidden', // Visible on mobile to prevent cropping, hidden on desktop for proper containment
             background: 'var(--color-grey-100)',
             cursor: isVoting ? 'not-allowed' : 'pointer'
           }}
@@ -648,71 +648,96 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
       style={{ 
         display: 'flex', 
         flexDirection: 'column',
-        gap: 'var(--space-8)',
+        gap: 'var(--space-4)',
         alignItems: 'center',
+        justifyContent: 'center',
         width: '100%',
-        maxWidth: '1800px',
-        margin: '0 auto',
+        maxWidth: '2400px',
+        margin: isMobile ? '0 auto' : 'calc(2vh - 20px) auto',
         position: 'relative',
         zIndex: 5,
-        overflow: 'visible'
+        overflow: 'visible',
+        minHeight: isMobile ? 'auto' : 'auto',
+        height: 'auto'
       }}>
 
-
+      {/* Powered by GUGO text */}
+      <div style={{
+        fontSize: 'var(--font-size-lg)',
+        color: 'var(--dynamic-text-color)',
+        fontWeight: '400',
+        textAlign: 'center',
+        width: '100%',
+        marginBottom: 'var(--space-4)',
+        letterSpacing: '0.5px'
+      }}>
+        Powered by GUGO
+      </div>
 
       {/* Main Layout: Matchup + Slider */}
       <div style={{
         display: 'flex',
-        flexDirection: 'row',
-        gap: 'var(--space-6)',
+        flexDirection: 'column',
+        gap: '0px',
         alignItems: 'center',
         width: '100%',
         overflow: 'visible',
-        transform: 'translate(0px, -40px)'
+        transform: isMobile ? 'translate(0px, -40px)' : 'translate(0px, 0px)', // Only apply vertical offset on mobile
+        height: 'fit-content'
       }}>
         {/* Desktop: Side by Side, Mobile: Stacked */}
         <div 
           className="matchup-container"
           style={{
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: isMobile ? '0px' : 'var(--space-8)', // No gap on mobile
+            display: isMobile ? 'flex' : 'grid',
+            flexDirection: isMobile ? 'column' : undefined,
+            gridTemplateColumns: isMobile ? undefined : '1fr 1fr',
+            gap: isMobile ? '0px' : 'calc(var(--space-8) * 2)',
             alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'visible'
+            justifyContent: isMobile ? 'center' : undefined,
+            overflow: 'visible',
+            width: '100%',
+            position: 'relative'
           }}
         >
 
 
 
-        <NFTCard nft={nft1} position="left" />
-        
-        {/* VS indicator - Swiss minimal style */}
-        <div style={{
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          margin: isMobile ? '0' : '0 var(--space-8)', // No margin on mobile
-          zIndex: 15
+        <div style={{ 
+          justifySelf: isMobile ? 'center' : 'start',
+          marginRight: isMobile ? '0' : 'clamp(var(--space-4), 4vw, var(--space-8))'
         }}>
+          <NFTCard nft={nft1} position="left" />
+        </div>
+        
+        {/* VS indicator - Swiss minimal style - Only show on mobile in flex flow */}
+        {isMobile && (
           <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'var(--dynamic-text-color, var(--color-white))',
-            color: 'var(--dynamic-bg-color, var(--color-black))',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            margin: '0',
+            zIndex: 15
+          }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            background: '#212529',
+            color: '#fefcf3',
             border: 'none',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: '900',
-            fontSize: 'var(--font-size-xl)',
+            fontSize: 'var(--font-size-sm)',
             position: 'relative',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            zIndex: 16,
-            letterSpacing: '-0.02em'
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 9999,
+            letterSpacing: '-0.02em',
+            opacity: 1
           }}>
             VS.
           </div>
@@ -732,13 +757,13 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               }}
               style={{
                 position: 'absolute',
-                top: '100px', // Position below the VS circle
+                top: '68px', // Position below the VS circle
                 left: '50%',
                 transform: 'translateX(-50%)',
-                width: '80px',
-                height: '80px',
-                background: 'var(--dynamic-text-color, var(--color-white))',
-                color: 'var(--dynamic-bg-color, var(--color-black))',
+                width: '48px',
+                height: '48px',
+                background: 'var(--dynamic-bg-color)',
+                color: 'var(--dynamic-text-color)',
                 border: 'none',
                 borderRadius: '50%',
                 fontSize: 'var(--font-size-xs)',
@@ -769,17 +794,116 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               }}
               title="Don't like either option"
             >
-              <div style={{ fontSize: '1.5rem', marginBottom: '2px' }}>💀</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: '900' }}>NO</div>
+              <div style={{ fontSize: '1.4rem', marginBottom: '2px' }}>💀</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: '900' }}>NO</div>
             </button>
           )}
         </div>
+        )}
         
+        <div style={{ 
+          justifySelf: isMobile ? 'center' : 'end',
+          marginLeft: isMobile ? '0' : 'clamp(var(--space-4), 4vw, var(--space-8))'
+        }}>
           <NFTCard nft={nft2} position="right" />
         </div>
+        </div>
         
-        {/* Vertical Slider on Right Side */}
-      {!isVoting && (
+      {/* VS indicator for desktop - positioned absolutely relative to RED container */}
+      {!isMobile && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 15
+          }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            background: '#212529',
+            color: '#fefcf3',
+            border: 'none',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: '900',
+            fontSize: 'var(--font-size-sm)',
+            position: 'relative',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 9999,
+            letterSpacing: '-0.02em',
+            opacity: 1
+          }}>
+            VS.
+          </div>
+          
+          {/* "No" Button - Fades in after 3 seconds */}
+          {!isVoting && onNoVote && (
+            <button
+              onClick={() => {
+                // Hide the button immediately
+                setShowNoButton(false);
+                // Call the no vote function
+                onNoVote();
+                // Reset button to appear again after 3 seconds
+                setTimeout(() => {
+                  setShowNoButton(true);
+                }, 3000);
+              }}
+              style={{
+                position: 'absolute',
+                top: '58px', // Position below the VS circle (48px VS button + 10px gap)
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '48px',
+                height: '48px',
+                background: 'var(--dynamic-bg-color)',
+                color: 'var(--dynamic-text-color)',
+                border: 'none',
+                borderRadius: '50%',
+                display: showNoButton ? 'flex' : 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '700',
+                fontSize: 'var(--font-size-xs)',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                zIndex: 17,
+                opacity: showNoButton ? 1 : 0,
+                transition: 'opacity 0.3s ease-in-out',
+                letterSpacing: '0.5px'
+              }}
+              className="no-button"
+            >
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px'
+              }}>
+                <div style={{ 
+                  fontSize: '1.4rem',
+                  lineHeight: '1'
+                }}>💀</div>
+                <div style={{ 
+                  fontSize: 'var(--font-size-sm)', 
+                  fontWeight: '900',
+                  lineHeight: '1'
+                }}>NO</div>
+              </div>
+            </button>
+          )}
+        </div>
+        )}
+        
+        {/* Vertical Slider on Right Side - Only show on mobile */}
+      {!isVoting && isMobile && (
         <div style={{
           width: '80px',
           height: '400px',
@@ -916,16 +1040,13 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
 
       {/* Desktop instruction text - centered below matchup */}
       <div className="desktop-instruction" style={{
-        textAlign: 'center',
-        fontSize: 'var(--font-size-base)',
+        fontSize: 'var(--font-size-lg)',
         color: 'var(--dynamic-text-color)',
         fontWeight: '500',
         display: 'none', // Hidden by default, shown on desktop via CSS
-        maxWidth: '500px',
-        margin: 'calc(var(--space-6) - 50px) auto 0 auto',
-        position: 'relative',
-        zIndex: 10,
-        transform: 'translateX(-20px)'
+        width: '100%',
+        margin: 'var(--space-4) auto 0 auto',
+        textAlign: 'center'
       }}>
         Pick your favorite. 🔥 if it slaps.
       </div>

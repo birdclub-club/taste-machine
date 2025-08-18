@@ -7,11 +7,13 @@ import { useTokenBalance } from '../hooks/useTokenBalance';
 import { useSessionKey } from '../hooks/useSessionKey';
 import { useCollectionPreference } from '../hooks/useCollectionPreference';
 import { SessionAction } from '../../lib/session-keys';
-import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import FavoritesGallery from './FavoritesGallery';
 import { canClaimFreeVotes, claimFreeVotes } from '../../lib/auth';
 import { LicksPurchaseModal } from './LicksPurchaseModal';
+import { QuickLicksButton } from './QuickLicksButton';
+import { MobileMenu } from './MobileMenu';
 import Leaderboard from './Leaderboard';
 import PrizeProgressBar from './PrizeProgressBar';
 
@@ -167,11 +169,10 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
   const [showWalletGlow, setShowWalletGlow] = useState(false);
   const [walletGlowAmount, setWalletGlowAmount] = useState(0);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
-  // Debug: Watch showPurchaseModal state changes
-  useEffect(() => {
-    console.log('🛒 [DEBUG] showPurchaseModal state changed to:', showPurchaseModal);
-  }, [showPurchaseModal]);
+
   const multiplierRef = useRef<HTMLSpanElement>(null);
   const walletDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -265,6 +266,18 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
     setHasClaimedToday(false);
   }, []);
 
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Click outside handler for wallet dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -282,10 +295,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
     };
   }, [showWalletDropdown]);
 
-  // Debug: Log state changes
-  useEffect(() => {
-    console.log(`🐛 Debug: canClaim=${canClaim}, hasClaimedToday=${hasClaimedToday}, user=${!!user}, isConnected=${isConnected}`);
-  }, [canClaim, hasClaimedToday, user, isConnected]);
+
 
   // Lick Claiming Popup Component
   const LickClaimPopup = () => createPortal(
@@ -882,17 +892,195 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
-          padding: 'var(--space-3) 5vw',
+          padding: 'var(--space-1) 5vw',
           maxWidth: 'none',
           margin: '0'
         }}>
           
-          {/* LEFT SIDE: Logo + Name + About */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginLeft: '10px' }}>
+          {/* MOBILE: Hamburger + Logo + Wallet */}
+          {isMobile ? (
+            <>
+              {/* Mobile Left: Hamburger Menu */}
+              <button
+                onClick={() => setShowMobileMenu(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--dynamic-text-color, #e5e5e5)',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  transition: 'background-color 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--dynamic-button-hover-bg, rgba(255,255,255,0.1))';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                aria-label="Open menu"
+              >
+                ☰
+              </button>
+
+              {/* Mobile Center: Logo + Name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <img 
+                    src="/Taste-Machine-Monster-Abstract-Green-150x150.png" 
+                    alt="Taste Machine Logo"
+                    className="status-logo"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain'
+                    }}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: 'var(--dynamic-text-color, var(--color-black))',
+                    WebkitMask: 'url(/Taste-Machine-Monster-Abstract-Green-150x150.png) no-repeat center/contain',
+                    mask: 'url(/Taste-Machine-Monster-Abstract-Green-150x150.png) no-repeat center/contain',
+                    display: 'none'
+                  }} />
+                </div>
+                <span style={{
+                  fontFamily: 'var(--font-family-primary)',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: 'var(--dynamic-text-color, var(--color-white))',
+                  letterSpacing: '-0.02em'
+                }}>
+                  TASTE MACHINE
+                </span>
+              </div>
+
+              {/* Mobile Right: Wallet Connection */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                {isConnected && user ? (
+                  <div ref={walletDropdownRef} style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setShowWalletDropdown(!showWalletDropdown)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-1)',
+                        padding: 'var(--space-1) var(--space-2)',
+                        background: 'var(--dynamic-bg-color-light, rgba(255, 255, 255, 0.1))',
+                        border: `1px solid var(--dynamic-text-color, var(--color-white))`,
+                        borderRadius: 'var(--border-radius)',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--dynamic-text-color, var(--color-white))',
+                        fontWeight: '600',
+                        fontFamily: 'var(--font-family-mono)',
+                        transition: 'all var(--transition-base)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <div style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--color-green)',
+                        boxShadow: '0 0 6px var(--color-green)'
+                      }}></div>
+                      {formatAddress(address || '')}
+                      <span style={{ fontSize: '8px', color: 'var(--dynamic-text-color)' }}>▼</span>
+                    </button>
+                    
+                    {/* Mobile wallet dropdown (same as desktop) */}
+                    {showWalletDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        right: 0,
+                        marginTop: 'var(--space-2)',
+                        background: 'var(--dynamic-bg-color)',
+                        border: '1px solid var(--dynamic-text-color, #444444)',
+                        borderRadius: 'var(--border-radius)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                        minWidth: '200px',
+                        zIndex: 101
+                      }}>
+                        <div style={{ padding: 'var(--space-2)' }}>
+                          <div style={{ 
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--dynamic-text-color-secondary, #888888)',
+                            marginBottom: 'var(--space-1)'
+                          }}>
+                            Connected Wallet
+                          </div>
+                          <div style={{ 
+                            fontFamily: 'monospace',
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--dynamic-text-color, #e5e5e5)',
+                            marginBottom: 'var(--space-2)',
+                            wordBreak: 'break-all'
+                          }}>
+                            {address}
+                          </div>
+                          <button
+                            onClick={() => {
+                              disconnect();
+                              setShowWalletDropdown(false);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: 'var(--space-1)',
+                              background: 'var(--dynamic-button-bg, #333333)',
+                              border: '1px solid var(--dynamic-border-color, #555555)',
+                              borderRadius: 'var(--border-radius-sm)',
+                              cursor: 'pointer',
+                              fontSize: 'var(--font-size-xs)',
+                              color: 'var(--dynamic-text-color, var(--color-white))',
+                              transition: 'all var(--transition-base)'
+                            }}
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <ConnectButton 
+                    label="Connect"
+                    showBalance={false}
+                    chainStatus="none"
+                    accountStatus="avatar"
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* DESKTOP: Original Layout */}
+              {/* LEFT SIDE: Logo + Name + About */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginLeft: '10px' }}>
             {/* Logo */}
             <div style={{
-              width: '40px',
-              height: '40px',
+              width: '32px',
+              height: '32px',
               position: 'relative',
               display: 'flex',
               alignItems: 'center',
@@ -916,8 +1104,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
               />
               {/* Fallback TM logo */}
               <div style={{
-                width: '40px',
-                height: '40px',
+                width: '32px',
+                height: '32px',
                 background: 'var(--color-black)',
                 color: 'var(--dynamic-text-color, var(--color-white))',
                 borderRadius: 'var(--border-radius-sm)',
@@ -1211,64 +1399,23 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                     )}
                   </div>
 
-                  {/* Add Licks Button - Properly positioned */}
-                  <button
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('🛒 [FINAL] Add Licks button clicked! Version 6.0');
-                      
-                      // Check if user has active session
-                      const hasSession = sessionStatus?.hasActiveSession && !sessionStatus?.isExpired;
-                      
-                      if (!hasSession) {
-                        console.log('🛒 No active session - creating session first via wallet');
-                        try {
-                          const success = await createSession();
-                          if (success) {
-                            console.log('✅ Session created successfully, now showing purchase modal');
-                            setShowPurchaseModal(true);
-                          } else {
-                            console.log('❌ Session creation failed');
-                          }
-                        } catch (error) {
-                          console.error('❌ Error creating session:', error);
-                        }
-                      } else {
-                        console.log('✅ Session already active, showing purchase modal directly');
-                        setShowPurchaseModal(true);
-                      }
+                  {/* Simplified Add Licks Button */}
+                  <QuickLicksButton
+                    variant="primary"
+                    label="Add Licks"
+                    onPurchaseComplete={(licksCount) => {
+                      console.log(`🎉 Purchased ${licksCount} Licks from StatusBar`);
+                      // Trigger refresh
+                      refreshUser();
                     }}
                     style={{
                       marginLeft: 'var(--space-2)',
-                      padding: 'var(--space-1) var(--space-2)',
-                      background: 'var(--color-green)',
-                      border: '2px solid var(--color-green)',
-                      borderRadius: 'var(--border-radius)',
-                      cursor: 'pointer',
                       fontSize: 'var(--font-size-xs)',
-                      fontWeight: '600',
-                      color: 'var(--color-black)',
-                      transition: 'all 0.2s ease',
+                      padding: 'var(--space-1) var(--space-2)',
                       textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      boxShadow: '0 2px 4px rgba(34, 197, 94, 0.3)',
-                      whiteSpace: 'nowrap'
+                      letterSpacing: '0.05em'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#16a34a';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(34, 197, 94, 0.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--color-green)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.3)';
-                    }}
-                    title="Purchase more Licks to continue voting"
-                  >
-                    Add Licks
-                  </button>
+                  />
 
                 </div>
 
@@ -1280,7 +1427,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                       display: 'flex',
                       alignItems: 'center',
                       gap: 'var(--space-2)',
-                      padding: 'var(--space-2) var(--space-3)',
+                      padding: 'var(--space-1) var(--space-2)',
                       background: showWalletGlow ? '#1f3a1f' : 'var(--dynamic-bg-color)', // Use dynamic background color as background
                       border: '1px solid var(--dynamic-text-color)', // Add border with dynamic text color
                       borderRadius: 'var(--border-radius)',
@@ -1353,14 +1500,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                       <div style={{ padding: 'var(--space-3)' }}>
                         <div className="text-caption" style={{ 
                           marginBottom: 'var(--space-2)',
-                          color: 'var(--color-grey-300)' // Lighter text for dark background
+                          color: 'var(--dynamic-text-color-secondary, #888888)'
                         }}>
                           Connected Wallet
                         </div>
                         <div style={{ 
                           fontFamily: 'monospace',
                           fontSize: 'var(--font-size-xs)',
-                          color: 'var(--color-grey-400)', // Lighter grey for dark background
+                          color: 'var(--dynamic-text-color, #e5e5e5)',
                           marginBottom: 'var(--space-3)'
                         }}>
                           {address}
@@ -1370,11 +1517,11 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                         <div style={{ 
                           marginBottom: 'var(--space-3)',
                           paddingBottom: 'var(--space-3)',
-                          borderBottom: '1px solid var(--dynamic-text-color, #444444)' // Darker border for dark theme
+                          borderBottom: '1px solid var(--dynamic-border-color, #444444)'
                         }}>
                           <div className="text-caption" style={{ 
                             marginBottom: 'var(--space-2)',
-                            color: 'var(--color-grey-300)' // Lighter text for dark background
+                            color: 'var(--dynamic-text-color-secondary, #888888)'
                           }}>
                             Balances
                   </div>
@@ -1431,7 +1578,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                               <div style={{ 
                         fontSize: '9px',
                         fontWeight: '500',
-                        color: '#dc2626',
+                        color: 'var(--dynamic-accent-color, #dc2626)',
                         textTransform: 'uppercase',
                                 letterSpacing: '0.5px'
                       }}>
@@ -1482,7 +1629,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                               <div style={{ 
                         fontSize: '9px',
                         fontWeight: '500',
-                        color: '#dc2626',
+                        color: 'var(--dynamic-accent-color, #dc2626)',
                         textTransform: 'uppercase',
                                 letterSpacing: '0.5px'
                       }}>
@@ -1496,11 +1643,11 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                         <div style={{ 
                           marginBottom: 'var(--space-3)',
                           paddingBottom: 'var(--space-3)',
-                          borderBottom: '1px solid var(--dynamic-text-color, #444444)'
+                          borderBottom: '1px solid var(--dynamic-border-color, #444444)'
                         }}>
                           <div className="text-caption" style={{ 
                             marginBottom: 'var(--space-2)',
-                            color: 'var(--color-grey-300)'
+                            color: 'var(--dynamic-text-color-secondary, #888888)'
                           }}>
                             Secure Session
                           </div>
@@ -1529,7 +1676,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                                 </div>
                                 <div style={{ 
                                   fontSize: 'var(--font-size-xs)',
-                                  color: 'var(--color-grey-400)'
+                                  color: 'var(--dynamic-text-color-secondary, #888888)'
                                 }}>
                                   ({formatTimeRemaining()})
                                 </div>
@@ -1565,11 +1712,11 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                                     flex: 1,
                                     padding: 'var(--space-1) var(--space-2)',
                                     background: 'transparent',
-                                    border: '1px solid #555555',
+                                    border: '1px solid var(--dynamic-border-color, #555555)',
                                     borderRadius: 'var(--border-radius-sm)',
                                     cursor: 'pointer',
                                     fontSize: 'var(--font-size-xs)',
-                                    color: 'var(--color-grey-400)',
+                                    color: 'var(--dynamic-text-color-secondary, #888888)',
                                     fontWeight: '500'
                                   }}
                                 >
@@ -1603,7 +1750,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                               
                               <div style={{ 
                                 fontSize: 'var(--font-size-xs)',
-                                color: 'var(--color-grey-400)',
+                                color: 'var(--dynamic-text-color-secondary, #888888)',
                                 marginBottom: 'var(--space-2)'
                               }}>
                                 Start a secure session so you don't have to sign every time you vote, buy, or win.
@@ -1654,19 +1801,19 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                           style={{
                             width: '100%',
                             padding: 'var(--space-2)',
-                            background: '#333333', // Darker button background
-                            border: '1px solid #555555', // Dark border
+                            background: 'var(--dynamic-button-bg, #333333)',
+                            border: '1px solid var(--dynamic-border-color, #555555)',
                             borderRadius: 'var(--border-radius-sm)',
                             cursor: 'pointer',
                             fontSize: 'var(--font-size-sm)',
-                            color: 'var(--dynamic-text-color, var(--color-white))', // White text
+                            color: 'var(--dynamic-text-color, var(--color-white))',
                             transition: 'all var(--transition-base)'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--dynamic-text-color, #444444)';
+                            e.currentTarget.style.background = 'var(--dynamic-button-hover-bg, #444444)';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#333333';
+                            e.currentTarget.style.background = 'var(--dynamic-button-bg, #333333)';
                           }}
                         >
                           Disconnect
@@ -1687,8 +1834,12 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
       </div>
+
+
 
       {/* About Popup */}
       {showAboutPopup && <AboutPopup />}
@@ -1752,14 +1903,13 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
       )}
       
       {/* Licks Purchase Modal - Independent of Lick popup */}
-      {console.log('🛒 [FINAL] StatusBar rendering LicksPurchaseModal with isOpen:', showPurchaseModal, 'at timestamp:', Date.now())}
       <LicksPurchaseModal
         isOpen={showPurchaseModal}
-        onClose={() => {
+        onClose={useCallback(() => {
           console.log('🛒 Modal onClose called');
           setShowPurchaseModal(false);
-        }}
-        onPurchaseComplete={async (licksCount) => {
+        }, [])}
+        onPurchaseComplete={useCallback(async (licksCount: number) => {
           console.log(`🎉 Purchase completed: ${licksCount} Licks`);
           // Trigger Licks animation
           triggerLicksAnimation(licksCount);
@@ -1795,19 +1945,76 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
           setTimeout(() => {
             refreshWithRetry();
           }, 2000); // 2 second initial delay
-        }}
+        }, [triggerLicksAnimation, refreshUser])}
       />
 
       {/* Favorites Gallery Modal */}
       <FavoritesGallery
         isOpen={showFavoritesGallery}
-        onClose={() => setShowFavoritesGallery(false)}
+        onClose={useCallback(() => setShowFavoritesGallery(false), [])}
       />
 
       {/* Leaderboard Modal */}
       <Leaderboard
         isOpen={showLeaderboard}
-        onClose={() => setShowLeaderboard(false)}
+        onClose={useCallback(() => setShowLeaderboard(false), [])}
+      />
+
+      {/* Mobile Menu */}
+      <MobileMenu
+        isOpen={showMobileMenu}
+        onClose={() => setShowMobileMenu(false)}
+        user={user}
+        userVoteCount={userVoteCount}
+        canClaim={canClaim}
+        onShowAboutPopup={() => {
+          setShowMobileMenu(false);
+          setShowAboutPopup(true);
+        }}
+        onShowHowPopup={() => {
+          setShowMobileMenu(false);
+          setShowHowPopup(true);
+        }}
+        onShowWhyPopup={() => {
+          setShowMobileMenu(false);
+          setShowWhyPopup(true);
+        }}
+        onShowFavoritesGallery={() => {
+          setShowMobileMenu(false);
+          setShowFavoritesGallery(true);
+        }}
+        onShowLeaderboard={() => {
+          setShowMobileMenu(false);
+          setShowLeaderboard(true);
+        }}
+        onShowPurchaseModal={() => {
+          setShowMobileMenu(false);
+          setShowPurchaseModal(true);
+        }}
+        onClaimFreeVotes={async () => {
+          setShowMobileMenu(false);
+          if (address) {
+            setClaimingVotes(true);
+            try {
+              const success = await claimFreeVotes(address, 10);
+              if (success) {
+                refreshUser();
+                console.log('🎁 Claimed 10 free Licks!');
+              }
+            } catch (error) {
+              console.error('Error claiming free votes:', error);
+            } finally {
+              setClaimingVotes(false);
+            }
+          }
+        }}
+        onDisconnect={() => {
+          setShowMobileMenu(false);
+          disconnect();
+        }}
+        isSessionActive={isSessionActive}
+        sessionStatus={sessionStatus.toString()}
+        formatTimeRemaining={formatTimeRemaining}
       />
     </>
   );

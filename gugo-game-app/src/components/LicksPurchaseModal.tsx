@@ -19,8 +19,6 @@ interface PurchaseOption {
 }
 
 export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: LicksPurchaseModalProps) {
-  console.log('🛒 [FINAL] LicksPurchaseModal render - isOpen:', isOpen, 'at timestamp:', Date.now());
-  console.log('🛒 [FINAL] LicksPurchaseModal props:', { isOpen, onClose: !!onClose, onPurchaseComplete: !!onPurchaseComplete });
   const [selectedOption, setSelectedOption] = useState<string>('100');
   const [customAmount, setCustomAmount] = useState<string>('');
   const [isCustom, setIsCustom] = useState(false);
@@ -125,11 +123,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
   }, [isOpen]);
 
   if (!isOpen) {
-    console.log('🛒 [FINAL] Modal not rendering because isOpen is false');
     return null;
   }
-  
-  console.log('🛒 [FINAL] Modal IS rendering because isOpen is true!');
 
   const isValidPurchase = currentLickCount >= 10;
 

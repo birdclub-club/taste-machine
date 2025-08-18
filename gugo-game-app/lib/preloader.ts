@@ -10,22 +10,22 @@ class VotingPreloader {
   private static instance: VotingPreloader;
   private sessionStack: VotingSession[] = []; // 🚀 LIFO stack for instant access
   private isPreloading = false;
-  private readonly TARGET_STACK_SIZE = 8; // 🚀 Reduced for faster loading
-  private readonly MINIMUM_STACK_SIZE = 4; // Never go below 4 sessions
-  private readonly REFILL_TRIGGER = 3; // Refill when stack drops to 3 sessions
-  private readonly MAX_PARALLEL_PRELOAD = 3; // Reduced parallel loading to prevent overwhelming
+  private readonly TARGET_STACK_SIZE = 20; // 🚀 Increased for better variety
+  private readonly MINIMUM_STACK_SIZE = 10; // Never go below 10 sessions
+  private readonly REFILL_TRIGGER = 12; // Refill when stack drops to 12 sessions (more aggressive)
+  private readonly MAX_PARALLEL_PRELOAD = 4; // Slightly increased for better throughput
   private imagePreloadCache = new Map<string, boolean>();
   private seenNFTIds = new Set<string>(); // Track NFTs shown in current session
   private seenNFTPairs = new Set<string>(); // Track NFT pairs to prevent exact duplicates
-  private readonly MAX_SEEN_NFTS = 50; // Clear tracking after this many NFTs
-  private readonly MAX_SEEN_PAIRS = 100; // Track more pairs than individual NFTs
+  private readonly MAX_SEEN_NFTS = 200; // Increased tracking for better variety
+  private readonly MAX_SEEN_PAIRS = 500; // Increased pair tracking significantly
   
-  // 🧠 Enhanced system settings
-  private useEnhancedEngine = true; // Re-enabled with fixed SQL functions
+  // 🧠 Enhanced system settings (PERFORMANCE OPTIMIZED)
+  private useEnhancedEngine = true; // Re-enabled with optimized V2 SQL functions
   private enhancedSuccessRate = 0; // Track enhanced system performance
   private enhancedAttempts = 0;
-  private enhancedTimeout = 800; // 0.8 second timeout for enhanced calls (faster fallback)
-  private enhancedRatio = 0.3; // 30% enhanced, 70% legacy for balanced performance
+  private enhancedTimeout = 1200; // 1.2 second timeout for enhanced calls (optimized functions)
+  private enhancedRatio = 0.7; // 70% enhanced, 30% legacy (optimized performance achieved!)
 
   static getInstance(): VotingPreloader {
     if (!VotingPreloader.instance) {
@@ -40,6 +40,13 @@ class VotingPreloader {
     this.seenNFTIds.clear();
     this.seenNFTPairs.clear();
     console.log('🧹 Cleared all preloader sessions and seen NFT tracking');
+  }
+
+  // 🧹 Clear duplicate tracking only (useful for testing or when experiencing too many repeats)
+  clearDuplicateTracking(): void {
+    this.seenNFTIds.clear();
+    this.seenNFTPairs.clear();
+    console.log('🧹 Cleared duplicate tracking - fresh start for variety');
   }
 
   // 🚀 Force aggressive refill during prize breaks for maximum performance
@@ -82,7 +89,7 @@ class VotingPreloader {
 
     return new Promise((resolve) => {
       let attemptCount = 0;
-      const maxAttempts = 2; // Reduced to 2 for faster preload
+      const maxAttempts = 4; // Increased to 4 for better reliability
       let currentUrl = fixImageUrl(imageUrl);
 
       const tryLoadImage = () => {
@@ -98,7 +105,7 @@ class VotingPreloader {
         const timeout = setTimeout(() => {
           console.log(`⏰ Preload timeout ${attemptCount + 1}: ${currentUrl.substring(0, 60)}...`);
           tryNextGateway();
-        }, 500); // Reduced to 0.5 seconds for ultra-fast gateway switching
+        }, 3000); // Increased to 3 seconds for more reliable IPFS loading
 
         img.onload = () => {
           clearTimeout(timeout);
@@ -174,7 +181,7 @@ class VotingPreloader {
   }
 
   // 🎚️ Generate slider session (with duplicate prevention and collection filtering)
-  private async generateSliderSession(collectionFilter?: string): Promise<VotingSession | null> {
+  private async generateSliderSession(collectionFilter?: string, retryCount: number = 0): Promise<VotingSession | null> {
     try {
       // 🎛️ First, get active collections from collection management
       const { data: activeCollections } = await supabase
@@ -207,7 +214,12 @@ class VotingPreloader {
       if (!collectionFilter && activeCollectionNames.length > 0) {
         query = query.in('collection_name', activeCollectionNames);
         console.log(`🎯 [PRELOADER] Filtering slider to active collections only`);
+        console.log(`🎯 [PRELOADER] Active collections: ${activeCollectionNames.join(', ')}`);
       }
+      
+      // 🚫 Explicitly exclude known disabled collections as a safety measure
+      const disabledCollections = ['Fugz', 'RUYUI', 'DreamilioMaker', 'Bearish', 'Test Collection'];
+      query = query.not('collection_name', 'in', `(${disabledCollections.map(c => `"${c}"`).join(',')})`);
 
       // Apply collection filter if specified
       if (collectionFilter) {
@@ -359,8 +371,15 @@ class VotingPreloader {
           // Continue with original image even if it fails to load - let the frontend handle fallbacks
         } else {
           console.log(`🚫 Skipping NFT ${nft.id} - image failed to load: ${nft.image.substring(0, 50)}...`);
-          // Try again with a different NFT
-          return await this.generateSliderSession();
+          
+          // Prevent infinite recursion - limit retries
+          if (retryCount >= 3) {
+            console.log(`⚠️ Max retries (${retryCount}) reached for slider session generation, allowing session with failed image to prevent infinite loop`);
+            // Continue with the session even if image failed - let frontend handle fallbacks
+          } else {
+            // Try again with a different NFT
+            return await this.generateSliderSession(collectionFilter, retryCount + 1);
+          }
         }
       }
       
@@ -375,7 +394,7 @@ class VotingPreloader {
   }
 
   // 🥊 Generate matchup session (collection-aware)
-  private async generateMatchupSession(voteType: 'same_coll' | 'cross_coll', collectionFilter?: string): Promise<VotingSession | null> {
+  private async generateMatchupSession(voteType: 'same_coll' | 'cross_coll', collectionFilter?: string, retryCount: number = 0): Promise<VotingSession | null> {
     try {
       // 🎛️ First, get active collections from collection management
       const { data: activeCollections } = await supabase
@@ -654,8 +673,15 @@ class VotingPreloader {
           // Continue with original images even if they fail to load - let the frontend handle fallbacks
         } else {
           console.log(`🚫 Skipping matchup - image(s) failed to load: NFT1(${image1Loaded ? '✅' : '❌'}) NFT2(${image2Loaded ? '✅' : '❌'})`);
-          // Try again with different NFTs
-          return await this.generateMatchupSession(voteType);
+          
+          // Prevent infinite recursion - limit retries
+          if (retryCount >= 3) {
+            console.log(`⚠️ Max retries (${retryCount}) reached for ${voteType} session generation, allowing session with failed images to prevent infinite loop`);
+            // Continue with the session even if images failed - let frontend handle fallbacks
+          } else {
+            // Try again with different NFTs
+            return await this.generateMatchupSession(voteType, collectionFilter, retryCount + 1);
+          }
         }
       }
 
@@ -724,7 +750,8 @@ class VotingPreloader {
         useEnhancedEngine: true,
         collectionFilter,
         maxCandidates: 5, // Reduced for speed
-        prioritizeInformation: true
+        prioritizeInformation: true,
+        excludePairs: this.seenNFTPairs // Pass seen pairs to enhanced system for variety
       });
 
       const timeoutPromise = new Promise<null>((resolve) => {
@@ -875,8 +902,12 @@ class VotingPreloader {
     // Emergency check - never let stack go empty
     if (this.sessionStack.length === 0) {
       console.warn(`⚠️ SESSION STACK EMPTY! This should not happen - triggering emergency refill.`);
-      // Force immediate preload
+      // Force immediate preload in background
       this.preloadSessions(this.TARGET_STACK_SIZE);
+      
+      // 🚨 CRITICAL FIX: Don't return null - this breaks the voting flow!
+      // Instead, let the calling code fall back to database fetch
+      console.log(`🔄 Stack empty - caller should fall back to database fetch`);
       return null;
     }
     
@@ -895,7 +926,11 @@ class VotingPreloader {
     } else if ((session.vote_type === 'same_coll' || session.vote_type === 'cross_coll') && session.nft1 && session.nft2) {
       this.markNFTAsSeen(session.nft1.id);
       this.markNFTAsSeen(session.nft2.id);
+      this.markPairAsSeen(session.nft1.id, session.nft2.id);
       console.log(`🚫 Marked NFTs ${session.nft1.id} and ${session.nft2.id} as seen (matchup)`);
+      
+      // Remove any duplicate sessions from the stack
+      this.removeDuplicateSessionsFromStack(session.nft1.id, session.nft2.id);
     }
     
     // 🚀 AGGRESSIVE STACK MANAGEMENT: Always maintain buffer for seamless experience
@@ -987,7 +1022,11 @@ class VotingPreloader {
   // 🔍 Check if NFT pair has been seen before
   private hasPairBeenSeen(nftId1: string, nftId2: string): boolean {
     const pairKey = this.getPairKey(nftId1, nftId2);
-    return this.seenNFTPairs.has(pairKey);
+    const hasBeenSeen = this.seenNFTPairs.has(pairKey);
+    if (hasBeenSeen) {
+      console.log(`🔄 Duplicate pair detected: ${nftId1} vs ${nftId2} (${this.seenNFTPairs.size} pairs tracked)`);
+    }
+    return hasBeenSeen;
   }
 
   // 🔑 Generate consistent pair key (sorted to handle A+B = B+A)
@@ -999,6 +1038,27 @@ class VotingPreloader {
   private clearSeenPairs(): void {
     this.seenNFTPairs.clear();
     console.log('✨ Cleared seen pairs - duplicate pairs possible again');
+  }
+
+  // 🗑️ Remove duplicate sessions from stack
+  private removeDuplicateSessionsFromStack(nft1Id: string, nft2Id: string): void {
+    const pairKey = this.getPairKey(nft1Id, nft2Id);
+    const initialLength = this.sessionStack.length;
+    
+    this.sessionStack = this.sessionStack.filter(session => {
+      if (session.vote_type === 'same_coll' || session.vote_type === 'cross_coll') {
+        if (session.nft1 && session.nft2) {
+          const sessionPairKey = this.getPairKey(session.nft1.id, session.nft2.id);
+          return sessionPairKey !== pairKey;
+        }
+      }
+      return true;
+    });
+    
+    const removedCount = initialLength - this.sessionStack.length;
+    if (removedCount > 0) {
+      console.log(`🗑️ Removed ${removedCount} duplicate sessions from stack (${this.sessionStack.length} remaining)`);
+    }
   }
 
   // 🧹 Clear seen NFTs tracking

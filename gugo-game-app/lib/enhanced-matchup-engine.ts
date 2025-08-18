@@ -43,7 +43,7 @@ export class EnhancedMatchupEngine {
   private static instance: EnhancedMatchupEngine;
   private collectionStatus = new Map<string, CollectionStatus>();
   private recentPairs = new Set<string>(); // Track recent pairs to avoid immediate repeats
-  private readonly MAX_RECENT_PAIRS = 500;
+  private readonly MAX_RECENT_PAIRS = 1500; // Increased for better variety
 
   static getInstance(): EnhancedMatchupEngine {
     if (!EnhancedMatchupEngine.instance) {
