@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import FavoritesGallery from './FavoritesGallery';
 import { canClaimFreeVotes, claimFreeVotes } from '../../lib/auth';
 import { LicksPurchaseModal } from './LicksPurchaseModal';
+import { DailyLicksModal } from './DailyLicksModal';
 import { QuickLicksButton } from './QuickLicksButton';
 import { MobileMenu } from './MobileMenu';
 import Leaderboard from './Leaderboard';
@@ -153,9 +154,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
 
   const [claimingVotes, setClaimingVotes] = useState(false);
   const [showLickPopup, setShowLickPopup] = useState(false);
-  const [popupStage, setPopupStage] = useState<'initial' | 'animating' | 'result'>('initial');
-  const [currentMultiplier, setCurrentMultiplier] = useState(1);
-  const [finalVotes, setFinalVotes] = useState(0);
+
   const [hasClaimedToday, setHasClaimedToday] = useState(false);
   const [showFloatingNotification, setShowFloatingNotification] = useState(false);
   const [floatingNotificationAmount, setFloatingNotificationAmount] = useState(0);
@@ -163,7 +162,7 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
   const [xpFloatingNotificationAmount, setXpFloatingNotificationAmount] = useState(0);
   const [showFavoritesGallery, setShowFavoritesGallery] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [congratsWord, setCongratsWord] = useState('Nice!');
+
   const [unclaimedRewards, setUnclaimedRewards] = useState<any[]>([]);
   const [claimingRewards, setClaimingRewards] = useState(false);
   const [showWalletGlow, setShowWalletGlow] = useState(false);
@@ -173,11 +172,9 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
   const [isMobile, setIsMobile] = useState(false);
   
 
-  const multiplierRef = useRef<HTMLSpanElement>(null);
+
   const walletDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fun congratulations words to rotate through
-  const congratsWords = ['Nice!', 'Ok!', 'Yep!', 'Cool', 'NBD', 'Solid', 'Yes!'];
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -247,12 +244,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
     console.log('🔄 Resetting Lick claim state for demo');
     setHasClaimedToday(false);
     setShowLickPopup(false);
-    setPopupStage('initial');
-    setCurrentMultiplier(1);
-    setFinalVotes(0);
     setShowFloatingNotification(false);
     setFloatingNotificationAmount(0);
-    setCongratsWord('Nice!');
   };
 
   // 🎭 DEMO: Make reset function available globally for console access
@@ -296,296 +289,6 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
   }, [showWalletDropdown]);
 
 
-
-  // Lick Claiming Popup Component
-  const LickClaimPopup = () => createPortal(
-    <div 
-      className="lick-popup"
-      style={{
-        position: 'fixed',
-        top: '68px', // Just below the status bar
-        right: '320px', // Positioned directly under the Lick icon
-        background: 'var(--dynamic-bg-color)', // Dynamic background
-        borderRadius: 'var(--border-radius-lg)',
-        padding: 'var(--space-4)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-        border: '1px solid var(--dynamic-text-color)',
-        borderTop: 'none', // Remove top border to connect with triangle
-        zIndex: 999999,
-        width: '190px', // Slightly wider for better icon spacing
-        maxWidth: 'calc(100vw - 20px)', // Ensure it doesn't overflow on mobile
-        textAlign: 'center',
-        // Only animate on initial appearance, then stay locked
-        animation: popupStage === 'initial' ? 'dropdownReveal 0.4s ease-out forwards' : 'none',
-        transformOrigin: 'top center',
-        // Lock transform after initial animation
-        transform: popupStage !== 'initial' ? 'scaleY(1) translateY(0)' : undefined,
-        isolation: 'isolate'
-      }}
-      onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside popup
-      >
-      {/* Connection Triangle Arrow - Centered */}
-      <div style={{
-        position: 'absolute',
-        top: '-8px',
-        left: '50%',
-        transform: 'translateX(-50%)', // Center the arrow
-        width: '0',
-        height: '0',
-        borderLeft: '8px solid transparent',
-        borderRight: '8px solid transparent',
-        borderBottom: '8px solid var(--dynamic-bg-color)',
-        zIndex: 1001
-      }} />
-      
-      {/* Triangle Border (slightly larger, darker) - Centered */}
-      <div style={{
-        position: 'absolute',
-        top: '-9px',
-        left: '50%',
-        transform: 'translateX(-50%)', // Center the border
-        width: '0',
-        height: '0',
-        borderLeft: '9px solid transparent',
-        borderRight: '9px solid transparent',
-        borderBottom: '9px solid var(--dynamic-text-color)',
-        zIndex: 1000
-      }} />
-      
-      {/* Close Button */}
-      <button
-        onClick={() => {
-          console.log('🖱️ Close button clicked');
-          
-          // Award votes and show floating notification if we just claimed
-          if (popupStage === 'result' && finalVotes > 0 && address) {
-            // Award the votes now
-            claimFreeVotes(address, finalVotes).then(success => {
-              if (success) {
-                refreshUser();
-                console.log(`🎁 Claimed ${finalVotes} Licks!`);
-              }
-            }).catch(error => {
-              console.error('Error claiming Licks:', error);
-            });
-            
-            setFloatingNotificationAmount(finalVotes);
-            setShowFloatingNotification(true);
-            
-            // Hide floating notification after 3 seconds
-            setTimeout(() => {
-              setShowFloatingNotification(false);
-            }, 3000);
-          }
-          
-          // Close popup and reset
-          setShowLickPopup(false);
-          setPopupStage('initial');
-          setCurrentMultiplier(1);
-          setFinalVotes(0);
-          setCongratsWord('Nice!');
-        }}
-        style={{
-          position: 'absolute',
-          top: 'var(--space-2)',
-          right: 'var(--space-2)',
-          background: 'transparent',
-          border: 'none',
-          color: '#999',
-          fontSize: '18px',
-          cursor: 'pointer',
-          width: '24px',
-          height: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '50%',
-          transition: 'all 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = '#444';
-          e.currentTarget.style.color = '#fff';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = '#999';
-        }}
-      >
-        ×
-      </button>
-      
-      {/* Popup Content - Compact Locked Layout */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'space-between', // Even distribution
-        height: popupStage === 'result' ? '130px' : '110px', // Slightly taller to accommodate bigger icon
-        width: '170px', // Slightly wider for better spacing
-        padding: '0', // Remove variable padding
-        margin: '0' // Remove any margins
-      }}>
-        {/* Status Text */}
-        <div style={{
-          fontSize: 'var(--font-size-sm)',
-          color: 'var(--color-grey-300)',
-          height: '20px', // Fixed height for consistency
-          display: 'flex',
-          alignItems: 'center'
-        }}>
-          {popupStage === 'initial' && ''}
-          {popupStage === 'animating' && 'Rolling multiplier...'}
-          {popupStage === 'result' && congratsWord}
-        </div>
-        
-        {/* Main Content - Completely Locked Position */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px', // Slightly larger gap for bigger icon
-          fontSize: '28px', // Fixed pixel size
-          fontWeight: '800',
-          color: 'var(--dynamic-text-color, var(--color-white))',
-          height: '48px', // Taller to accommodate bigger icon
-          width: '150px', // Slightly wider for better spacing
-          lineHeight: '48px', // Match height for better alignment
-          flexShrink: 0, // Never shrink
-          flexGrow: 0 // Never grow
-        }}>
-          <span>10</span>
-          <img
-            src="/lick-icon.png"
-            alt="Lick"
-            style={{
-              width: '54px', // Bigger icon size (1.5x from 36px)
-              height: '54px', // Bigger icon size (1.5x from 36px)
-              flexShrink: 0,
-              marginTop: '5px'
-            }}
-          />
-          {popupStage !== 'initial' && (
-            <span 
-              ref={multiplierRef}
-              style={{
-                color: 'var(--color-green)',
-                textShadow: popupStage === 'result' ? '0 0 16px rgba(0, 211, 149, 1)' : '0 0 12px rgba(0, 211, 149, 0.8)',
-                transform: 'scale(1.2)',
-                width: '50px', // Exact fixed width instead of minWidth
-                height: '48px', // Match the main container height
-                textAlign: 'center',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0, // Never shrink
-                flexGrow: 0, // Never grow
-                lineHeight: '1', // Fixed line height
-                animation: popupStage === 'animating' ? 'pulse 0.8s ease-in-out infinite' : 
-                           popupStage === 'result' ? 'glow 2s ease-out forwards' : 'none'
-              }}
-            >
-              ×{currentMultiplier}
-            </span>
-          )}
-        </div>
-        
-        {/* Button or Result Info */}
-        <div style={{
-          height: '32px', // Match button height for better alignment
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          {popupStage === 'initial' && (
-            <button
-              onClick={() => {
-                setPopupStage('animating');
-                
-                // Start 2-second animation using DOM manipulation
-                const animationDuration = 2000;
-                const frameRate = 120; // Slightly faster updates for smoother effect
-                const totalFrames = animationDuration / frameRate;
-                let currentFrame = 0;
-                let lastMultiplier = 1; // Track the last multiplier shown
-                
-                const animationInterval = setInterval(() => {
-                  currentFrame++;
-                  
-                  // Slow down towards the end
-                  const progress = currentFrame / totalFrames;
-                  
-                  // Only update if we should show a new number
-                  let shouldUpdate = true;
-                  if (progress > 0.7) {
-                    // Slower updates in final 30%
-                    shouldUpdate = currentFrame % 2 === 1;
-                  }
-                  
-                  if (shouldUpdate) {
-                    // Update DOM directly instead of React state to prevent re-renders
-                    const randomMultiplier = Math.floor(Math.random() * 5) + 1;
-                    lastMultiplier = randomMultiplier; // Keep track of what we're showing
-                    if (multiplierRef.current) {
-                      multiplierRef.current.textContent = `×${randomMultiplier}`;
-                    }
-                  }
-                  
-                  if (currentFrame >= totalFrames) {
-                    clearInterval(animationInterval);
-                    
-                    // Use the last multiplier that was shown - don't generate a new one!
-                    const finalMultiplier = lastMultiplier;
-                    setCurrentMultiplier(finalMultiplier); // Store final result in state
-                    const totalVotes = 10 * finalMultiplier;
-                    setFinalVotes(totalVotes);
-                    
-                    // Don't update DOM again - it already shows the right value!
-                    
-                    // Pick a random congratulations word
-                    const randomWord = congratsWords[Math.floor(Math.random() * congratsWords.length)];
-                    setCongratsWord(randomWord);
-                    
-                    // Show result with glow effect
-                    setPopupStage('result');
-                    
-                    // Don't award votes yet - wait for user to close popup
-                    setHasClaimedToday(true); // Hide red dot immediately
-                    console.log(`🎁 Ready to claim ${totalVotes} Licks with ${finalMultiplier}x multiplier!`);
-                  }
-                }, frameRate);
-              }}
-              style={{
-                background: 'var(--color-green)',
-                color: 'var(--dynamic-text-color, var(--color-white))',
-                border: 'none',
-                borderRadius: 'var(--border-radius)',
-                padding: '6px 16px', // Even smaller padding
-                fontSize: '14px', // Smaller font
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                minWidth: '60px', // Smaller button width
-                height: '28px' // Fixed smaller height
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--color-green-dark)';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--color-green)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              Claim
-            </button>
-          )}
-          
-
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
 
   // About popup component
   const AboutPopup = () => createPortal(
@@ -1330,9 +1033,8 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                         cursor: canClaim ? 'pointer' : 'default'
                       }}
                       onClick={canClaim ? () => {
-                        console.log('🖱️ Lick icon clicked, showing popup');
+                        console.log('🖱️ Lick icon clicked, showing modal');
                         setShowLickPopup(true);
-                        setPopupStage('initial');
                       } : undefined}
                     >
                     <img
@@ -1852,55 +1554,22 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
       
 
       
-      {/* Lick Claiming Popup */}
-      {showLickPopup && (
-        <>
-          {/* Click-outside overlay to close popup */}
-          <div 
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 999,
-              background: 'transparent'
-            }}
-            onClick={() => {
-              console.log('🖱️ Clicked outside popup, closing');
-              
-              // Award votes and show floating notification if we just claimed
-              if (popupStage === 'result' && finalVotes > 0 && address) {
-                // Award the votes now
-                claimFreeVotes(address, finalVotes).then(success => {
-                  if (success) {
-                    refreshUser();
-                    console.log(`🎁 Claimed ${finalVotes} Licks!`);
-                  }
-                }).catch(error => {
-                  console.error('Error claiming Licks:', error);
-                });
-                
-                setFloatingNotificationAmount(finalVotes);
-                setShowFloatingNotification(true);
-                
-                // Hide floating notification after 3 seconds
-                setTimeout(() => {
-                  setShowFloatingNotification(false);
-                }, 3000);
-              }
-              
-              // Close popup and reset
-              setShowLickPopup(false);
-              setPopupStage('initial');
-              setCurrentMultiplier(1);
-              setFinalVotes(0);
-              setCongratsWord('Nice!');
-            }}
-          />
-          <LickClaimPopup />
-        </>
-      )}
+      {/* Daily Licks Modal */}
+      <DailyLicksModal
+        isOpen={showLickPopup}
+        onClose={() => setShowLickPopup(false)}
+        address={address}
+        onSuccess={(licksAmount) => {
+          refreshUser();
+          setFloatingNotificationAmount(licksAmount);
+          setShowFloatingNotification(true);
+          
+          // Hide floating notification after 3 seconds
+          setTimeout(() => {
+            setShowFloatingNotification(false);
+          }, 3000);
+        }}
+      />
       
       {/* Licks Purchase Modal - Independent of Lick popup */}
       <LicksPurchaseModal

@@ -58,7 +58,7 @@ export function QuickLicksButton({
         return {
           ...baseStyles,
           background: 'var(--dynamic-accent-color, var(--color-green))',
-          color: 'var(--color-white)',
+          color: 'var(--dynamic-bg-color)',
           boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
         };
       case 'secondary':
