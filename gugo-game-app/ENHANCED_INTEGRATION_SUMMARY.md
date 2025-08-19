@@ -100,12 +100,16 @@ POST /api/collection-management
 
 ## 📊 **Database Functions Added:**
 
-### **Core Intelligence**
-- `find_optimal_same_collection_matchup_lite()` - Smart same-collection pairs
-- `find_optimal_cross_collection_matchup_lite()` - Intelligent cross-collection matching  
-- `find_optimal_slider_nft()` - Information-optimized slider selection
+### **Core Intelligence (v2 Functions - Current)**
+- `find_optimal_same_collection_matchup_v2()` - Smart same-collection pairs with collection filtering
+- `find_optimal_cross_collection_matchup_v2()` - Intelligent cross-collection matching with collection filtering
+- `find_optimal_slider_nft_v2()` - Information-optimized slider selection with collection filtering
 - `get_collection_statistics()` - Real-time collection insights
-- `test_enhanced_matchup_system_lite()` - System health monitoring
+- `test_enhanced_performance()` - System health monitoring
+
+### **Legacy Functions (Deprecated)**
+- `find_optimal_*_lite()` functions - Use v2 functions instead
+- Non-versioned enhanced functions - Use v2 functions instead
 
 ### **Collection Management**
 - `collection_management` table - Dynamic collection control

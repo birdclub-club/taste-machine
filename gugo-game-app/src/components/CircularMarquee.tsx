@@ -27,12 +27,13 @@ export default function CircularMarquee({
   width = 800,
   contained = false
 }: CircularMarqueeProps) {
-  if (!isVisible || phrases.length === 0) return null;
-
   // Get a random phrase from the array and memoize it to keep it consistent for the entire modal
   const randomPhrase = useMemo(() => {
+    if (phrases.length === 0) return '';
     return phrases[Math.floor(Math.random() * phrases.length)];
-  }, []); // Empty dependency array - only runs once per component mount
+  }, [phrases]); // Include phrases in dependency array
+
+  if (!isVisible || phrases.length === 0) return null;
   
   // Create the text with prize info and phrases
   const baseText = prizeText ? `${prizeText} • ${randomPhrase}` : randomPhrase;

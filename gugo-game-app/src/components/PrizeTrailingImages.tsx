@@ -65,6 +65,9 @@ const AnimatedImage = forwardRef<AnimatedImageRef, { src: string }>(({ src }, re
       newX: number;
       newY: number;
     }) => {
+      // Schedule animation in next tick to ensure component is fully mounted
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
       // Don't start animations if component is unmounted, not ready, or controls don't exist
       if (!isMounted.current || !isReady.current || !controls) {
         console.log('🎨 PrizeTrailingImages: Skipping animation - not ready', {

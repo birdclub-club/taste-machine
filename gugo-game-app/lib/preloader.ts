@@ -24,8 +24,8 @@ class VotingPreloader {
   private useEnhancedEngine = true; // Re-enabled with optimized V2 SQL functions
   private enhancedSuccessRate = 0; // Track enhanced system performance
   private enhancedAttempts = 0;
-  private enhancedTimeout = 1200; // 1.2 second timeout for enhanced calls (optimized functions)
-  private enhancedRatio = 0.7; // 70% enhanced, 30% legacy (optimized performance achieved!)
+  private enhancedTimeout = 800; // 0.8 second timeout for enhanced calls (faster fallback)
+  private enhancedRatio = 0.5; // 50% enhanced, 50% legacy (balanced for reliability)
 
   static getInstance(): VotingPreloader {
     if (!VotingPreloader.instance) {
@@ -217,9 +217,7 @@ class VotingPreloader {
         console.log(`🎯 [PRELOADER] Active collections: ${activeCollectionNames.join(', ')}`);
       }
       
-      // 🚫 Explicitly exclude known disabled collections as a safety measure
-      const disabledCollections = ['Fugz', 'RUYUI', 'DreamilioMaker', 'Bearish', 'Test Collection'];
-      query = query.not('collection_name', 'in', `(${disabledCollections.map(c => `"${c}"`).join(',')})`);
+      // 🚫 No hardcoded exclusions - rely on database active status only
 
       // Apply collection filter if specified
       if (collectionFilter) {

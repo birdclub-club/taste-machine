@@ -24,7 +24,27 @@ interface AnimatedImageRef {
 const AnimatedImage = forwardRef<AnimatedImageRef, { src: string }>(({ src }, ref) => {
   const controls = useAnimation();
   const isRunning = useRef(false);
+  const isMounted = useRef(false);
+  const isReady = useRef(false);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  // Track component mount/unmount state
+  useEffect(() => {
+    isMounted.current = true;
+    // Add delay to ensure controls are fully initialized
+    const timer = setTimeout(() => {
+      if (isMounted.current && controls) {
+        isReady.current = true;
+      }
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      isMounted.current = false;
+      isReady.current = false;
+      isRunning.current = false;
+    };
+  }, [controls]);
 
   useImperativeHandle(ref, () => ({
     isActive: () => isRunning.current,
@@ -41,6 +61,14 @@ const AnimatedImage = forwardRef<AnimatedImageRef, { src: string }>(({ src }, re
       newX: number;
       newY: number;
     }) => {
+      // Schedule animation in next tick to ensure component is fully mounted
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      // Don't start animations if component is unmounted, not ready, or controls don't exist
+      if (!isMounted.current || !isReady.current || !controls) {
+        console.log('🎨 TrailingImages: Skipping animation - not ready');
+        return;
+      }
       const rect = imgRef.current?.getBoundingClientRect();
       if (!rect) {
         return;

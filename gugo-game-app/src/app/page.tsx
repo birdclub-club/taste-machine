@@ -939,7 +939,7 @@ export default function Page() {
                     marginBottom: 'var(--space-4)',
                     lineHeight: 1.5
                   }}>
-                    We're currently performing routine maintenance to improve your experience.
+                    We&apos;re currently performing routine maintenance to improve your experience.
                     <br />
                     Please check back in a few minutes.
                   </div>

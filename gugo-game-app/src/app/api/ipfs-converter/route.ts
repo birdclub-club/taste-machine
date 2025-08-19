@@ -32,7 +32,7 @@ interface ConversionProgress {
 }
 
 // Global conversion state (in production, use Redis or similar)
-let conversionState: {
+const conversionState: {
   isRunning: boolean;
   progress: ConversionProgress | null;
   lastResult: any;

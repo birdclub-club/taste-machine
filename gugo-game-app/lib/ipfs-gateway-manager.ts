@@ -284,7 +284,7 @@ export const getNextIPFSGateway = (currentSrc: string, originalUrl: string): str
   }
   
   // Extract IPFS hash from current URL
-  let ipfsMatch = currentSrc.match(/\/ipfs\/([^\/\?]+)(?:\/(.+))?/);
+  const ipfsMatch = currentSrc.match(/\/ipfs\/([^\/\?]+)(?:\/(.+))?/);
   
   // Try to detect raw IPFS hashes that might have slipped through
   if (!ipfsMatch) {

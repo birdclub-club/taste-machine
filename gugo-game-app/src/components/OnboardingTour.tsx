@@ -19,6 +19,13 @@ interface OnboardingTourProps {
 
 const TOUR_STEPS: TourStep[] = [
   {
+    id: 'welcome',
+    title: 'Welcome to Taste Machine',
+    content: 'You\'re now contributing to a verifiable, on-chain aesthetic score for NFTs.',
+    target: 'body', // Center of screen
+    position: 'bottom'
+  },
+  {
     id: 'matchup-area',
     title: 'Smart NFT Selection',
     content: 'Each NFT you see is picked by smart logic to help us learn the most from your vote.\nYou might see repeats, cross-collection matchups, or single images — it\'s all part of the signal-building process.',
@@ -79,8 +86,13 @@ export default function OnboardingTour({ isOpen, onComplete, onSkip }: Onboardin
         let top = 0;
         let left = 0;
         
+        // Special positioning for welcome step - center on screen
+        if (currentTourStep.id === 'welcome') {
+          top = window.innerHeight / 2 + scrollTop;
+          left = window.innerWidth / 2 + scrollLeft;
+        }
         // Special positioning for matchup area - place popup to the right
-        if (currentTourStep.id === 'matchup-area') {
+        else if (currentTourStep.id === 'matchup-area') {
           top = rect.top + scrollTop + (rect.height / 2);
           left = rect.right + scrollLeft + 30;
           
@@ -146,8 +158,21 @@ export default function OnboardingTour({ isOpen, onComplete, onSkip }: Onboardin
 
   return createPortal(
     <>
-      {/* Spotlight overlay effect */}
-      {targetElement && (
+      {/* Welcome step - full overlay without spotlight */}
+      {currentTourStep.id === 'welcome' ? (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 100000,
+          pointerEvents: 'none'
+        }} />
+      ) : (
+        /* Spotlight overlay effect for other steps */
+        targetElement && (
         <>
           {/* Calculate dimensions for spotlight */}
           {(() => {
@@ -229,6 +254,7 @@ export default function OnboardingTour({ isOpen, onComplete, onSkip }: Onboardin
             );
           })()}
         </>
+        )
       )}
       
       {/* Tour Popup */}
@@ -236,7 +262,8 @@ export default function OnboardingTour({ isOpen, onComplete, onSkip }: Onboardin
         position: 'absolute',
         top: popupPosition.top,
         left: popupPosition.left,
-        transform: currentTourStep.id === 'matchup-area' ? 'translateY(-50%)' : 'translateX(-50%)',
+        transform: currentTourStep.id === 'welcome' ? 'translate(-50%, -50%)' : 
+                   currentTourStep.id === 'matchup-area' ? 'translateY(-50%)' : 'translateX(-50%)',
         background: 'var(--dynamic-bg-color, #1a1a1a)',
         border: '2px solid var(--dynamic-text-color, #ffffff)',
         borderRadius: '16px',
