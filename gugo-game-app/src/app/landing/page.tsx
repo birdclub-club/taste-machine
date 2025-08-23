@@ -6,21 +6,29 @@ import TrailingImages from '@/components/TrailingImages';
 
 // Color palettes (background, text)
 const COLOR_PALETTES = [
-  { bg: '#C8A784', text: '#E55C26' }, // 1. Original
-  { bg: '#52454B', text: '#E8E2E3' }, // 2.
-  { bg: '#B8A578', text: '#FFFFFF' }, // 3.
-  { bg: '#D9D2A5', text: '#3A4572' }, // 4.
-  { bg: '#444245', text: '#A79670' }, // 5.
-  { bg: '#4D4A41', text: '#CD5B4E' }, // 6.
-  { bg: '#81715F', text: '#C6C0BA' }, // 7.
-  { bg: '#B5874D', text: '#E2CE2B' }, // 8.
-  { bg: '#DDD094', text: '#3D4572' }, // 9.
-  { bg: '#443532', text: '#688274' }, // 10.
-  { bg: '#7A5C48', text: '#D3986F' }, // 11. New - Warm brown with golden text
-  { bg: '#BF7C6F', text: '#3A1E13' }, // 12. New - Dusty rose with dark brown text
-  { bg: '#1E3244', text: '#CBB26E' }, // 13. New - Dark blue with golden text
-  { bg: '#201639', text: '#B5B28E' }, // 14. New - Deep purple with sage text
-  { bg: '#BF588A', text: '#FFFFFF' }, // 15. New - Magenta with white text
+  { bg: '#52454B', text: '#E8E2E3' }, // 1. Dark slate with light pink text
+  { bg: '#B8A578', text: '#FFFFFF' }, // 2. Golden beige with white text
+  { bg: '#D9D2A5', text: '#3A4572' }, // 3. Light cream with navy blue text
+  { bg: '#444245', text: '#A79670' }, // 4. Charcoal with olive text
+  { bg: '#4D4A41', text: '#CD5B4E' }, // 5. Dark brown with coral text
+  { bg: '#81715F', text: '#C6C0BA' }, // 6. Taupe with light beige text
+  { bg: '#B5874D', text: '#E2CE2B' }, // 7. Bronze with bright yellow text
+  { bg: '#DDD094', text: '#3D4572' }, // 8. Pale yellow with navy text
+  { bg: '#443532', text: '#688274' }, // 9. Dark moss with sage green text
+  { bg: '#7A5C48', text: '#D3986F' }, // 10. Warm brown with golden text
+  { bg: '#BF7C6F', text: '#3A1E13' }, // 11. Dusty rose with dark brown text
+  { bg: '#1E3244', text: '#CBB26E' }, // 12. Dark blue with golden text
+  { bg: '#FFFFFF', text: '#369397' }, // 13. White with teal text
+  { bg: '#2B221F', text: '#BA9963' }, // 14. Dark brown with gold text
+  { bg: '#2C2D31', text: '#7A7671' }, // 15. Charcoal with grey text
+  { bg: '#46464F', text: '#FFFFFF' }, // 16. Dark grey with white text
+  { bg: '#867041', text: '#FFFFFF' }, // 17. Olive brown with white text
+  { bg: '#423D3A', text: '#BD8866' }, // 18. Dark brown with tan text
+  { bg: '#30353F', text: '#9C9682' }, // 19. Dark slate with sage text
+  { bg: '#524E48', text: '#BD746B' }, // 20. Brown grey with coral text
+  { bg: '#D8D1AD', text: '#3F486E' }, // 21. Light cream with navy text
+  { bg: '#534A4E', text: '#A78551' }, // 22. Dark mauve with gold text
+  { bg: '#B69692', text: '#2C1D1A' }, // 23. Dusty pink with dark brown text
 ];
 
 export default function LandingPage() {

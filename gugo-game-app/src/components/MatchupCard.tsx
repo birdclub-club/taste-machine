@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 
 interface NFTData {
@@ -77,13 +77,17 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     return () => clearTimeout(timer);
   }, [nft1.id, nft2.id]);
 
+  // Memoize fixed image URLs to prevent repeated calls to fixImageUrl
+  const nft1FixedImageUrl = useMemo(() => fixImageUrl(nft1.image), [nft1.image]);
+  const nft2FixedImageUrl = useMemo(() => fixImageUrl(nft2.image), [nft2.image]);
+
   // Clear glow animation when new NFTs load
   useEffect(() => {
     console.log(`🎨 New NFTs loaded: ${nft1.id.substring(0,8)} vs ${nft2.id.substring(0,8)} - clearing animation state`);
     console.log('🖼️ NFT1 image URL:', nft1.image);
     console.log('🖼️ NFT2 image URL:', nft2.image);
-    console.log('🔧 NFT1 fixed URL:', fixImageUrl(nft1.image));
-    console.log('🔧 NFT2 fixed URL:', fixImageUrl(nft2.image));
+    console.log('🔧 NFT1 fixed URL:', nft1FixedImageUrl);
+    console.log('🔧 NFT2 fixed URL:', nft2FixedImageUrl);
     
     // Clear any existing timeout
     if (animationTimeoutRef.current) {
@@ -93,7 +97,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     
     // Reset animation state immediately
     setVoteAnimationState({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
-  }, [nft1.id, nft2.id]);
+  }, [nft1.id, nft2.id, nft1FixedImageUrl, nft2FixedImageUrl]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -257,7 +261,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     };
   }, [isDragging]);
 
-  const NFTCard = React.memo(({ nft, position }: { nft: NFTData; position: 'left' | 'right' }) => {
+  const NFTCard = React.memo(({ nft, position, fixedImageUrl }: { nft: NFTData; position: 'left' | 'right'; fixedImageUrl: string }) => {
     const isWinner = (voteAnimationState.isAnimating || voteAnimationState.fadeOutGlow) && 
                      voteAnimationState.winnerId === nft.id;
     const isFadingOut = voteAnimationState.fadeOutGlow && voteAnimationState.winnerId === nft.id;
@@ -321,7 +325,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           onClick={() => !isVoting && !voteAnimationState.isAnimating && handleVoteWithAnimation(nft.id, false)}
         >
           <img 
-            src={fixImageUrl(nft.image)} 
+            src={fixedImageUrl} 
             style={{
               width: '100%',
               height: '100%',
@@ -707,7 +711,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           justifySelf: isMobile ? 'center' : 'start',
           marginRight: isMobile ? '0' : 'clamp(var(--space-4), 4vw, var(--space-8))'
         }}>
-          <NFTCard nft={nft1} position="left" />
+          <NFTCard nft={nft1} position="left" fixedImageUrl={nft1FixedImageUrl} />
         </div>
         
         {/* VS indicator - Swiss minimal style - Only show on mobile in flex flow */}
@@ -805,7 +809,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           justifySelf: isMobile ? 'center' : 'end',
           marginLeft: isMobile ? '0' : 'clamp(var(--space-4), 4vw, var(--space-8))'
         }}>
-          <NFTCard nft={nft2} position="right" />
+          <NFTCard nft={nft2} position="right" fixedImageUrl={nft2FixedImageUrl} />
         </div>
         </div>
         

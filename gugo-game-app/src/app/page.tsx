@@ -18,13 +18,14 @@ import { useBatchedVoting } from '@/hooks/useBatchedVoting';
 import { useCollectionPreference, getCollectionFilter, CollectionPreference } from '@/hooks/useCollectionPreference';
 import { fetchVotingSession } from '@lib/matchup';
 import { votingPreloader } from '@lib/preloader';
+
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useMusic } from '@/contexts/MusicContext';
 import AudioControls from '@/components/AudioControls';
-import type { VotingSession, VoteSubmission, SliderVote } from '@/types/voting';
+import type { VotingSession, VoteSubmission, SliderVote, MatchupPair } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 import { supabase } from '@lib/supabase';
 import { useActivityCounter } from '@/hooks/useActivityCounter';
@@ -281,26 +282,75 @@ export default function Page() {
       isActive: prizeBreakState.isActive,
       hasReward: !!prizeBreakState.reward,
       gugoAmount: prizeBreakState.reward?.gugoAmount || 0,
+      xpAmount: prizeBreakState.reward?.xpAmount || 0,
+      licksAmount: prizeBreakState.reward?.licksAmount || 0,
+      votesAmount: prizeBreakState.reward?.votesAmount || 0,
       isClaimingReward: prizeBreakState.isClaimingReward,
       shouldTrigger: prizeBreakState.isActive && 
                      prizeBreakState.reward && 
-                     prizeBreakState.reward.gugoAmount > 0
+                     prizeBreakState.reward.gugoAmount > 0,
+      statusBarRefExists: !!statusBarRef.current
     });
     
-    // Handle prize notifications based on GUGO amount
+    // Handle prize notifications - can have multiple reward types!
     if (prizeBreakState.isActive && prizeBreakState.reward) {
+      console.log('🎁 Prize break reward detected:', {
+        gugoAmount: prizeBreakState.reward.gugoAmount,
+        xpAmount: prizeBreakState.reward.xpAmount,
+        licksAmount: prizeBreakState.reward.licksAmount,
+        votesAmount: prizeBreakState.reward.votesAmount
+      });
+
+      const cleanupFunctions: (() => void)[] = [];
+
+      // 💰 Handle GUGO rewards (confetti + wallet glow)
       if (prizeBreakState.reward.gugoAmount > 0) {
-        // GUGO prizes: confetti + burning duck
         console.log('🎉 GUGO prize detected! Starting confetti countdown...');
         
-        // Immediate confetti for maximum excitement in demo!
         const confettiTimer = setTimeout(() => {
           console.log('🎊 🎊 🎊 DEMO CONFETTI FOR GUGO PRIZE:', prizeBreakState.reward!.gugoAmount, 'GUGO 🎊 🎊 🎊');
           setShowConfetti(true);
-        }, 500); // Reduced delay to 0.5 seconds
+          
+          // 💰 Trigger wallet glow animation for GUGO wins
+          console.log('💰 Triggering wallet glow animation for', prizeBreakState.reward!.gugoAmount, 'GUGO');
+          statusBarRef.current?.triggerWalletGlow(prizeBreakState.reward!.gugoAmount);
+        }, 500);
 
-        return () => clearTimeout(confettiTimer);
+        cleanupFunctions.push(() => clearTimeout(confettiTimer));
       }
+
+      // ⚡ Handle XP and Licks rewards (floating animations)
+      if (prizeBreakState.reward.xpAmount > 0 || prizeBreakState.reward.licksAmount > 0 || prizeBreakState.reward.votesAmount > 0) {
+        console.log('🎨 XP/Licks prize detected - setting up animations:', {
+          xpAmount: prizeBreakState.reward.xpAmount,
+          licksAmount: prizeBreakState.reward.licksAmount,
+          votesAmount: prizeBreakState.reward.votesAmount
+        });
+        
+        const animationTimer = setTimeout(() => {
+          // ⚡ Trigger XP animation if XP reward
+          if (prizeBreakState.reward!.xpAmount > 0) {
+            console.log('⚡ Triggering XP animation for', prizeBreakState.reward!.xpAmount, 'XP');
+            statusBarRef.current?.triggerXpAnimation(prizeBreakState.reward!.xpAmount);
+          }
+          
+          // 🎫 Trigger Licks animation if Licks/votes reward
+          if (prizeBreakState.reward!.licksAmount > 0) {
+            console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.licksAmount, 'Licks');
+            statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.licksAmount);
+          } else if (prizeBreakState.reward!.votesAmount > 0) {
+            console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.votesAmount, 'Votes');
+            statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.votesAmount);
+          }
+        }, 300); // Slight delay for visual effect
+
+        cleanupFunctions.push(() => clearTimeout(animationTimer));
+      }
+
+      // Return cleanup function that clears all timers
+      return () => {
+        cleanupFunctions.forEach(cleanup => cleanup());
+      };
       // Note: Duck images now embedded in prize modal instead of separate popups
     }
   }, [prizeBreakState.isActive, prizeBreakState.reward]);
@@ -421,6 +471,39 @@ export default function Page() {
     }
   }, [address, preference]);
 
+  // 🚀 Start preloader with safety checks for instant sessions
+  useEffect(() => {
+    const startEarlyPreloader = async () => {
+      try {
+        console.log('🚀 Starting early preloader for instant sessions...');
+        
+        // Initialize recent pairs service
+        const { recentPairsService } = await import('../lib/recent-pairs-service');
+        const stats = recentPairsService.getStats();
+        console.log(`🔒 Recent pairs service initialized early: ${stats.trackedPairs}/${stats.maxPairs} pairs`);
+        
+        // Preloader initializes automatically when getInstance() is called
+        
+        // Start conservative preloading for instant access (reduced to avoid early errors)
+        console.log('⚡ Starting conservative preload for instant access...');
+        votingPreloader.preloadSessionsForCollection(3, 'BEARISH'); // Reduced sessions to avoid overload
+        votingPreloader.preloadSessionsForCollection(2, undefined); // Reduced mixed collections
+        
+        setPreloaderReady(true);
+        console.log('🎯 Early preloader ready - sessions loading in background!');
+      } catch (error) {
+        console.warn('⚠️ Early preloader initialization failed, will retry later:', error);
+        // Don't fail completely - let the main preloader handle it
+        setTimeout(() => {
+          console.log('🔄 Retrying preloader initialization...');
+          setPreloaderReady(true); // Allow main flow to continue
+        }, 2000);
+      }
+    };
+    
+    startEarlyPreloader();
+  }, []);
+
   // 🎨 Show background immediately on mount
   useEffect(() => {
     console.log('🎨 Loading background and basic UI...');
@@ -444,39 +527,21 @@ export default function Page() {
     }
   };
 
-  // 🔥 Initialize preloader on mount (after background is shown)
+  // 🔄 Setup ongoing preloader maintenance (after background loads)
   useEffect(() => {
-    if (!backgroundLoaded) return; // Wait for background to load first
+    if (!backgroundLoaded || !preloaderReady) return; // Wait for background and early preloader
     
-    const initializePreloader = async () => {
-      console.log('🔥 Initializing collection-aware voting preloader...');
-      await votingPreloader.initialize();
+    const maintainPreloader = async () => {
+      console.log('🔄 Setting up preloader maintenance...');
       
-      // 🚫👻 Check if we need to clear old cached sessions  
-      const currentStats = votingPreloader.getSessionStats();
-      if (currentStats.stackSize > 0) {
-        console.log('🔄 Clearing existing sessions to apply unrevealed NFT filters...');
-        await votingPreloader.forceFullReset();
-      } else {
-        console.log('✅ No existing sessions to clear, proceeding with fresh preload...');
-      }
-      
-      // Start preloading for common collections (reduced amounts for faster initial load)
-      console.log('🎯 Starting preload for BEARISH collection...');
-      votingPreloader.preloadSessionsForCollection(5, 'BEARISH'); // Reduced from 10 to 5
-      
-      console.log('🎯 Starting preload for mixed collections...');
-      votingPreloader.preloadSessionsForCollection(3, undefined); // Reduced from 5 to 3
-      
-      setPreloaderReady(true);
       updatePreloaderStatus();
-      console.log('✅ Collection-aware preloader ready!');
       
       // Mark matchups as ready for background loading
       setMatchupsReady(true);
+      console.log('✅ Preloader maintenance ready!');
     };
     
-    initializePreloader();
+    maintainPreloader();
     
     // Update status every 30 seconds and maintain both queues (less aggressive)
     const statusInterval = setInterval(async () => {
@@ -496,7 +561,7 @@ export default function Page() {
     }, 30000); // Reduced frequency from 5s to 30s
     
     return () => clearInterval(statusInterval);
-  }, [backgroundLoaded]);
+  }, [backgroundLoaded, preloaderReady]);
 
   // 🎯 Load voting session when ready
   useEffect(() => {
@@ -599,6 +664,7 @@ export default function Page() {
       // Check for prize break
       if (result.isPrizeBreak) {
         console.log(`🎁 Prize break triggered after ${result.voteCount} votes!`);
+        console.log('🎬 Starting prize break UI modal...');
         
         // Always show the prize break modal - button text will handle session creation
         await startPrizeBreak(result.voteCount);
@@ -658,6 +724,118 @@ export default function Page() {
         setError('Please connect your wallet to vote.');
       } else {
         setError('Vote failed. Please try again.');
+      }
+    }
+  };
+
+  // 🚫 Handle NO votes - cast losing votes for both NFTs and proceed to next matchup  
+  const handleNoVote = async () => {
+    if (!votingSession || votingSession.vote_type === 'slider') return;
+    
+    // Require wallet connection
+    if (!isConnected || !address) {
+      setError('Please connect your wallet to vote.');
+      return;
+    }
+    
+    try {
+      console.log('🚫 Processing NO vote - both NFTs receive negative aesthetic feedback');
+      
+      // Cast to MatchupPair since we know it's not a slider
+      const matchupSession = votingSession as MatchupPair;
+      
+      // Create NO vote submission data
+      const voteData: VoteSubmission = {
+        vote_type: matchupSession.vote_type, // Use the actual vote type (same_coll or cross_coll)
+        nft_a_id: matchupSession.nft1.id,
+        nft_b_id: matchupSession.nft2.id,
+        super_vote: false,
+        engagement_data: {
+          queueId: matchupSession.queueId,
+          super_vote: false,
+          no_vote: true, // Mark as NO vote
+          user_agent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      // 🎵 Start background music on first vote (if not already started)
+      startMusicOnFirstVote();
+
+      const result = await submitVote(voteData, address, userVoteCount, user?.xp || 0);
+      
+      // Check for insufficient votes
+      if (result.insufficientVotes) {
+        console.log(`💳 Insufficient votes for NO vote: need ${result.requiredVotes || 1}`);
+        setRequiredVotes(result.requiredVotes || 1);
+        setShowPurchaseAlert(true);
+        return; // Don't proceed with vote
+      }
+      
+      // Update vote count
+      setUserVoteCount(result.voteCount);
+      
+      // Refresh user data to update Licks balance in status bar
+      statusBarRef.current?.refreshUserData();
+      
+      // Check for prize break
+      if (result.isPrizeBreak) {
+        console.log(`🎁 Prize break triggered after ${result.voteCount} votes!`);
+        console.log('🎬 Starting prize break UI modal...');
+        
+        // Always show the prize break modal - button text will handle session creation
+        await startPrizeBreak(result.voteCount);
+        
+        // 📦 SPEED OPTIMIZATION: Process batched votes during prize break
+        console.log('📦 Processing batched votes during prize break...');
+        processPendingVotes(); // Don't await - let it process in background
+        
+        // Reset duplicate tracking for fresh variety after prize break
+        console.log('🎯 Resetting session for fresh NFTs after prize break...');
+        votingPreloader.resetSession();
+        
+        // Load next session now during prize break so it's ready when break ends
+        console.log('🔄 Loading next session during prize break...');
+        await loadVotingSession();
+        
+        // Show prize break UI for 3 seconds minimum, then end break
+        setTimeout(async () => {
+          try {
+            console.log('⏰ Auto-ending prize break after 3 seconds...');
+            const refillResult = await endPrizeBreak();
+            if (refillResult) {
+              console.log(`🔄 Queue refilled during prize break: +${refillResult.added.total} matchups`);
+            }
+            // Only load new session if we don't already have one
+            if (!votingSession) {
+              console.log('📭 No session loaded, fetching new one...');
+              await loadVotingSession();
+            } else {
+              console.log('✅ Session already loaded, keeping current one');
+            }
+          } catch (error) {
+            console.error('❌ Error ending prize break:', error);
+            // Force end prize break on error
+            await endPrizeBreak();
+            if (!votingSession) {
+              await loadVotingSession();
+            }
+          }
+        }, 3000); // 3 second minimum display time
+        
+        return; // Exit early for prize break
+      }
+      
+      // For regular NO votes, move to next matchup immediately
+      console.log('🔄 NO vote successful, loading next matchup...');
+      await loadVotingSession();
+      
+    } catch (error) {
+      console.error('❌ NO vote failed:', error);
+      if (typeof error === 'string' && error.includes('wallet')) {
+        setError('Please connect your wallet to vote.');
+      } else {
+        setError('NO vote failed. Please try again.');
       }
     }
   };
@@ -1388,9 +1566,7 @@ export default function Page() {
                       nft1={votingSession.nft1}
                       nft2={votingSession.nft2}
                       onVote={handleVote}
-                      onNoVote={async () => {
-            // No vote handler logic here
-                      }}
+                      onNoVote={handleNoVote}
                       onImageFailure={async () => {
             // Image failure handler logic here
                       }}
@@ -1843,6 +2019,31 @@ export default function Page() {
                         onClick={async () => {
                           if (hasSession) {
                             console.log('🎁 Accepting reward and ending prize break...');
+                            
+                            // 🎬 Trigger animations when reward is actually accepted (after modal closes)
+                            if (prizeBreakState.reward) {
+                              setTimeout(() => {
+                                if (prizeBreakState.reward!.gugoAmount > 0) {
+                                  console.log('💰 Triggering wallet glow animation for', prizeBreakState.reward!.gugoAmount, 'GUGO (after modal close)');
+                                  statusBarRef.current?.triggerWalletGlow(prizeBreakState.reward!.gugoAmount);
+                                } else {
+                                  // Non-GUGO prizes: trigger XP and Licks animations
+                                  if (prizeBreakState.reward!.xpAmount > 0) {
+                                    console.log('⚡ Triggering XP animation for', prizeBreakState.reward!.xpAmount, 'XP (after modal close)');
+                                    statusBarRef.current?.triggerXpAnimation(prizeBreakState.reward!.xpAmount);
+                                  }
+                                  
+                                  if (prizeBreakState.reward!.licksAmount > 0) {
+                                    console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.licksAmount, 'Licks (after modal close)');
+                                    statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.licksAmount);
+                                  } else if (prizeBreakState.reward!.votesAmount > 0) {
+                                    console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.votesAmount, 'Votes (after modal close)');
+                                    statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.votesAmount);
+                                  }
+                                }
+                              }, 800); // 800ms delay to let prize break modal close
+                            }
+                            
                             endPrizeBreak();
                           } else {
                             console.log('🔑 Creating session to claim reward...');

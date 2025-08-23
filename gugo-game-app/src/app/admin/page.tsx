@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import CollectionManager from '@/components/CollectionManager';
 import UserStatsDisplay from '@/components/UserStatsDisplay';
 import AnalyticsChartsSimple from '@/components/AnalyticsChartsSimple';
+import POAv2AdminPanel from '@/components/POAv2AdminPanel';
+import CAIAdminPanel from '@/components/CAIAdminPanel';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useAuth } from '@/hooks/useAuth';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
@@ -31,7 +33,7 @@ interface GugoTreasuryData {
 }
 
 export default function AdminPage() {
-  const [currentTab, setCurrentTab] = useState<'collections' | 'analytics' | 'settings'>('collections');
+  const [currentTab, setCurrentTab] = useState<'collections' | 'analytics' | 'poa-v2' | 'cai' | 'settings'>('collections');
   const { user, loading } = useAuth();
   const { isAdmin: isUserAdmin, adminRole, walletAddress } = useAdmin();
   const [treasuryData, setTreasuryData] = useState<GugoTreasuryData | null>(null);
@@ -177,6 +179,26 @@ export default function AdminPage() {
               📊 Analytics
             </button>
             <button
+              onClick={() => setCurrentTab('poa-v2')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                currentTab === 'poa-v2'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              🧮 POA v2 Scoring
+            </button>
+            <button
+              onClick={() => setCurrentTab('cai')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                currentTab === 'cai'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              🎨 CAI Collections
+            </button>
+            <button
               onClick={() => setCurrentTab('settings')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 currentTab === 'settings'
@@ -193,6 +215,14 @@ export default function AdminPage() {
         <div className="mb-8">
           {currentTab === 'collections' && (
             <CollectionManager />
+          )}
+          
+          {currentTab === 'poa-v2' && (
+            <POAv2AdminPanel />
+          )}
+          
+          {currentTab === 'cai' && (
+            <CAIAdminPanel />
           )}
           
           {currentTab === 'analytics' && (

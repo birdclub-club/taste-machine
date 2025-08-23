@@ -23,6 +23,29 @@ export const ADMIN_WALLETS = [
 3. If your wallet is authorized, you'll see "Admin Access Granted"
 4. If unauthorized, you'll see "Access Denied - Admin privileges required"
 
+## 🎬 Prize Break Animation System
+
+### Animation Monitoring
+The prize break animation system provides visual feedback for all reward types. Administrators can monitor animation performance through console logs:
+
+**Key Console Logs:**
+- `🎁 Prize break reward detected:` - Shows all reward components
+- `⚡ Triggering XP animation for X XP` - XP animation trigger
+- `🎫 Triggering Licks animation for X Licks` - Licks animation trigger  
+- `💰 Triggering wallet glow animation for X GUGO` - GUGO animation trigger
+
+**Animation Types:**
+- **GUGO Rewards**: Confetti + green wallet glow
+- **XP Rewards**: Orange floating animation with glow
+- **Licks Rewards**: White floating animation with glow
+- **Mixed Rewards**: All applicable animations trigger simultaneously
+
+**Troubleshooting:**
+- Missing animations usually indicate reward object structure issues
+- Check browser console for animation trigger logs
+- Verify StatusBar component state management
+- Ensure proper CSS animation definitions in globals.css
+
 ## 📊 Dashboard Features
 
 ### 1. User Statistics

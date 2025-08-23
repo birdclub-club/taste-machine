@@ -352,6 +352,48 @@ body {
   }
 }
 
+@keyframes floatDownAndFade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(5px);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(30px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(50px);
+  }
+}
+
+@keyframes walletGlow {
+  0% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+  25% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.05);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 1), 0 0 80px rgba(34, 197, 94, 0.7);
+    transform: scale(1.1);
+  }
+  75% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+}
+
 /* Lick Popup Mobile Responsiveness */
 @media (max-width: 768px) {
   .lick-popup {

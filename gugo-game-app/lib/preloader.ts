@@ -5,6 +5,8 @@ import { supabase } from './supabase';
 import { VotingSession } from '@/types/voting';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from './ipfs-gateway-manager';
 import { enhancedMatchupIntegration, type EnhancedMatchupOptions } from './enhanced-matchup-integration';
+import { cacheVersionManager } from '@/lib/cache-version-manager';
+import { databaseErrorHandler } from '@/lib/database-error-handler';
 
 class VotingPreloader {
   private static instance: VotingPreloader;
@@ -20,6 +22,10 @@ class VotingPreloader {
   private readonly MAX_SEEN_NFTS = 200; // Increased tracking for better variety
   private readonly MAX_SEEN_PAIRS = 500; // Increased pair tracking significantly
   
+  // 🎯 Progressive Discovery System
+  private sessionCounter = 0;
+  private readonly COLD_START_FREQUENCY = 4; // Every 4th session is cold start (25%)
+  
   // 🧠 Enhanced system settings (PERFORMANCE OPTIMIZED)
   private useEnhancedEngine = true; // Re-enabled with optimized V2 SQL functions
   private enhancedSuccessRate = 0; // Track enhanced system performance
@@ -30,16 +36,55 @@ class VotingPreloader {
   static getInstance(): VotingPreloader {
     if (!VotingPreloader.instance) {
       VotingPreloader.instance = new VotingPreloader();
+      // Initialize cache version manager
+      VotingPreloader.instance.initializeCacheVersioning();
     }
     return VotingPreloader.instance;
   }
 
+  // 🔄 Initialize cache version management
+  private async initializeCacheVersioning(): Promise<void> {
+    // Only initialize in browser environment
+    if (typeof window === 'undefined') {
+      console.log('🔄 Preloader: Server-side, skipping cache version initialization');
+      return;
+    }
+
+    try {
+      await cacheVersionManager.initialize();
+      
+      // Listen for cache invalidation events
+      window.addEventListener('cache-invalidated', (event: any) => {
+        console.log('🔄 Cache invalidated, clearing preloader sessions...', event.detail);
+        this.clearAllSessions();
+        // Immediately start preloading fresh sessions
+        this.preloadSessions();
+      });
+      
+      // Make preloader globally accessible for cache manager
+      (window as any).votingPreloader = this;
+      
+      console.log('✅ Cache version management initialized');
+    } catch (error) {
+      console.warn('⚠️ Could not initialize cache versioning:', error);
+    }
+  }
+
   // 🧹 Clear all cached sessions (useful when collection settings change)
   clearAllSessions(): void {
+    const oldStackSize = this.sessionStack.length;
+    const oldSeenNFTs = this.seenNFTIds.size;
+    const oldSeenPairs = this.seenNFTPairs.size;
+    
     this.sessionStack = [];
     this.seenNFTIds.clear();
     this.seenNFTPairs.clear();
-    console.log('🧹 Cleared all preloader sessions and seen NFT tracking');
+    
+    // 🎯 Reset Progressive Discovery counter to ensure fresh cold start rotation
+    this.sessionCounter = 0;
+    
+    console.log(`🧹 EMERGENCY CACHE CLEAR: Removed ${oldStackSize} sessions, ${oldSeenNFTs} NFTs, ${oldSeenPairs} pairs`);
+    console.log('🎯 Progressive Discovery counter reset - next session will be fresh');
   }
 
   // 🧹 Clear duplicate tracking only (useful for testing or when experiencing too many repeats)
@@ -105,7 +150,7 @@ class VotingPreloader {
         const timeout = setTimeout(() => {
           console.log(`⏰ Preload timeout ${attemptCount + 1}: ${currentUrl.substring(0, 60)}...`);
           tryNextGateway();
-        }, 3000); // Increased to 3 seconds for more reliable IPFS loading
+        }, 2000); // Reduced to 2 seconds for faster fallbacks
 
         img.onload = () => {
           clearTimeout(timeout);
@@ -192,7 +237,7 @@ class VotingPreloader {
       const activeCollectionNames = activeCollections?.map(c => c.collection_name) || [];
       console.log(`🎛️ [PRELOADER] Active collections for slider: ${activeCollectionNames.join(', ')}`);
       
-      // Try to get NFTs with low slider count first, excluding already seen, video files, and unrevealed NFTs
+      // 🚫 RESTORED: Proper unrevealed trait filtering (essential for preventing unrevealed NFTs)
       let query = supabase
         .from('nfts')
         .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
@@ -202,6 +247,7 @@ class VotingPreloader {
         .not('image', 'ilike', '%.avi%')
         .not('image', 'ilike', '%.webm%')
         .not('image', 'ilike', '%.mkv%')
+        // 🚫 Essential unrevealed filtering - DO NOT REMOVE
         .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // General unrevealed
         .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu unrevealed
         .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // BEARISH unrevealed
@@ -224,11 +270,37 @@ class VotingPreloader {
         query = query.eq('collection_name', collectionFilter);
       }
 
-      const { data: nfts, error } = await query
-        .order('slider_count', { ascending: true })
-        .order('total_votes', { ascending: true })
-        .order('id', { ascending: false })  // 🎲 Diverse collection sampling
-        .limit(20); // Get more to filter out seen ones
+      // Add retry logic for network errors
+      let nfts: any[] | null = null, error: any = null;
+      let retryAttempts = 0;
+      const maxRetries = 2;
+
+      while (retryAttempts <= maxRetries) {
+        try {
+          const result = await query
+            .order('slider_count', { ascending: true })
+            .order('total_votes', { ascending: true })
+            .order('id', { ascending: false })  // 🎲 Diverse collection sampling
+            .limit(20); // Get more to filter out seen ones
+          
+          nfts = result.data;
+          error = result.error;
+          break; // Success, exit retry loop
+        } catch (networkError) {
+          retryAttempts++;
+          console.warn(`⚠️ Network error in slider query (attempt ${retryAttempts}/${maxRetries + 1}):`, networkError);
+          
+          if (retryAttempts <= maxRetries) {
+            // Wait before retry with exponential backoff
+            const delay = Math.min(1000 * Math.pow(2, retryAttempts - 1), 3000);
+            console.log(`🔄 Retrying slider query in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            console.error('❌ Max retries exceeded for slider query');
+            return null;
+          }
+        }
+      }
 
       // Debug logging for filter effectiveness
       console.log(`🔍 Found ${nfts?.length || 0} slider NFTs after unrevealed filters`);
@@ -269,6 +341,8 @@ class VotingPreloader {
       if (error || !filteredNfts?.length) {
         console.log('📦 No unseen low slider count NFTs, trying random...');
         if (error) console.log('❌ Slider query error:', error);
+        
+        // 🚫 RESTORED: Proper fallback query with essential unrevealed filtering
         let fallbackQuery = supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, traits')
@@ -277,22 +351,19 @@ class VotingPreloader {
           .not('image', 'ilike', '%.avi%')
           .not('image', 'ilike', '%.webm%')
           .not('image', 'ilike', '%.mkv%')
-          .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // Exclude unrevealed NFTs
-          .not('traits', 'cs', '[{"trait_type": "reveal", "value": "unrevealed"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Unrevealed"}]')  // Alternative trait names
-          .not('traits', 'cs', '[{"trait_type": "status", "value": "unrevealed"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu collection unrevealed
-          .not('traits', 'cs', '[{"trait_type": "status", "value": "hidden"}]')     // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // Bearish collection unrevealed
-          .not('traits', 'cs', '[{"trait_type": "stage", "value": "pre-reveal"}]')  // Case variations
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]')      // Beeish collection unrevealed (specific to Beeish)
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "regular"}]')      // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "robot"}]')        // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "zombee"}]')       // Case variations
-          .not('traits', 'cs', '[{"trait_type": "hive", "value": "present"}]');     // Case variations
+          // 🚫 Essential unrevealed filtering - DO NOT REMOVE
+          .not('traits', 'cs', '[{"trait_type": "Reveal", "value": "Unrevealed"}]')  // General unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Status", "value": "Hidden"}]')     // Kabu unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Stage", "value": "Pre-reveal"}]')  // BEARISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Regular"}]')      // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Robot"}]')        // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Zombee"}]')       // BEEISH unrevealed
+          .not('traits', 'cs', '[{"trait_type": "Hive", "value": "Present"}]');     // BEEISH unrevealed
+          
+        // Apply active collection filtering
+        if (activeCollectionNames.length > 0) {
+          fallbackQuery = fallbackQuery.in('collection_name', activeCollectionNames);
+        }
 
         // Apply collection filter to fallback query as well
         if (collectionFilter) {
@@ -435,9 +506,35 @@ class VotingPreloader {
           sameCollQuery = sameCollQuery.eq('collection_name', collectionFilter);
         }
 
-        const { data: allNfts, error: sameCollError } = await sameCollQuery
-          .order('id', { ascending: false })  // 🎲 Diverse collection sampling
-          .limit(2000); // Increased limit for diverse collection sampling
+        // Add retry logic for network errors
+        let allNfts: any[] | null = null, sameCollError: any = null;
+        let retryAttempts = 0;
+        const maxRetries = 2;
+
+        while (retryAttempts <= maxRetries) {
+          try {
+            const result = await sameCollQuery
+              .order('id', { ascending: false })  // 🎲 Diverse collection sampling
+              .limit(2000); // Increased limit for diverse collection sampling
+            
+            allNfts = result.data;
+            sameCollError = result.error;
+            break; // Success, exit retry loop
+          } catch (networkError) {
+            retryAttempts++;
+            console.warn(`⚠️ Network error in same-collection query (attempt ${retryAttempts}/${maxRetries + 1}):`, networkError);
+            
+            if (retryAttempts <= maxRetries) {
+              // Wait before retry with exponential backoff
+              const delay = Math.min(1000 * Math.pow(2, retryAttempts - 1), 3000);
+              console.log(`🔄 Retrying same-collection query in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+              console.error('❌ Max retries exceeded for same-collection query');
+              return null;
+            }
+          }
+        }
 
         console.log(`🔍 Found ${allNfts?.length || 0} same-collection NFTs after unrevealed filters`);
         
@@ -445,10 +542,11 @@ class VotingPreloader {
         if (sameCollError) {
           console.error('❌ Supabase error in same-collection matchup:', {
             error: sameCollError,
-            message: sameCollError?.message,
-            details: sameCollError?.details,
-            hint: sameCollError?.hint,
-            code: sameCollError?.code
+            message: sameCollError?.message || 'Unknown error',
+            details: sameCollError?.details || 'No details available',
+            hint: sameCollError?.hint || 'No hint available',
+            code: sameCollError?.code || 'No error code',
+            retryAttempts: retryAttempts
           });
           return null;
         }
@@ -490,7 +588,7 @@ class VotingPreloader {
         }, {} as Record<string, any[]>);
 
         const validCollections = Object.entries(collectionGroups)
-          .filter(([_, nfts]) => nfts.length >= 2);
+          .filter(([_, nfts]) => (nfts as any[]).length >= 2);
 
         if (!validCollections.length) return null;
 
@@ -502,7 +600,7 @@ class VotingPreloader {
         const maxAttempts = 10;
         
         while (nfts.length === 0 && attempts < maxAttempts) {
-          const shuffled = collectionNfts.sort(() => 0.5 - Math.random());
+          const shuffled = (collectionNfts as any[]).sort(() => 0.5 - Math.random());
           const candidatePair = shuffled.slice(0, 2);
           
           // Check if this pair has been seen before
@@ -516,7 +614,7 @@ class VotingPreloader {
         
         if (nfts.length === 0) {
           console.log(`⚠️ Could not find unique same-coll pair after ${maxAttempts} attempts, allowing duplicate`);
-          const shuffled = collectionNfts.sort(() => 0.5 - Math.random());
+          const shuffled = (collectionNfts as any[]).sort(() => 0.5 - Math.random());
           nfts = shuffled.slice(0, 2);
         }
       } else {
@@ -548,20 +646,47 @@ class VotingPreloader {
           crossCollQuery = crossCollQuery.eq('collection_name', collectionFilter);
         }
 
-        const { data: randomNfts, error } = await crossCollQuery
-          .order('id', { ascending: false })  // 🎲 Diverse collection sampling
-          .limit(2000); // Increased limit for diverse collection sampling
+        // Add retry logic for network errors
+        let randomNfts: any[] | null = null, error: any = null;
+        let retryAttempts = 0;
+        const maxRetries = 2;
+
+        while (retryAttempts <= maxRetries) {
+          try {
+            const result = await crossCollQuery
+              .order('id', { ascending: false })  // 🎲 Diverse collection sampling
+              .limit(2000); // Increased limit for diverse collection sampling
+            
+            randomNfts = result.data;
+            error = result.error;
+            break; // Success, exit retry loop
+          } catch (networkError) {
+            retryAttempts++;
+            console.warn(`⚠️ Network error in cross-collection query (attempt ${retryAttempts}/${maxRetries + 1}):`, networkError);
+            
+            if (retryAttempts <= maxRetries) {
+              // Wait before retry with exponential backoff
+              const delay = Math.min(1000 * Math.pow(2, retryAttempts - 1), 3000);
+              console.log(`🔄 Retrying cross-collection query in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+              console.error('❌ Max retries exceeded for cross-collection query');
+              return null;
+            }
+          }
+        }
 
         console.log(`🔍 Found ${randomNfts?.length || 0} cross-collection NFTs after unrevealed filters`);
         
-        // Enhanced error logging
+        // Enhanced error logging with graceful handling
         if (error) {
           console.error('❌ Supabase error in cross-collection matchup:', {
             error,
-            message: error?.message,
-            details: error?.details,
-            hint: error?.hint,
-            code: error?.code
+            message: error?.message || 'Unknown error',
+            details: error?.details || 'No details available',
+            hint: error?.hint || 'No hint available',
+            code: error?.code || 'No error code',
+            retryAttempts: retryAttempts
           });
           return null;
         }
@@ -894,33 +1019,33 @@ class VotingPreloader {
 
   // ⚡ INSTANT ACCESS: Pop session from stack (LIFO for maximum speed)
   getNextSession(collectionFilter?: string): VotingSession | null {
-    // 🚀 SPEED OPTIMIZATION: Use stack (LIFO) for instant access
-    // Since we removed collection filtering, we can use the stack directly
+    // 🎯 PERFORMANCE OPTIMIZATION: Re-enable preloader with enhanced duplicate checking
+    console.log(`⚡ PRELOADER RE-ENABLED: Using cached sessions with duplicate validation`);
     
-    // Emergency check - never let stack go empty
+    const filterKey = collectionFilter || 'mixed';
+    
     if (this.sessionStack.length === 0) {
-      console.warn(`⚠️ SESSION STACK EMPTY! This should not happen - triggering emergency refill.`);
-      // Force immediate preload in background
-      this.preloadSessions(this.TARGET_STACK_SIZE);
-      
-      // 🚨 CRITICAL FIX: Don't return null - this breaks the voting flow!
-      // Instead, let the calling code fall back to database fetch
-      console.log(`🔄 Stack empty - caller should fall back to database fetch`);
+      console.log(`📦 Preloader empty for ${filterKey}, falling back to database...`);
       return null;
     }
+
+    // Pop the most recent session (LIFO)
+    const session = this.sessionStack.pop()!;
+    console.log(`⚡ INSTANT ACCESS: Popped ${session.vote_type} session, ${this.sessionStack.length} remaining in stack`);
     
-    // 🚀 POP from stack for instant access (LIFO)
-    const session = this.sessionStack.pop();
-    
-    if (!session) {
-      console.warn('⚠️ Stack pop returned null session');
-      return null;
+    // 🔄 Trigger background refill if stack is getting low
+    if (this.sessionStack.length <= this.REFILL_TRIGGER) {
+      console.log(`🔄 Stack low (${this.sessionStack.length}), triggering background refill...`);
+      this.preloadSessions(this.TARGET_STACK_SIZE - this.sessionStack.length);
     }
-    
+
     // 🚫 Mark NFTs as seen when actually consumed by user (prevents duplicates)
     if (session.vote_type === 'slider' && session.nft) {
       this.markNFTAsSeen(session.nft.id);
       console.log(`🚫 Marked NFT ${session.nft.id} as seen (slider)`);
+      
+      // Remove any duplicate slider sessions from the stack
+      this.removeDuplicateSliderSessionsFromStack(session.nft.id);
     } else if ((session.vote_type === 'same_coll' || session.vote_type === 'cross_coll') && session.nft1 && session.nft2) {
       this.markNFTAsSeen(session.nft1.id);
       this.markNFTAsSeen(session.nft2.id);
@@ -930,20 +1055,7 @@ class VotingPreloader {
       // Remove any duplicate sessions from the stack
       this.removeDuplicateSessionsFromStack(session.nft1.id, session.nft2.id);
     }
-    
-    // 🚀 AGGRESSIVE STACK MANAGEMENT: Always maintain buffer for seamless experience
-    if (this.sessionStack.length <= this.REFILL_TRIGGER && !this.isPreloading) {
-      console.log(`🔄 Stack low (${this.sessionStack.length}), triggering background refill...`);
-      // Background refill - don't await
-      this.preloadSessions(this.TARGET_STACK_SIZE - this.sessionStack.length);
-    }
-    
-    // Log stack status for monitoring
-    if (this.sessionStack.length < this.MINIMUM_STACK_SIZE) {
-      console.warn(`⚠️ Stack below minimum! Current: ${this.sessionStack.length}, Target: ${this.MINIMUM_STACK_SIZE}+`);
-    }
-    
-    console.log(`⚡ INSTANT ACCESS: Popped ${session.vote_type} session, ${this.sessionStack.length} remaining in stack`);
+
     return session;
   }
 
@@ -1005,10 +1117,14 @@ class VotingPreloader {
     }
   }
 
-  // 🔄 Track NFT pairs to prevent exact duplicates
+  // 🔄 Track NFT pairs to prevent exact duplicates (now using centralized service)
   private markPairAsSeen(nftId1: string, nftId2: string): void {
     const pairKey = this.getPairKey(nftId1, nftId2);
     this.seenNFTPairs.add(pairKey);
+    
+    // Also track in centralized service
+    const { recentPairsService } = require('../src/lib/recent-pairs-service');
+    recentPairsService.trackPair(nftId1, nftId2);
     
     // Clear old pairs if we've seen too many
     if (this.seenNFTPairs.size > this.MAX_SEEN_PAIRS) {
@@ -1017,10 +1133,13 @@ class VotingPreloader {
     }
   }
 
-  // 🔍 Check if NFT pair has been seen before
+  // 🔍 Check if NFT pair has been seen before (fast local check only)
   private hasPairBeenSeen(nftId1: string, nftId2: string): boolean {
     const pairKey = this.getPairKey(nftId1, nftId2);
-    const hasBeenSeen = this.seenNFTPairs.has(pairKey);
+    const localSeen = this.seenNFTPairs.has(pairKey);
+    
+    // Fast local check only - no blocking API calls for better performance
+    const hasBeenSeen = localSeen;
     if (hasBeenSeen) {
       console.log(`🔄 Duplicate pair detected: ${nftId1} vs ${nftId2} (${this.seenNFTPairs.size} pairs tracked)`);
     }
@@ -1059,6 +1178,23 @@ class VotingPreloader {
     }
   }
 
+  // 🗑️ Remove duplicate slider sessions from stack
+  private removeDuplicateSliderSessionsFromStack(nftId: string): void {
+    const initialLength = this.sessionStack.length;
+    
+    this.sessionStack = this.sessionStack.filter(session => {
+      if (session.vote_type === 'slider' && session.nft) {
+        return session.nft.id !== nftId;
+      }
+      return true;
+    });
+    
+    const removedCount = initialLength - this.sessionStack.length;
+    if (removedCount > 0) {
+      console.log(`🗑️ Removed ${removedCount} duplicate slider sessions from stack (${this.sessionStack.length} remaining)`);
+    }
+  }
+
   // 🧹 Clear seen NFTs tracking
   private clearSeenNFTs(): void {
     this.seenNFTIds.clear();
@@ -1067,9 +1203,44 @@ class VotingPreloader {
 
   // 📊 Public method to clear seen NFTs (for prize breaks, etc.)
   public resetSession(): void {
-    this.clearSeenNFTs();
-    this.clearSeenPairs();
-    console.log('🎯 Session reset - cleared duplicate tracking for NFTs and pairs');
+    // Instead of completely clearing, only clear old NFTs (keep recent 20)
+    this.keepRecentSeenNFTs(20);
+    this.keepRecentSeenPairs(10);
+    console.log('🎯 Session reset - cleared old duplicate tracking, keeping recent NFTs/pairs');
+  }
+
+  // 🔄 Keep only the most recent N seen NFTs to prevent immediate repeats
+  private keepRecentSeenNFTs(keepCount: number): void {
+    if (this.seenNFTIds.size <= keepCount) {
+      console.log(`📚 Keeping all ${this.seenNFTIds.size} seen NFTs (under limit of ${keepCount})`);
+      return;
+    }
+
+    // Convert to array, keep last N items
+    const seenArray = Array.from(this.seenNFTIds);
+    const toKeep = seenArray.slice(-keepCount);
+    
+    this.seenNFTIds.clear();
+    toKeep.forEach(nftId => this.seenNFTIds.add(nftId));
+    
+    console.log(`📚 Kept recent ${toKeep.length} seen NFTs, cleared ${seenArray.length - toKeep.length} old entries`);
+  }
+
+  // 🔄 Keep only the most recent N seen pairs to prevent immediate repeats  
+  private keepRecentSeenPairs(keepCount: number): void {
+    if (this.seenNFTPairs.size <= keepCount) {
+      console.log(`📚 Keeping all ${this.seenNFTPairs.size} seen pairs (under limit of ${keepCount})`);
+      return;
+    }
+
+    // Convert to array, keep last N items
+    const pairsArray = Array.from(this.seenNFTPairs);
+    const toKeep = pairsArray.slice(-keepCount);
+    
+    this.seenNFTPairs.clear();
+    toKeep.forEach(pair => this.seenNFTPairs.add(pair));
+    
+    console.log(`📚 Kept recent ${toKeep.length} seen pairs, cleared ${pairsArray.length - toKeep.length} old entries`);
   }
 
   // 🚫👻 Force clear all cached sessions and rebuild stack

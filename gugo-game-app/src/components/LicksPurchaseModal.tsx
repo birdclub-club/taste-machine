@@ -174,10 +174,11 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               }}
             />
             <h2 style={{
-              color: 'var(--color-white)',
+              color: 'var(--dynamic-text-color, var(--color-white))',
               fontSize: 'var(--font-size-lg)',
               fontWeight: '600',
-              margin: 0
+              margin: 0,
+              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)'
             }}>
               Buy Licks
             </h2>
@@ -218,7 +219,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               style={{
                 padding: 'var(--space-1) var(--space-3)',
                 background: !showPriceInETH ? '#444' : 'transparent',
-                color: 'var(--color-white)',
+                color: 'var(--dynamic-text-color, var(--color-white))',
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
                 border: 'none',
                 borderRadius: 'var(--border-radius-sm)',
                 fontSize: 'var(--font-size-xs)',
@@ -234,7 +236,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               style={{
                 padding: 'var(--space-1) var(--space-3)',
                 background: showPriceInETH ? '#444' : 'transparent',
-                color: 'var(--color-white)',
+                color: 'var(--dynamic-text-color, var(--color-white))',
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
                 border: 'none',
                 borderRadius: 'var(--border-radius-sm)',
                 fontSize: 'var(--font-size-xs)',
@@ -273,7 +276,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                 position: 'relative',
                 padding: 'var(--space-2)',
                 background: selectedOption === option.id ? 'var(--dynamic-accent-color, #333)' : 'transparent',
-                color: 'var(--color-white)',
+                color: 'var(--dynamic-text-color, var(--color-white))',
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
                 border: selectedOption === option.id ? '1px solid var(--dynamic-text-color, #666)' : '1px solid var(--dynamic-text-color, #444)',
                 borderRadius: 'var(--border-radius)',
                 cursor: isPurchasing ? 'not-allowed' : 'pointer',
@@ -303,7 +307,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                   left: '50%',
                   transform: 'translateX(-50%)',
                   background: '#666',
-                  color: 'var(--color-white)',
+                  color: 'var(--dynamic-text-color, var(--color-white))',
+                  textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
                   fontSize: '8px',
                   fontWeight: '600',
                   padding: '1px 4px',
@@ -367,7 +372,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
           }}>
             <label style={{
               display: 'block',
-              color: 'var(--color-white)',
+              color: 'var(--dynamic-text-color, var(--color-white))',
+              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
               marginBottom: 'var(--space-2)'
@@ -387,7 +393,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                 background: 'var(--dynamic-bg-color)',
                 border: '2px solid #444',
                 borderRadius: 'var(--border-radius)',
-                color: 'var(--color-white)',
+                color: 'var(--dynamic-text-color, var(--color-white))',
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
                 fontSize: 'var(--font-size-base)',
                 outline: 'none',
                 transition: 'border-color 0.2s ease'
@@ -422,7 +429,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                 alignItems: 'center',
                 gap: 'var(--space-1)'
               }}>
-                <span style={{ color: 'var(--color-white)', fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
+                <span style={{ color: 'var(--dynamic-text-color, var(--color-white))', textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)', fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
                   {currentLickCount} Licks
                 </span>
                 <img
@@ -434,7 +441,7 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
                   }}
                 />
               </div>
-              <span style={{ color: 'var(--color-white)', fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
+              <span style={{ color: 'var(--dynamic-text-color, var(--color-white))', textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)', fontSize: 'var(--font-size-base)', fontWeight: '600' }}>
                 {showPriceInETH 
                   ? `${costETH.toFixed(6)} ETH` 
                   : `${costGUGO.toLocaleString()} GUGO`}
@@ -497,7 +504,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               background: 'transparent',
               border: '1px solid #444',
               borderRadius: 'var(--border-radius)',
-              color: 'var(--color-white)',
+              color: 'var(--dynamic-text-color, var(--color-white))',
+              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '500',
               cursor: isPurchasing ? 'not-allowed' : 'pointer',
@@ -517,7 +525,8 @@ export function LicksPurchaseModal({ isOpen, onClose, onPurchaseComplete }: Lick
               background: isValidPurchase && !isPurchasing ? '#666' : '#444',
               border: '1px solid transparent',
               borderRadius: 'var(--border-radius)',
-              color: 'var(--color-white)',
+              color: 'var(--dynamic-text-color, var(--color-white))',
+              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
               cursor: isValidPurchase && !isPurchasing ? 'pointer' : 'not-allowed',

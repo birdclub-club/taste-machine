@@ -995,14 +995,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                     {showXpFloatingNotification && (
                       <div style={{
                         position: 'absolute',
-                        bottom: '10px',
+                        top: '25px',
                         left: '50%',
                         transform: 'translateX(-50%)',
                         color: '#ff9500',
-                        fontSize: 'var(--font-size-sm)',
-                        fontWeight: '600',
-                        textShadow: '0 0 12px rgba(255, 149, 0, 0.8), 0 0 24px rgba(255, 149, 0, 0.6)',
-                        animation: 'floatUpAndFade 3s ease-out forwards',
+                        fontSize: 'var(--font-size-lg)',
+                        fontWeight: '700',
+                        textShadow: '0 0 20px rgba(255, 149, 0, 0.9), 0 0 40px rgba(255, 149, 0, 0.7), 0 0 60px rgba(255, 149, 0, 0.5)',
+                        animation: 'floatDownAndFade 3s ease-out forwards',
                         zIndex: 1001,
                         pointerEvents: 'none',
                         whiteSpace: 'nowrap'
@@ -1084,14 +1084,14 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                     {showFloatingNotification && (
                       <div style={{
                         position: 'absolute',
-                        bottom: '10px', // Much lower, just above the Lick count
+                        top: '25px', // Start from the Lick count and animate downward
                         left: '50%',
                         transform: 'translateX(-50%)',
                         color: 'var(--dynamic-text-color, var(--color-white))',
-                        fontSize: 'var(--font-size-sm)',
-                        fontWeight: '600',
-                        textShadow: '0 0 12px rgba(255, 255, 255, 0.8), 0 0 24px rgba(255, 255, 255, 0.6)',
-                        animation: 'floatUpAndFade 3s ease-out forwards',
+                        fontSize: 'var(--font-size-lg)',
+                        fontWeight: '700',
+                        textShadow: '0 0 20px rgba(255, 255, 255, 0.9), 0 0 40px rgba(255, 255, 255, 0.7), 0 0 60px rgba(255, 255, 255, 0.5)',
+                        animation: 'floatDownAndFade 3s ease-out forwards',
                         zIndex: 1001,
                         pointerEvents: 'none',
                         whiteSpace: 'nowrap'
@@ -1107,6 +1107,11 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                     label="Add Licks"
                     onPurchaseComplete={(licksCount) => {
                       console.log(`🎉 Purchased ${licksCount} Licks from StatusBar`);
+                      console.log(`🎬 Triggering Licks animation for +${licksCount} Licks from QuickLicksButton`);
+                      // Trigger Licks animation
+                      setFloatingNotificationAmount(licksCount);
+                      setShowFloatingNotification(true);
+                      setTimeout(() => setShowFloatingNotification(false), 3000);
                       // Trigger refresh
                       refreshUser();
                     }}
@@ -1171,13 +1176,13 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
                   {showWalletGlow && (
                     <div style={{
                       position: 'absolute',
-                      top: '-40px',
+                      bottom: '-40px',
                       right: '0px',
                       color: 'var(--color-green)',
-                      fontSize: 'var(--font-size-lg)',
+                      fontSize: 'var(--font-size-xl)',
                       fontWeight: '700',
-                      textShadow: '0 0 12px rgba(34, 197, 94, 0.8), 0 0 24px rgba(34, 197, 94, 0.6)',
-                      animation: 'floatUpAndFade 3s ease-out forwards',
+                      textShadow: '0 0 20px rgba(34, 197, 94, 0.9), 0 0 40px rgba(34, 197, 94, 0.7), 0 0 60px rgba(34, 197, 94, 0.5)',
+                      animation: 'floatDownAndFade 3s ease-out forwards',
                       zIndex: 1002,
                       pointerEvents: 'none',
                       whiteSpace: 'nowrap'
@@ -1580,8 +1585,12 @@ const StatusBar = forwardRef<StatusBarRef, StatusBarProps>(({ onConnectWallet, u
         }, [])}
         onPurchaseComplete={useCallback(async (licksCount: number) => {
           console.log(`🎉 Purchase completed: ${licksCount} Licks`);
-          // Trigger Licks animation
-          triggerLicksAnimation(licksCount);
+          
+          // Delay animation so modal has time to close first
+          setTimeout(() => {
+            console.log(`🎬 Triggering Licks animation for ${licksCount} Licks (after modal close)`);
+            triggerLicksAnimation(licksCount);
+          }, 500); // 500ms delay to let modal close
           
           // Robust retry logic for balance refresh
           const refreshWithRetry = async (attempt = 1, maxAttempts = 5) => {

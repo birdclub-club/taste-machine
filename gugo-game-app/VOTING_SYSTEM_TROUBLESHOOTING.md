@@ -12,6 +12,13 @@
 
 | Issue | Symptoms | Solution | Status |
 |-------|----------|----------|---------|
+| **Database 500 Errors & Timeouts** | API calls failing with 500 status, statement timeouts | Implemented comprehensive database error handler with 2s timeouts, retry logic, circuit breaker patterns | ✅ **Fixed** |
+| **Repeat Matchups & Sliders** | Same NFT pairs and slider NFTs appearing multiple times | Enhanced duplicate prevention with active stack cleaning and session tracking | ✅ **Fixed** |
+| **Fugz NFTs in Disabled Collection** | Fugz NFTs appearing despite collection being disabled | Fixed massive database corruption (7,885 mislabeled NFTs), implemented cache invalidation | ✅ **Fixed** |
+| **Supabase RLS Security Errors** | `policy_exists_rls_disabled`, `rls_disabled_in_public` errors | Enabled RLS on critical tables, defined proper access policies | ✅ **Fixed** |
+| **Vote Recording Failures** | `new row violates row-level security policy` errors | Created comprehensive RLS policies for votes_events and dirty_nfts tables | ✅ **Fixed** |
+| **Final Bosu Collection Missing** | 8,888 Final Bosu NFTs incorrectly labeled as Fugz | Batch processed 7,885 NFTs back to correct collection using contract address validation | ✅ **Fixed** |
+| **Placeholder Image URLs** | NFTs showing `picsum.photos` placeholder images | Identified and corrected placeholder URLs to proper IPFS/S3 endpoints | ✅ **Fixed** |
 | **Decimal Elo Database Errors** | `invalid input syntax for type integer: "888.73630679352"` | Added `Math.round()` throughout Elo pipeline | ✅ **Fixed** |
 | **Slider Value Validation** | `Invalid slider value: 0. Must be between 1 and 10` | Updated validation to handle 0-10 range with smart fallback | ✅ **Fixed** |
 | **Slider Timeout Issues** | `canceling statement due to statement timeout` | Added timeout protection, fallback mechanism, and background processing | ✅ **Fixed** |
@@ -28,6 +35,71 @@
 | **Slider Vote Complete Failures** | Both RPC and fallback timing out causing UI errors | Implemented graceful degradation with multiple fallback strategies | ✅ **Fixed** |
 
 ---
+
+## 🛡️ **Enhanced Error Handling Systems (January 2025)**
+
+### **🔧 Database Error Handler**
+**Location**: Integrated into core systems (previously `src/lib/database-error-handler.ts`)
+
+**Features**:
+- **2-second timeout protection** for all database operations
+- **Progressive backoff retry logic** (3 attempts: 1s, 2s, 4s delays)
+- **Circuit breaker patterns** to prevent cascade failures
+- **Comprehensive 500 error handling** with graceful degradation
+
+**Implementation Example**:
+```typescript
+// Timeout protection with AbortController
+const controller = new AbortController();
+const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+try {
+  const response = await fetch('/api/matchup-duplicate-check', {
+    signal: controller.signal,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nft1_id, nft2_id })
+  });
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('⏰ Duplicate check timed out, proceeding without check');
+  }
+} finally {
+  clearTimeout(timeoutId);
+}
+```
+
+### **🗂️ Cache Version Manager**
+**Location**: Integrated into `lib/preloader.ts` (previously `src/lib/cache-version-manager.ts`)
+
+**Features**:
+- **Automatic cache invalidation** when collection status changes
+- **Browser environment detection** for SSR compatibility
+- **Prevents stale data serving** during collection updates
+- **Seamless integration** with existing preloader system
+
+**Cache Keys Managed**:
+```typescript
+const cacheKeys = [
+  'preloader_sessions_same_coll',
+  'preloader_sessions_cross_coll', 
+  'slider_sessions_mixed',
+  'collection_status_cache'
+];
+```
+
+### **⚡ Enhanced Duplicate Prevention**
+**Location**: `lib/preloader.ts`
+
+**New Functions**:
+- `removeDuplicateSessionsFromStack()` - Removes duplicate matchup sessions
+- `removeDuplicateSliderSessionsFromStack()` - Removes duplicate slider sessions
+- Enhanced session tracking with memory-efficient algorithms
+
+**Benefits**:
+- **Eliminates repeat matchups** that were causing user frustration
+- **Real-time stack cleaning** during session consumption
+- **Memory-efficient** duplicate detection algorithms
 
 ## 🚀 **Performance Optimizations (Latest)**
 

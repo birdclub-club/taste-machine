@@ -65,8 +65,8 @@ const AnimatedImage = forwardRef<AnimatedImageRef, { src: string }>(({ src }, re
       await new Promise(resolve => setTimeout(resolve, 0));
       
       // Don't start animations if component is unmounted, not ready, or controls don't exist
-      if (!isMounted.current || !isReady.current || !controls) {
-        console.log('🎨 TrailingImages: Skipping animation - not ready');
+      if (!isMounted.current || !isReady.current || !controls || isRunning.current) {
+        console.log('🎨 TrailingImages: Skipping animation - not ready or already running');
         return;
       }
       const rect = imgRef.current?.getBoundingClientRect();

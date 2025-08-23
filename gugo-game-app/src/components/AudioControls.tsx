@@ -197,8 +197,8 @@ export default function AudioControls({ className = '' }: AudioControlsProps) {
               value={volumePercentage}
               onChange={(e) => setVolume(parseInt(e.target.value) / 100)}
               style={{
-                writingMode: 'vertical-lr' as any,
-                WebkitAppearance: 'slider-vertical',
+                writingMode: 'vertical-lr',
+                direction: 'rtl',
                 width: '16px',
                 height: '60px',
                 background: 'rgba(255, 255, 255, 0.2)',

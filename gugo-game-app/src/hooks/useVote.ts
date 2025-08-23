@@ -82,8 +82,71 @@ export function useVote() {
       // Get or create user record
       const userId = await getOrCreateUser(userWallet);
 
-      // Insert the vote record
-      const { data: voteRecord, error: voteError } = await supabase
+      // Insert the vote record using new event ingestion service
+      let voteRecord: any;
+      let voteError: any;
+
+      if (voteData.vote_type === 'slider') {
+        // Handle slider votes
+        const response = await fetch('/api/efficient-pipeline/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'slider',
+            voter_id: userWallet, // Use wallet address directly
+            nft_id: voteData.nft_a_id,
+            raw_score: voteData.slider_value || 50 // Convert slider value to 0-100 scale
+          })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(`Failed to record slider vote: ${result.error}`);
+        }
+        voteRecord = { id: result.data?.event_id || 'slider-vote' };
+      } else {
+        // Check if this is a NO vote before trying the pipeline
+        const isNoVote = !voteData.winner_id && voteData.engagement_data?.no_vote;
+        
+        if (isNoVote) {
+          // Skip efficient pipeline for NO votes - handle them with legacy system
+          console.log('❌ NO vote detected - skipping efficient pipeline, using legacy processing');
+          voteRecord = { id: 'no-vote-legacy' };
+        } else {
+          // Handle regular head-to-head votes
+          const response = await fetch('/api/efficient-pipeline/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'vote',
+              voter_id: userWallet, // Use wallet address directly
+              nft_a_id: voteData.nft_a_id,
+              nft_b_id: voteData.nft_b_id,
+              winner_id: voteData.winner_id,
+              elo_pre_a: 1500, // Default Elo values (will be improved later)
+              elo_pre_b: 1500,
+              vote_type: voteData.super_vote ? 'super' : 'normal'
+            })
+          });
+
+          const result = await response.json();
+          if (!result.success) {
+            throw new Error(`Failed to record vote: ${result.error}`);
+          }
+          voteRecord = { id: result.data?.event_id || 'vote-event' };
+        }
+
+        // Track this pair for future duplicate prevention (non-blocking)
+        try {
+          const { asyncDuplicatePrevention } = await import('../lib/async-duplicate-prevention');
+          asyncDuplicatePrevention.trackPair(voteData.nft_a_id!, voteData.nft_b_id!);
+        } catch (error) {
+          console.warn('Failed to track pair for duplicate prevention:', error);
+        }
+      }
+
+      // Also insert into old votes table for backward compatibility during transition
+      const { error: legacyVoteError } = await supabase
         .from('votes')
         .insert({
           user_id: userId,
@@ -101,12 +164,11 @@ export function useVote() {
             vote_cost: voteData.super_vote ? 5 : 1,
             ...voteData.engagement_data
           }
-        })
-        .select()
-        .single();
+        });
 
-      if (voteError) {
-        throw new Error(`Failed to record vote: ${voteError.message}`);
+      // Don't fail if legacy insert fails - new system is primary
+      if (legacyVoteError) {
+        console.warn('⚠️ Legacy vote insert failed (non-critical):', legacyVoteError.message);
       }
 
       // 🚀 SPEED OPTIMIZATION: Use batched processing for matchup votes
@@ -362,7 +424,9 @@ export function useVote() {
     const updateResults = await Promise.all(updatePromises);
 
     if (updateResults.some(result => result.error)) {
-      throw new Error('Failed to update NFT vote counts for NO vote');
+      const errors = updateResults.filter(result => result.error).map(result => result.error);
+      console.error('❌ NO vote NFT update errors:', errors);
+      throw new Error(`Failed to update NFT vote counts for NO vote: ${JSON.stringify(errors)}`);
     }
 
     console.log(`✅ NO vote processed: Both NFTs got +${voteWeight} vote count (negative aesthetic data recorded)`);

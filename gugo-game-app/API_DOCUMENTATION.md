@@ -27,6 +27,92 @@ const ADMIN_WALLETS = [
 ];
 ```
 
+## 🎬 Prize Break Animation System
+
+### Frontend Animation Integration
+The prize break system integrates with frontend animations through structured reward objects:
+
+**Reward Object Structure:**
+```typescript
+interface PrizeBreakReward {
+  gugoAmount: number;    // GUGO tokens awarded
+  xpAmount: number;      // XP points awarded  
+  licksAmount: number;   // Licks/votes awarded
+  votesAmount: number;   // Alternative votes field
+}
+```
+
+**Animation Trigger Logic:**
+```typescript
+// Multi-reward animation handling
+if (reward.gugoAmount > 0) {
+  // Trigger confetti + wallet glow
+  statusBarRef.current?.triggerWalletGlow(reward.gugoAmount);
+}
+
+if (reward.xpAmount > 0 || reward.licksAmount > 0 || reward.votesAmount > 0) {
+  // Trigger floating animations
+  if (reward.xpAmount > 0) {
+    statusBarRef.current?.triggerXpAnimation(reward.xpAmount);
+  }
+  if (reward.licksAmount > 0) {
+    statusBarRef.current?.triggerLicksAnimation(reward.licksAmount);
+  }
+}
+```
+
+**StatusBar Animation Methods:**
+- `triggerXpAnimation(amount: number)` - Orange floating XP animation
+- `triggerLicksAnimation(amount: number)` - White floating Licks animation  
+- `triggerWalletGlow(amount: number)` - Green GUGO wallet glow + confetti
+
+## 🏥 System Health Monitoring
+
+### GET /api/system-health-check
+Returns comprehensive system status and health metrics.
+
+#### Response
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-01-XX",
+  "systems": {
+    "database": { 
+      "status": "operational", 
+      "response_time": "45ms",
+      "connection_pool": "healthy"
+    },
+    "cache": { 
+      "status": "operational", 
+      "hit_rate": "94%",
+      "version_manager": "active"
+    },
+    "enhanced_engine": { 
+      "status": "operational", 
+      "success_rate": "98%",
+      "duplicate_prevention": "active"
+    },
+    "ipfs_gateways": { 
+      "status": "operational", 
+      "active_gateways": 8,
+      "fastest_gateway": "ipfs.io"
+    }
+  },
+  "performance_metrics": {
+    "avg_matchup_generation": "450ms",
+    "avg_database_query": "85ms",
+    "cache_hit_rate": "94%",
+    "system_uptime": "99.9%"
+  }
+}
+```
+
+#### Features
+- **Real-time Monitoring**: Live system health checks
+- **Performance Metrics**: Response times and success rates
+- **Component Status**: Individual system health tracking
+- **Automatic Alerts**: Detects degraded performance
+
 ## 📊 User Statistics
 
 ### GET /api/user-stats

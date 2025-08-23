@@ -282,6 +282,47 @@ export class EnhancedMatchupIntegration {
           console.log(`🎲 Selected random same-coll candidate #${randomIndex + 1} for variety`);
         }
       }
+
+      // 🔍 Check if pair was recently used (system-wide duplicate prevention)
+      console.log(`🔍 CHECKING DUPLICATE (same-coll): ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+        
+        const response = await fetch('/api/matchup-duplicate-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nft_a_id: optimal.nft_a_id,
+            nft_b_id: optimal.nft_b_id,
+            check_only: true
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          console.warn(`⚠️ Duplicate check HTTP error: ${response.status}`);
+          // Continue without skipping if API fails
+        } else {
+          const result = await response.json();
+          console.log(`🔍 Duplicate check result (same-coll):`, result);
+          
+          if (result.success && result.is_duplicate) {
+            console.log(`🔄 SKIPPING DUPLICATE SAME-COLL PAIR: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)} (${result.minutes_since_last_use} min ago)`);
+            return null; // Skip this pair, let caller try again
+          } else {
+            console.log(`✅ Same-coll pair is unique: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+          }
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn('⚠️ Same-coll duplicate check timeout, allowing pair');
+        } else {
+          console.warn('⚠️ Same-coll duplicate check failed, allowing pair:', error);
+        }
+      }
       
       // Fetch both NFTs
       const [nft1Result, nft2Result] = await Promise.all([
@@ -383,6 +424,47 @@ export class EnhancedMatchupIntegration {
         optimal = matchupData[randomIndex];
         if (randomIndex > 0) {
           console.log(`🎲 Selected random cross-coll candidate #${randomIndex + 1} for variety`);
+        }
+      }
+
+      // 🔍 Check if pair was recently used (system-wide duplicate prevention)
+      console.log(`🔍 CHECKING DUPLICATE (cross-coll): ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+        
+        const response = await fetch('/api/matchup-duplicate-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nft_a_id: optimal.nft_a_id,
+            nft_b_id: optimal.nft_b_id,
+            check_only: true
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          console.warn(`⚠️ Duplicate check HTTP error: ${response.status}`);
+          // Continue without skipping if API fails
+        } else {
+          const result = await response.json();
+          console.log(`🔍 Duplicate check result (cross-coll):`, result);
+          
+          if (result.success && result.is_duplicate) {
+            console.log(`🔄 SKIPPING DUPLICATE CROSS-COLL PAIR: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)} (${result.minutes_since_last_use} min ago)`);
+            return null; // Skip this pair, let caller try again
+          } else {
+            console.log(`✅ Cross-coll pair is unique: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+          }
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.warn('⚠️ Cross-coll duplicate check timeout, allowing pair');
+        } else {
+          console.warn('⚠️ Cross-coll duplicate check failed, allowing pair:', error);
         }
       }
       

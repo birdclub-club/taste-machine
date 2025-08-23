@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@lib/supabase';
 import type { VoteSubmission, VoteResult } from '@/types/voting';
-import { isPrizeBreakVote } from '@/lib/prize-break-utils';
+import { isPrizeBreakVote, getPrizeBreakThreshold } from '@/lib/prize-break-utils';
 
 interface BatchedVote {
   voteData: VoteSubmission;
@@ -25,6 +25,7 @@ export function useBatchedVoting() {
   
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const processingRef = useRef(false);
+  const prizeBreakInProgressRef = useRef(false);
 
   // 🚀 Add vote to local batch (instant UI feedback)
   const addVoteToBatch = async (voteData: VoteSubmission, userWallet: string, userXP: number = 0): Promise<VoteResult> => {
@@ -35,23 +36,48 @@ export function useBatchedVoting() {
       processed: false
     };
 
+    // Calculate new vote count first to avoid state race conditions
+    const newVoteCount = batchState.totalVoteCount + 1;
+    const isPrizeBreak = isPrizeBreakVote(newVoteCount, userXP);
+
     // Update local state immediately for instant UI feedback
     setBatchState(prev => ({
       ...prev,
       pendingVotes: [...prev.pendingVotes, newVote],
-      totalVoteCount: prev.totalVoteCount + 1
+      totalVoteCount: newVoteCount
     }));
 
-    const newVoteCount = batchState.totalVoteCount + 1;
-    const isPrizeBreak = isPrizeBreakVote(newVoteCount, userXP);
-
     console.log(`⚡ Vote ${newVoteCount} added to batch - ${isPrizeBreak ? 'PRIZE BREAK!' : 'batched for processing'}`);
+    
+    // Debug: Log prize break calculation details
+    if (newVoteCount >= 15) { // Only log when getting close to potential prize breaks
+      const threshold = getPrizeBreakThreshold(userXP);
+      const remainder = newVoteCount % threshold;
+      console.log(`🔍 Prize break debug: Vote ${newVoteCount}, XP ${userXP}, Threshold ${threshold}, Remainder ${remainder}, isPrizeBreak: ${isPrizeBreak}`);
+    }
 
     // Check if this triggers a prize break (XP-based threshold)
-    if (isPrizeBreak) {
+    if (isPrizeBreak && !prizeBreakInProgressRef.current) {
       console.log('🎁 Prize break triggered - processing batch now!');
+      console.log('🎬 Prize break UI will be handled by page.tsx');
+      prizeBreakInProgressRef.current = true;
       // Don't await this - let it process in background during prize break
-      processPendingVotes();
+      processPendingVotes().finally(() => {
+        // Reset the prize break flag after processing completes
+        setTimeout(() => {
+          prizeBreakInProgressRef.current = false;
+        }, 1000); // 1 second cooldown to prevent rapid-fire prize breaks
+      });
+    } else if (isPrizeBreak && prizeBreakInProgressRef.current) {
+      console.log('🛡️ Prize break already in progress - skipping duplicate trigger');
+      // Return false for isPrizeBreak to prevent duplicate UI triggers
+      return {
+        hash: 'batched',
+        voteId: `batch-${Date.now()}`,
+        isPrizeBreak: false, // Prevent duplicate UI trigger
+        voteCount: newVoteCount,
+        insufficientVotes: false
+      };
     }
 
     return {
@@ -571,8 +597,10 @@ const processNoVoteBatch = async (vote: BatchedVote, nftMap: Map<string, any>) =
     const updateResults = await Promise.all(updatePromises);
 
     if (updateResults.some(result => result.error)) {
-      console.error('❌ Failed to update NFT vote counts for NO vote:', updateResults);
-      throw new Error('Failed to update NFT vote counts for NO vote');
+      const errors = updateResults.filter(result => result.error).map(result => result.error);
+      console.error('❌ NO vote NFT update errors (batch):', errors);
+      console.error('❌ Full update results:', updateResults);
+      throw new Error(`Failed to update NFT vote counts for NO vote (batch): ${JSON.stringify(errors)}`);
     }
 
     console.log(`✅ NO vote processed: Both NFTs got +${voteWeight} vote count (negative aesthetic data recorded)`);

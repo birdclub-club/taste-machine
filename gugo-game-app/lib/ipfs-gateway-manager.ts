@@ -36,11 +36,11 @@ class IPFSGatewayManager {
       'https://ipfs.io/ipfs/',             // Most reliable and secure
       'https://dweb.link/ipfs/',           // BEST for Final Bosu/Fugz (v1 hashes)
       'https://gateway.ipfs.io/ipfs/',     // Fast general purpose
-      'https://ipfs.filebase.io/ipfs/',    // Good backup
-      'https://cloudflare-ipfs.com/ipfs/', // Cloudflare CDN for speed
-      'https://cf-ipfs.com/ipfs/',         // Alternative Cloudflare
+      'https://4everland.io/ipfs/',        // Reliable alternative
       'https://w3s.link/ipfs/',            // Web3.Storage gateway
-      'https://nftstorage.link/ipfs/'      // NFT.Storage gateway
+      'https://nftstorage.link/ipfs/',     // NFT.Storage gateway
+      'https://pinata.cloud/ipfs/',        // Pinata gateway
+      'https://ipfs.eth.aragon.network/ipfs/' // Aragon gateway
     ];
 
     this.gateways = gatewayUrls.map(url => ({
@@ -239,6 +239,9 @@ if (typeof window !== 'undefined') {
 
 export const ipfsGatewayManager = IPFSGatewayManager.getInstance();
 
+// Track logged hashes to avoid spam - static outside class
+const loggedHashes = new Set<string>();
+
 // 🔧 Enhanced IPFS URL fixer with collection-specific optimization
 export const fixImageUrl = (imageUrl: string): string => {
   if (!imageUrl) return '';
@@ -248,7 +251,11 @@ export const fixImageUrl = (imageUrl: string): string => {
     
     // 🎯 OPTIMIZED: Use secure HTTPS dweb.link for Final Bosu/Fugz (v1 hashes starting with 'bafy')
     if (ipfsHash.startsWith('bafybeie') || ipfsHash.startsWith('bafybeig')) {
-      console.log(`🎯 Using optimized HTTPS gateway for Final Bosu/Fugz: ${ipfsHash.substring(0,12)}...`);
+      // Only log once per hash to avoid spam
+      if (!loggedHashes.has(ipfsHash.substring(0,12))) {
+        console.log(`🎯 Using optimized HTTPS gateway for Final Bosu/Fugz: ${ipfsHash.substring(0,12)}...`);
+        loggedHashes.add(ipfsHash.substring(0,12));
+      }
       return `https://dweb.link/ipfs/${ipfsHash}`;
     }
     

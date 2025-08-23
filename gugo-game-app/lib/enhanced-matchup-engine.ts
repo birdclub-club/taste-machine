@@ -4,10 +4,10 @@
 import { supabase } from './supabase';
 import type { VotingSession, NFT } from '@/types/voting';
 
-// 📊 Information Theory Constants
-const UNCERTAINTY_WEIGHT = 0.4;        // Weight for uncertainty-based selection
-const ELO_PROXIMITY_WEIGHT = 0.3;      // Weight for close Elo ratings  
-const VOTE_COUNT_WEIGHT = 0.2;         // Weight for underrepresented NFTs
+// 📊 Progressive Discovery Constants (Balanced Exploration-Exploitation)
+const UNCERTAINTY_WEIGHT = 0.35;       // Weight for uncertainty-based selection (reduced for balance)
+const ELO_PROXIMITY_WEIGHT = 0.2;      // Weight for close Elo ratings (reduced for exploration)
+const VOTE_COUNT_WEIGHT = 0.35;        // Weight for underrepresented NFTs (BOOSTED 75% for discovery!)
 const COLLECTION_DIVERSITY_WEIGHT = 0.1; // Weight for collection balance
 
 // 🎯 TrueSkill-inspired uncertainty calculation
@@ -20,6 +20,9 @@ interface NFTWithMetrics extends NFT {
   information_potential: number;
   vote_deficit: number;
   collection_representation: number;
+  total_votes?: number;
+  wins?: number;
+  losses?: number;
 }
 
 interface CollectionStatus {
@@ -39,11 +42,12 @@ interface MatchupCandidate {
   selection_reason: string;
 }
 
+// Import will be done dynamically to avoid path issues
+
 export class EnhancedMatchupEngine {
   private static instance: EnhancedMatchupEngine;
   private collectionStatus = new Map<string, CollectionStatus>();
-  private recentPairs = new Set<string>(); // Track recent pairs to avoid immediate repeats
-  private readonly MAX_RECENT_PAIRS = 1500; // Increased for better variety
+  // Removed local recentPairs - now using centralized service
 
   static getInstance(): EnhancedMatchupEngine {
     if (!EnhancedMatchupEngine.instance) {
@@ -186,7 +190,12 @@ export class EnhancedMatchupEngine {
       console.log(`   NFT2: ${bestCandidate.nft2.name} (Elo: ${bestCandidate.nft2.current_elo}, Uncertainty: ${bestCandidate.nft2.uncertainty.toFixed(1)})`);
 
       // Track this pair to avoid immediate repeats
-      this.trackRecentPair(bestCandidate.nft1.id, bestCandidate.nft2.id);
+      try {
+        const { recentPairsService } = await import('../src/lib/recent-pairs-service');
+        recentPairsService.trackPair(bestCandidate.nft1.id, bestCandidate.nft2.id);
+      } catch (error) {
+        console.warn('⚠️ Could not track recent pair:', error);
+      }
       
       // Update collection last_selected timestamps
       await this.updateCollectionLastSelected([bestCandidate.nft1.collection_name, bestCandidate.nft2.collection_name]);
@@ -349,10 +358,22 @@ export class EnhancedMatchupEngine {
     // Count NFTs needing slider votes (cold start)
     const needingSliderVotes = eligibleNFTs.filter(nft => (nft.slider_count || 0) < 3);
     
+    // 🎯 Progressive Discovery: Boost cold start detection
+    const zeroVoteNFTs = eligibleNFTs.filter(nft => (nft.total_votes || 0) === 0);
+    
+    console.log(`🎯 Discovery Status: ${zeroVoteNFTs.length} zero-vote NFTs, ${needingSliderVotes.length} need sliders`);
+    
     // If many NFTs need slider votes, prioritize that
     if (needingSliderVotes.length > 50) {
       console.log(`🎚️ ${needingSliderVotes.length} NFTs need slider votes, prioritizing slider`);
       return 'slider';
+    }
+    
+    // 🎯 Progressive Discovery: If many zero-vote NFTs, boost head-to-head exposure
+    if (zeroVoteNFTs.length > 100) {
+      console.log(`🎯 ${zeroVoteNFTs.length} zero-vote NFTs detected, boosting head-to-head for discovery`);
+      // Favor same_coll for better information gain with zero-vote NFTs
+      return Math.random() < 0.7 ? 'same_coll' : 'cross_coll';
     }
 
     // Calculate average uncertainty across collections
@@ -468,8 +489,36 @@ export class EnhancedMatchupEngine {
         if (voteType === 'same_coll' && !sameCollection) continue;
         if (voteType === 'cross_coll' && sameCollection) continue;
 
-        // Skip recent pairs
-        if (this.isRecentPair(nft1.id, nft2.id)) continue;
+        // 🔍 Check if pair was recently used (system-wide duplicate prevention)
+        console.log(`🔍 CHECKING DUPLICATE: ${nft1.name} vs ${nft2.name} (${nft1.id.slice(0,8)} vs ${nft2.id.slice(0,8)})`);
+        try {
+          const response = await fetch('/api/matchup-duplicate-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nft_a_id: nft1.id,
+              nft_b_id: nft2.id,
+              check_only: true
+            })
+          });
+          
+          if (!response.ok) {
+            console.warn(`⚠️ Duplicate check HTTP error: ${response.status}`);
+            // Continue without skipping if API fails
+          } else {
+            const result = await response.json();
+            console.log(`🔍 Duplicate check result:`, result);
+            
+            if (result.success && result.is_duplicate) {
+              console.log(`🔄 SKIPPING DUPLICATE PAIR: ${nft1.name} vs ${nft2.name} (${result.minutes_since_last_use} min ago)`);
+              continue; // Skip this pair
+            } else {
+              console.log(`✅ Pair is unique: ${nft1.name} vs ${nft2.name}`);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Duplicate check failed, allowing pair:', error);
+        }
 
         // Calculate information score
         const informationScore = this.calculateMatchupInformationScore(nft1, nft2);
@@ -566,23 +615,31 @@ export class EnhancedMatchupEngine {
     return topCandidates[0]; // Fallback to best candidate
   }
 
-  // 📝 Track recent pairs to avoid immediate repeats
-  private trackRecentPair(nft1Id: string, nft2Id: string): void {
-    const pairKey = [nft1Id, nft2Id].sort().join('|');
-    this.recentPairs.add(pairKey);
-    
-    // Limit memory usage
-    if (this.recentPairs.size > this.MAX_RECENT_PAIRS) {
-      // Remove oldest entries (approximate)
-      const keysToRemove = Array.from(this.recentPairs).slice(0, 100);
-      keysToRemove.forEach(key => this.recentPairs.delete(key));
+  // 🔍 Check if pair was recently used (system-wide duplicate prevention)
+  private async isRecentPair(nft1Id: string, nft2Id: string): Promise<boolean> {
+    try {
+      const response = await fetch('/api/matchup-duplicate-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nft_a_id: nft1Id,
+          nft_b_id: nft2Id,
+          check_only: true
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        if (result.is_duplicate) {
+          console.log(`🔄 Skipping duplicate pair: ${result.minutes_since_last_use} min ago`);
+        }
+        return result.is_duplicate;
+      }
+    } catch (error) {
+      console.warn('⚠️ Duplicate check failed, allowing pair:', error);
     }
-  }
-
-  // 🔍 Check if pair was recently used
-  private isRecentPair(nft1Id: string, nft2Id: string): boolean {
-    const pairKey = [nft1Id, nft2Id].sort().join('|');
-    return this.recentPairs.has(pairKey);
+    
+    return false; // Default to allowing pair if check fails
   }
 
   // ⏰ Update collection last selected timestamp
@@ -697,7 +754,7 @@ export class EnhancedMatchupEngine {
     return {
       total_collections: collections.length,
       active_collections: activeCollections.length,
-      recent_pairs_tracked: this.recentPairs.size,
+      recent_pairs_tracked: 0, // Using centralized service now
       avg_collection_priority: activeCollections.reduce((sum, c) => sum + c.priority, 0) / Math.max(1, activeCollections.length),
       collections: collections.map(c => ({
         name: c.name,

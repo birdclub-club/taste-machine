@@ -124,7 +124,7 @@ export function SimplifiedInsufficientVotesAlert({
           margin: '0 0 20px 0',
           opacity: 0.8
         }}>
-          You need <strong>{requiredVotes} more Licks</strong> to continue voting
+          You need more Licks to continue earning XP
         </p>
 
         {/* Quick Add 50 - Prominent Option */}
@@ -149,9 +149,9 @@ export function SimplifiedInsufficientVotesAlert({
             style={{
               width: '100%',
               padding: '14px',
-              background: 'var(--color-white)',
-              color: 'var(--dynamic-accent-color, var(--color-green))',
-              border: 'none',
+              background: 'var(--dynamic-bg-color, var(--color-white))',
+              color: 'var(--dynamic-text-color, var(--color-black))',
+              border: `2px solid var(--dynamic-text-color, var(--color-black))`,
               borderRadius: '8px',
               fontSize: '16px',
               fontWeight: 'bold',
@@ -166,8 +166,8 @@ export function SimplifiedInsufficientVotesAlert({
                 <div style={{
                   width: '16px',
                   height: '16px',
-                  border: '2px solid rgba(0,0,0,0.3)',
-                  borderTop: '2px solid var(--dynamic-accent-color, var(--color-green))',
+                  border: '2px solid rgba(128,128,128,0.3)',
+                  borderTop: '2px solid var(--dynamic-text-color, var(--color-black))',
                   borderRadius: '50%',
                   animation: 'spin 1s linear infinite'
                 }} />
@@ -182,30 +182,12 @@ export function SimplifiedInsufficientVotesAlert({
         {/* Alternative Options */}
         <div style={{
           display: 'flex',
-          gap: '12px',
           justifyContent: 'center'
         }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '12px 20px',
-              border: `2px solid var(--dynamic-text-color, var(--color-black))`,
-              borderRadius: '8px',
-              background: 'transparent',
-              color: 'var(--dynamic-text-color, var(--color-black))',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              fontFamily: 'inherit'
-            }}
-          >
-            Maybe Later
-          </button>
-          
           <QuickLicksButton
             needed={suggestedAmount}
             variant="secondary"
-            label="More Options"
+            label="More Licks Options"
             onPurchaseComplete={(licksCount) => {
               onPurchaseComplete?.(licksCount);
               onClose();
@@ -217,18 +199,7 @@ export function SimplifiedInsufficientVotesAlert({
           />
         </div>
 
-        {/* Helpful tip */}
-        <div style={{
-          marginTop: '20px',
-          padding: '12px',
-          background: 'rgba(0,0,0,0.05)',
-          borderRadius: '8px',
-          fontSize: '12px',
-          color: 'var(--dynamic-text-color, var(--color-black))',
-          opacity: 0.7
-        }}>
-          💡 Tip: Quick Add gives you 50 Licks for just $1 - perfect for a few more votes!
-        </div>
+
       </div>
 
       {/* Add CSS animation */}
