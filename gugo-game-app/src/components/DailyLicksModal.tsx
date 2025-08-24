@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { claimFreeVotes } from '../../lib/auth';
+import { claimFreeVotes, canClaimFreeVotes } from '../../lib/auth';
+import { useAuth } from '../hooks/useAuth';
 
 interface DailyLicksModalProps {
   isOpen: boolean;
@@ -12,11 +13,24 @@ interface DailyLicksModalProps {
 }
 
 export function DailyLicksModal({ isOpen, onClose, address, onSuccess }: DailyLicksModalProps) {
-  const [popupStage, setPopupStage] = useState<'initial' | 'animating' | 'result'>('initial');
+  const { user } = useAuth();
+  const [popupStage, setPopupStage] = useState<'initial' | 'animating' | 'result' | 'already_claimed'>('initial');
   const [currentMultiplier, setCurrentMultiplier] = useState(1);
   const [finalVotes, setFinalVotes] = useState(0);
   const [congratsWord, setCongratsWord] = useState('Nice!');
   const multiplierRef = useRef<HTMLSpanElement>(null);
+  
+  // Check if user can claim when modal opens
+  useEffect(() => {
+    if (isOpen && user) {
+      const canClaim = canClaimFreeVotes(user);
+      if (!canClaim) {
+        setPopupStage('already_claimed');
+      } else {
+        setPopupStage('initial');
+      }
+    }
+  }, [isOpen, user]);
 
   const handleClose = async () => {
     // Award votes if we just claimed
@@ -164,6 +178,7 @@ export function DailyLicksModal({ isOpen, onClose, address, onSuccess }: DailyLi
             {popupStage === 'initial' && 'Claim your free Licks.'}
             {popupStage === 'animating' && 'Rolling multiplier...'}
             {popupStage === 'result' && congratsWord}
+            {popupStage === 'already_claimed' && 'You\'ve already claimed your Daily Licks today. Come back tomorrow!'}
           </p>
         </div>
 
@@ -191,7 +206,7 @@ export function DailyLicksModal({ isOpen, onClose, address, onSuccess }: DailyLi
           </div>
 
           {/* Multiplier Display */}
-          {popupStage !== 'initial' && (
+          {popupStage !== 'initial' && popupStage !== 'already_claimed' && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -282,6 +297,35 @@ export function DailyLicksModal({ isOpen, onClose, address, onSuccess }: DailyLi
               Claim {finalVotes} Licks
             </button>
           )}
+          
+          {popupStage === 'already_claimed' && (
+            <button
+              onClick={handleClose}
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                color: 'var(--dynamic-text-color)',
+                border: '2px solid var(--dynamic-text-color)',
+                borderRadius: 'var(--border-radius-md)',
+                padding: 'var(--space-3) var(--space-6)',
+                fontSize: 'var(--font-size-lg)',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontFamily: 'var(--font-primary)',
+                opacity: 0.8
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.opacity = '1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.opacity = '0.8';
+              }}
+            >
+              Come Back Tomorrow
+            </button>
+          )}
         </div>
 
         {/* Footer Info */}
@@ -295,7 +339,10 @@ export function DailyLicksModal({ isOpen, onClose, address, onSuccess }: DailyLi
           opacity: 0.7,
           lineHeight: 1.4
         }}>
-          Come back daily and build your streak.
+          {popupStage === 'already_claimed' 
+            ? 'Daily Licks reset every 24 hours. Check back tomorrow for more free votes!' 
+            : 'Come back daily and build your streak.'
+          }
         </div>
       </div>
 

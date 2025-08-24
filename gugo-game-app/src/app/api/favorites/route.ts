@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`📚 Fetching favorites for wallet: ${walletAddress}`);
 
-    const { data, error } = await supabase
+    const { data: allFavorites, error } = await supabase
       .rpc('get_user_favorites', { p_wallet_address: walletAddress });
 
     if (error) {
@@ -26,11 +26,41 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    console.log(`✅ Found ${data?.length || 0} favorites`);
+    // Group by nft_id and count FIRE vote duplicates
+    const groupedFavorites = new Map<string, any>();
+    
+    allFavorites?.forEach((favorite: any) => {
+      const key = favorite.nft_id;
+      
+      if (groupedFavorites.has(key)) {
+        const existing = groupedFavorites.get(key);
+        // Only count FIRE votes for multiplier
+        if (favorite.vote_type === 'fire') {
+          existing.fire_count += 1;
+        }
+        // Keep the most recent created_at
+        if (new Date(favorite.created_at) > new Date(existing.created_at)) {
+          existing.created_at = favorite.created_at;
+        }
+      } else {
+        groupedFavorites.set(key, {
+          ...favorite,
+          fire_count: favorite.vote_type === 'fire' ? 1 : 0
+        });
+      }
+    });
+
+    // Convert back to array and sort by most recent
+    const favorites = Array.from(groupedFavorites.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 50); // Limit to 50 most recent
+
+    console.log(`✅ Found ${favorites?.length || 0} unique favorites (${allFavorites?.length || 0} total votes)`);
     
     return NextResponse.json({ 
-      favorites: data || [],
-      count: data?.length || 0
+      favorites: favorites || [],
+      count: favorites?.length || 0,
+      totalVotes: allFavorites?.length || 0
     });
 
   } catch (error) {

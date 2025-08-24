@@ -30,8 +30,8 @@ class VotingPreloader {
   private useEnhancedEngine = true; // Re-enabled with optimized V2 SQL functions
   private enhancedSuccessRate = 0; // Track enhanced system performance
   private enhancedAttempts = 0;
-  private enhancedTimeout = 800; // 0.8 second timeout for enhanced calls (faster fallback)
-  private enhancedRatio = 0.5; // 50% enhanced, 50% legacy (balanced for reliability)
+  private enhancedTimeout = 800; // Reduced to 800ms for faster fallbacks
+  private enhancedRatio = 0.5; // 50% enhanced, 50% legacy - balanced performance
 
   static getInstance(): VotingPreloader {
     if (!VotingPreloader.instance) {
@@ -150,7 +150,7 @@ class VotingPreloader {
         const timeout = setTimeout(() => {
           console.log(`⏰ Preload timeout ${attemptCount + 1}: ${currentUrl.substring(0, 60)}...`);
           tryNextGateway();
-        }, 2000); // Reduced to 2 seconds for faster fallbacks
+        }, 1000); // Reduced to 1 second for faster fallbacks
 
         img.onload = () => {
           clearTimeout(timeout);

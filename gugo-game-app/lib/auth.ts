@@ -208,11 +208,6 @@ export const updateUser = async (
 
 // Check if user can claim free votes (once per 24 hours)
 export const canClaimFreeVotes = (user: User): boolean => {
-  // 🎭 DEMO MODE: Always allow claims for demonstration purposes
-  // Comment out the line below and uncomment the production logic for live deployment
-  return true;
-  
-  /* PRODUCTION LOGIC (uncomment for live):
   if (!user.last_free_vote_claim) {
     return true; // Never claimed before
   }
@@ -223,7 +218,6 @@ export const canClaimFreeVotes = (user: User): boolean => {
   const hoursDiff = timeDiff / (1000 * 3600);
   
   return hoursDiff >= 24;
-  */
 };
 
 // Claim free votes (update last claim timestamp and award votes)

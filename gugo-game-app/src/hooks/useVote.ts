@@ -210,7 +210,14 @@ export function useVote() {
         if (isNoVote) {
           // Process NO votes immediately to provide negative aesthetic data for both NFTs
           console.log('❌ Processing NO vote immediately (negative aesthetic data)...');
-          await processNoVote(voteData);
+          try {
+            await processNoVote(voteData);
+          } catch (error) {
+            console.warn('⚠️ Direct NO vote processing failed, falling back to batch processing:', error);
+            // Fallback to batch processing for better resilience
+            addVoteToBatch(voteData, userWallet);
+            // Continue with vote cost deduction below
+          }
           
           // Deduct vote cost
           if (voteData.super_vote) {
@@ -381,18 +388,23 @@ export function useVote() {
       throw new Error('Invalid NO vote data: missing NFT IDs');
     }
 
-    // Fetch both NFTs
-    const { data: nfts, error: nftsError } = await supabase
-      .from('nfts')
-      .select('id, total_votes')
-      .in('id', [voteData.nft_a_id, voteData.nft_b_id]);
+    // Fetch both NFTs with timeout protection
+    const { data: nfts, error: nftsError } = await Promise.race([
+      supabase
+        .from('nfts')
+        .select('id, total_votes')
+        .in('id', [voteData.nft_a_id, voteData.nft_b_id]),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('NFT fetch timeout')), 5000)
+      )
+    ]) as any;
 
     if (nftsError || !nfts || nfts.length !== 2) {
       throw new Error(`Failed to fetch NFTs for NO vote: ${nftsError?.message}`);
     }
 
-    const nftA = nfts.find(nft => nft.id === voteData.nft_a_id);
-    const nftB = nfts.find(nft => nft.id === voteData.nft_b_id);
+    const nftA = nfts.find((nft: any) => nft.id === voteData.nft_a_id);
+    const nftB = nfts.find((nft: any) => nft.id === voteData.nft_b_id);
 
     if (!nftA || !nftB) {
       throw new Error('Could not match NFT IDs for NO vote');
@@ -403,28 +415,60 @@ export function useVote() {
 
     console.log(`❌ Processing NO vote (negative aesthetic data) - both NFTs get +${voteWeight} vote count`);
 
-    // Update both NFTs' vote counts but NO Elo changes (no winner/loser)
-    const updatePromises = [
-      supabase
-        .from('nfts')
-        .update({
-          total_votes: nftA.total_votes + voteWeight,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', nftA.id),
-      supabase
-        .from('nfts')
-        .update({
-          total_votes: nftB.total_votes + voteWeight,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', nftB.id)
-    ];
+    // Helper function to update NFT with timeout and retry logic
+    const updateNFTWithRetry = async (nftId: string, newVoteCount: number, maxRetries = 3) => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await Promise.race([
+            supabase
+              .from('nfts')
+              .update({
+                total_votes: newVoteCount,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', nftId),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Update timeout')), 3000)
+            )
+          ]) as any;
 
-    const updateResults = await Promise.all(updatePromises);
+          if (!result.error) {
+            return result;
+          }
 
-    if (updateResults.some(result => result.error)) {
-      const errors = updateResults.filter(result => result.error).map(result => result.error);
+          // If it's a timeout error and we have retries left, wait and retry
+          if ((result.error?.code === '57014' || result.error?.message?.includes('timeout')) && attempt < maxRetries) {
+            const waitTime = 1000 * (attempt + 1); // 1s, 2s, 3s
+            console.log(`⏰ NO vote NFT ${nftId}: Timeout on attempt ${attempt + 1}, waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+
+          return result;
+        } catch (error) {
+          // Handle promise timeout
+          if ((error as Error).message === 'Update timeout' && attempt < maxRetries) {
+            const waitTime = 1000 * (attempt + 1);
+            console.log(`⏰ NO vote NFT ${nftId}: Promise timeout on attempt ${attempt + 1}, waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          
+          if (attempt === maxRetries) {
+            throw error;
+          }
+        }
+      }
+    };
+
+    // Update both NFTs with retry logic
+    const updateResults = await Promise.all([
+      updateNFTWithRetry(nftA.id, nftA.total_votes + voteWeight),
+      updateNFTWithRetry(nftB.id, nftB.total_votes + voteWeight)
+    ]);
+
+    if (updateResults.some(result => result?.error)) {
+      const errors = updateResults.filter(result => result?.error).map(result => result.error);
       console.error('❌ NO vote NFT update errors:', errors);
       throw new Error(`Failed to update NFT vote counts for NO vote: ${JSON.stringify(errors)}`);
     }

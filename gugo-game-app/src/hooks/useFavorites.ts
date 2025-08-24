@@ -10,6 +10,7 @@ interface Favorite {
   collection_address?: string;
   vote_type: 'fire' | 'slider_max';
   created_at: string;
+  fire_count?: number; // Number of FIRE votes for this NFT
 }
 
 interface FavoritesState {

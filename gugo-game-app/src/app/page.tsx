@@ -319,33 +319,9 @@ export default function Page() {
         cleanupFunctions.push(() => clearTimeout(confettiTimer));
       }
 
-      // ⚡ Handle XP and Licks rewards (floating animations)
-      if (prizeBreakState.reward.xpAmount > 0 || prizeBreakState.reward.licksAmount > 0 || prizeBreakState.reward.votesAmount > 0) {
-        console.log('🎨 XP/Licks prize detected - setting up animations:', {
-          xpAmount: prizeBreakState.reward.xpAmount,
-          licksAmount: prizeBreakState.reward.licksAmount,
-          votesAmount: prizeBreakState.reward.votesAmount
-        });
-        
-        const animationTimer = setTimeout(() => {
-          // ⚡ Trigger XP animation if XP reward
-          if (prizeBreakState.reward!.xpAmount > 0) {
-            console.log('⚡ Triggering XP animation for', prizeBreakState.reward!.xpAmount, 'XP');
-            statusBarRef.current?.triggerXpAnimation(prizeBreakState.reward!.xpAmount);
-          }
-          
-          // 🎫 Trigger Licks animation if Licks/votes reward
-          if (prizeBreakState.reward!.licksAmount > 0) {
-            console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.licksAmount, 'Licks');
-            statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.licksAmount);
-          } else if (prizeBreakState.reward!.votesAmount > 0) {
-            console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.votesAmount, 'Votes');
-            statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.votesAmount);
-          }
-        }, 300); // Slight delay for visual effect
-
-        cleanupFunctions.push(() => clearTimeout(animationTimer));
-      }
+      // 🎬 Animations are now only triggered when user clicks "Accept Reward" button
+      // This ensures they see the animations regardless of session creation timing
+      console.log('🎨 Prize reward ready - animations will trigger when user accepts reward');
 
       // Return cleanup function that clears all timers
       return () => {
@@ -2051,6 +2027,31 @@ export default function Page() {
                               const success = await createSession();
                               if (success) {
                                 console.log('✅ Session created successfully! Green indicator should now be visible.');
+                                
+                                // 🎬 Trigger animations for first-time session creation
+                                if (prizeBreakState.reward) {
+                                  setTimeout(() => {
+                                    if (prizeBreakState.reward!.gugoAmount > 0) {
+                                      console.log('💰 Triggering wallet glow animation for', prizeBreakState.reward!.gugoAmount, 'GUGO (after session creation)');
+                                      statusBarRef.current?.triggerWalletGlow(prizeBreakState.reward!.gugoAmount);
+                                    } else {
+                                      // Non-GUGO prizes: trigger XP and Licks animations
+                                      if (prizeBreakState.reward!.xpAmount > 0) {
+                                        console.log('⚡ Triggering XP animation for', prizeBreakState.reward!.xpAmount, 'XP (after session creation)');
+                                        statusBarRef.current?.triggerXpAnimation(prizeBreakState.reward!.xpAmount);
+                                      }
+                                      
+                                      if (prizeBreakState.reward!.licksAmount > 0) {
+                                        console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.licksAmount, 'Licks (after session creation)');
+                                        statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.licksAmount);
+                                      } else if (prizeBreakState.reward!.votesAmount > 0) {
+                                        console.log('🎫 Triggering Licks animation for', prizeBreakState.reward!.votesAmount, 'Votes (after session creation)');
+                                        statusBarRef.current?.triggerLicksAnimation(prizeBreakState.reward!.votesAmount);
+                                      }
+                                    }
+                                  }, 800); // 800ms delay to let prize break modal close
+                                }
+                                
                                 // Small delay to ensure state propagation before claiming reward
                                 await new Promise(resolve => setTimeout(resolve, 100));
                                 endPrizeBreak();

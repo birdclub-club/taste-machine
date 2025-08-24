@@ -27,13 +27,14 @@ export interface EnhancedMatchupResult {
 }
 
 /**
- * 🚀 Enhanced Matchup Engine Integration
+ * 🚀 POA v2 Enhanced Matchup Engine Integration
  * 
- * This class integrates the new intelligence with existing systems:
+ * This class integrates POA v2 intelligence with existing systems:
+ * - Uses sophisticated POA v2 scores for superior matchup quality
+ * - Integrates with dirty flag system for fresh score preference
+ * - Falls back gracefully to Elo conversion for unscored NFTs
+ * - Optimizes for aesthetic similarity and confidence weighting
  * - Maintains compatibility with current preloader
- * - Provides enhanced selection when enabled
- * - Falls back gracefully to existing logic
- * - Optimizes for information theory and collection management
  */
 export class EnhancedMatchupIntegration {
   private static instance: EnhancedMatchupIntegration;
@@ -130,7 +131,25 @@ export class EnhancedMatchupIntegration {
     });
     const cachedResult = this.getCachedResult(cacheKey);
     if (cachedResult) {
-      return cachedResult;
+      // 🎛️ CRITICAL: Validate cached result is from active collection
+      if (cachedResult.nft?.collection_name) {
+        const { data: collectionStatus } = await supabase
+          .from('collection_management')
+          .select('active')
+          .eq('collection_name', cachedResult.nft.collection_name)
+          .single();
+          
+        if (!collectionStatus?.active) {
+          console.log(`❌ Cached slider NFT from INACTIVE collection: ${cachedResult.nft.collection_name}, invalidating cache`);
+          this.cache.delete(cacheKey); // Clear invalid cache entry
+          // Continue to generate new result
+        } else {
+          console.log(`✅ Using cached slider NFT from ACTIVE collection: ${cachedResult.nft.collection_name}`);
+          return cachedResult;
+        }
+      } else {
+        return cachedResult;
+      }
     }
 
     try {
@@ -141,28 +160,94 @@ export class EnhancedMatchupIntegration {
         this.clearExpiredCache();
       }
       
-      // Add timeout protection to individual RPC calls (using optimized V2 function)
-      const rpcPromise = supabase.rpc('find_optimal_slider_nft_v2', {
-        max_candidates: options.maxCandidates || 5
-      });
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('RPC timeout')), 1200)  // Increased from 1000ms
-      );
-      
+      // 🛡️ ROBUST RPC CALL with multiple fallback strategies
       let sliderData, error;
-      try {
-        const result = await Promise.race([rpcPromise, timeoutPromise]) as any;
-        sliderData = result.data;
-        error = result.error;
-      } catch (timeoutError) {
-        console.log('⚠️ Enhanced slider selection timed out, falling back');
+      
+      // Strategy 1: Try RPC with progressive timeout and retry logic
+      const maxRetries = 2;
+      const timeouts = [600, 1000]; // Progressive timeouts
+      
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          console.log(`🧪 RPC attempt ${attempt + 1}/${maxRetries} (timeout: ${timeouts[attempt]}ms)`);
+          
+          const rpcPromise = supabase.rpc('find_optimal_slider_nft_poa_v2', {
+            excluded_ids: [] // POA v2 function uses excluded_ids instead of max_candidates
+          });
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('RPC timeout')), timeouts[attempt])
+          );
+          
+          const result = await Promise.race([rpcPromise, timeoutPromise]) as any;
+          sliderData = result.data;
+          error = result.error;
+          
+          // If we got a result (success or error), break the retry loop
+          if (sliderData || error) {
+            console.log(`✅ RPC attempt ${attempt + 1} completed`);
+            break;
+          }
+          
+        } catch (timeoutError: any) {
+          console.log(`⏱️ RPC attempt ${attempt + 1} timed out (${timeouts[attempt]}ms)`);
+          
+          // If this was the last attempt, fall back
+          if (attempt === maxRetries - 1) {
+            console.log('⚠️ All RPC attempts failed, falling back to collection-filtered legacy');
+            return null;
+          }
+          
+          // Brief delay before retry to avoid overwhelming the database
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      // Handle RPC errors (database issues, function errors, etc.)
+      if (error) {
+        console.log(`❌ RPC error (${error.code}): ${error.message}`);
+        
+        // Check for specific error types mentioned in your research
+        if (error.code === '57014') { // Statement timeout
+          console.log('💡 Database timeout detected - likely high load or slow query');
+        } else if (error.code === '53300') { // Too many connections
+          console.log('💡 Connection limit reached - database overloaded');
+        } else if (error.message?.includes('permission')) {
+          console.log('💡 Permission error - possible RLS or function access issue');
+        }
+        
+        return null; // Fallback to preloader
+      }
+
+      if (!sliderData) {
+        console.log('⚠️ RPC returned no data, falling back to collection-filtered legacy');
         return null;
       }
 
-      if (error || !sliderData || sliderData.length === 0) {
-        console.log('⚠️ Enhanced slider selection failed, falling back');
-        return null;
+      // 🎛️ CRITICAL: Validate collection is active (prevent inactive collection bug)
+      if (sliderData.collection_name) {
+        try {
+          const { data: collectionStatus, error: collectionError } = await supabase
+            .from('collection_management')
+            .select('active')
+            .eq('collection_name', sliderData.collection_name)
+            .single();
+            
+          if (collectionError) {
+            console.log(`⚠️ Could not verify collection status for ${sliderData.collection_name}, falling back`);
+            return null;
+          }
+            
+          if (!collectionStatus?.active) {
+            console.log(`❌ RPC returned NFT from INACTIVE collection: ${sliderData.collection_name}, falling back`);
+            return null;
+          }
+          
+          console.log(`✅ RPC returned NFT from ACTIVE collection: ${sliderData.collection_name}`);
+        } catch (collectionCheckError) {
+          console.log(`⚠️ Collection check failed for ${sliderData.collection_name}, falling back`);
+          return null;
+        }
       }
 
       const optimal = sliderData[0];
@@ -236,10 +321,10 @@ export class EnhancedMatchupIntegration {
       const randomOffset = Math.floor(Math.random() * 5); // 0-4 random offset
       const maxCandidates = (options.maxCandidates || 8) + randomOffset;
 
-      // Add timeout protection to individual RPC calls (using optimized V2 function)
-      const rpcPromise = supabase.rpc('find_optimal_same_collection_matchup_v2', {
-        target_collection: options.collectionFilter || null,
-        max_candidates: maxCandidates
+      // Add timeout protection to individual RPC calls (using POA v2 optimized function)
+      const rpcPromise = supabase.rpc('find_optimal_same_collection_matchup_poa_v2', {
+        target_collection: options.collectionFilter || 'Final Bosu',
+        excluded_ids: [] // POA v2 function uses excluded_ids instead of max_candidates
       });
       
       const timeoutPromise = new Promise((_, reject) => 
@@ -284,7 +369,16 @@ export class EnhancedMatchupIntegration {
       }
 
       // 🔍 Check if pair was recently used (system-wide duplicate prevention)
-      console.log(`🔍 CHECKING DUPLICATE (same-coll): ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+      // POA v2 functions return nft1_id/nft2_id, not nft_a_id/nft_b_id
+      const nftAId = optimal.nft1_id || optimal.nft_a_id;
+      const nftBId = optimal.nft2_id || optimal.nft_b_id;
+      
+      if (!nftAId || !nftBId) {
+        console.error('❌ Missing NFT IDs in optimal result:', optimal);
+        return null;
+      }
+      
+      console.log(`🔍 CHECKING DUPLICATE (same-coll): ${nftAId.slice(0,8)} vs ${nftBId.slice(0,8)}`);
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
@@ -293,8 +387,8 @@ export class EnhancedMatchupIntegration {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            nft_a_id: optimal.nft_a_id,
-            nft_b_id: optimal.nft_b_id,
+            nft_a_id: nftAId,
+            nft_b_id: nftBId,
             check_only: true
           }),
           signal: controller.signal
@@ -310,10 +404,10 @@ export class EnhancedMatchupIntegration {
           console.log(`🔍 Duplicate check result (same-coll):`, result);
           
           if (result.success && result.is_duplicate) {
-            console.log(`🔄 SKIPPING DUPLICATE SAME-COLL PAIR: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)} (${result.minutes_since_last_use} min ago)`);
+            console.log(`🔄 SKIPPING DUPLICATE SAME-COLL PAIR: ${nftAId.slice(0,8)} vs ${nftBId.slice(0,8)} (${result.minutes_since_last_use} min ago)`);
             return null; // Skip this pair, let caller try again
           } else {
-            console.log(`✅ Same-coll pair is unique: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+            console.log(`✅ Same-coll pair is unique: ${nftAId.slice(0,8)} vs ${nftBId.slice(0,8)}`);
           }
         }
       } catch (error) {
@@ -329,12 +423,12 @@ export class EnhancedMatchupIntegration {
         supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, total_votes')
-          .eq('id', optimal.nft_a_id)
+          .eq('id', nftAId)
           .single(),
         supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, total_votes')
-          .eq('id', optimal.nft_b_id)
+          .eq('id', nftBId)
           .single()
       ]);
 
@@ -343,7 +437,7 @@ export class EnhancedMatchupIntegration {
         return null;
       }
 
-      console.log(`✨ Enhanced same-coll: ${nft1Result.data.name} vs ${nft2Result.data.name} (Score: ${optimal.information_score}, Elo diff: ${optimal.elo_diff})`);
+      console.log(`✨ Enhanced same-coll: ${nft1Result.data.name} vs ${nft2Result.data.name} (Score: ${optimal.quality_score || optimal.information_score}, Elo diff: ${optimal.elo_diff})`);
 
       return {
         nft1: this.mapNFTData(nft1Result.data),
@@ -381,9 +475,9 @@ export class EnhancedMatchupIntegration {
       const randomOffset = Math.floor(Math.random() * 5); // 0-4 random offset
       const maxCandidates = (options.maxCandidates || 8) + randomOffset;
 
-      // Add timeout protection to individual RPC calls (using optimized V2 function)
-      const rpcPromise = supabase.rpc('find_optimal_cross_collection_matchup_v2', {
-        max_candidates: maxCandidates
+      // Add timeout protection to individual RPC calls (using POA v2 optimized function)
+      const rpcPromise = supabase.rpc('find_optimal_cross_collection_matchup_poa_v2', {
+        excluded_ids: [] // POA v2 function uses excluded_ids instead of max_candidates
       });
       
       const timeoutPromise = new Promise((_, reject) => 
@@ -428,7 +522,16 @@ export class EnhancedMatchupIntegration {
       }
 
       // 🔍 Check if pair was recently used (system-wide duplicate prevention)
-      console.log(`🔍 CHECKING DUPLICATE (cross-coll): ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+      // POA v2 functions return nft1_id/nft2_id, not nft_a_id/nft_b_id
+      const nftAId = optimal.nft1_id || optimal.nft_a_id;
+      const nftBId = optimal.nft2_id || optimal.nft_b_id;
+      
+      if (!nftAId || !nftBId) {
+        console.error('❌ Missing NFT IDs in cross-coll optimal result:', optimal);
+        return null;
+      }
+      
+      console.log(`🔍 CHECKING DUPLICATE (cross-coll): ${nftAId.slice(0,8)} vs ${nftBId.slice(0,8)}`);
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
@@ -437,8 +540,8 @@ export class EnhancedMatchupIntegration {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            nft_a_id: optimal.nft_a_id,
-            nft_b_id: optimal.nft_b_id,
+            nft_a_id: nftAId,
+            nft_b_id: nftBId,
             check_only: true
           }),
           signal: controller.signal
@@ -454,10 +557,10 @@ export class EnhancedMatchupIntegration {
           console.log(`🔍 Duplicate check result (cross-coll):`, result);
           
           if (result.success && result.is_duplicate) {
-            console.log(`🔄 SKIPPING DUPLICATE CROSS-COLL PAIR: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)} (${result.minutes_since_last_use} min ago)`);
+            console.log(`🔄 SKIPPING DUPLICATE CROSS-COLL PAIR: ${nftAId.slice(0,8)} vs ${nftBId.slice(0,8)} (${result.minutes_since_last_use} min ago)`);
             return null; // Skip this pair, let caller try again
           } else {
-            console.log(`✅ Cross-coll pair is unique: ${optimal.nft_a_id.slice(0,8)} vs ${optimal.nft_b_id.slice(0,8)}`);
+            console.log(`✅ Cross-coll pair is unique: ${nftAId.slice(0,8)} vs ${nftBId.slice(0,8)}`);
           }
         }
       } catch (error) {
@@ -473,12 +576,12 @@ export class EnhancedMatchupIntegration {
         supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, total_votes')
-          .eq('id', optimal.nft_a_id)
+          .eq('id', nftAId)
           .single(),
         supabase
           .from('nfts')
           .select('id, name, image, token_id, contract_address, collection_name, current_elo, slider_average, slider_count, total_votes')
-          .eq('id', optimal.nft_b_id)
+          .eq('id', nftBId)
           .single()
       ]);
 
@@ -487,7 +590,7 @@ export class EnhancedMatchupIntegration {
         return null;
       }
 
-      console.log(`✨ Enhanced cross-coll: ${nft1Result.data.collection_name} vs ${nft2Result.data.collection_name} (Score: ${optimal.information_score})`);
+      console.log(`✨ Enhanced cross-coll: ${nft1Result.data.collection_name} vs ${nft2Result.data.collection_name} (Score: ${optimal.quality_score || optimal.information_score})`);
 
       return {
         nft1: this.mapNFTData(nft1Result.data),

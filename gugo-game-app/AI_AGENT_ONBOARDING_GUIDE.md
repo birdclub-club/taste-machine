@@ -1,7 +1,7 @@
-# 🤖 AI Agent Onboarding Guide - Taste Machine Project
+# 🤖 AI Agent Onboarding Guide - GUGO Game Project
 
-**Last Updated**: August 2025  
-**Purpose**: Complete context and guidelines for AI agents working on the Taste Machine NFT voting platform
+**Last Updated**: January 2025  
+**Purpose**: Complete context and guidelines for AI agents working on the GUGO NFT aesthetic voting game on Abstract Chain
 
 ## 🚨 CRITICAL: How to Access ALL NFTs in the Database
 
@@ -127,14 +127,41 @@ POST /api/compute-poa-batch  // Batch POA computation
 
 ## 🎯 Project Overview
 
-**Taste Machine** is a sophisticated NFT aesthetic voting platform where users vote on NFT matchups to earn rewards. The platform features dynamic theming, responsive design, and a complex reward system with prize breaks every 10 votes.
+**GUGO Game** is a mobile-first NFT aesthetic voting platform on Abstract Chain where users vote on NFT matchups to earn rewards through "Proof of Aesthetic" consensus. The platform features Swiss minimalist design, session-based rewards, and sophisticated matchup algorithms.
 
 ### Core Concept
-- Users vote between two NFTs in head-to-head matchups
-- Votes are called "Licks" - users can purchase more or get free daily votes
-- Every 10 votes triggers a "Prize Break" with XP, GUGO tokens, or other rewards
-- Platform uses dynamic color palettes that change on each landing page visit
-- Swiss-inspired minimalist design with "PROOF OF AESTHETIC™" branding
+- Users vote between two NFTs in head-to-head matchups or cast NO votes (both unaesthetic)
+- Votes cost "Licks" currency - users can purchase more or get daily free votes
+- **Every 20 votes per session** triggers a "Prize Break" with XP, GUGO tokens, or other rewards
+- Wallet connection required - no anonymous voting allowed
+- Swiss-inspired minimalist design with halftone elements and dynamic palettes
+- Session keys enable gas-free voting after initial wallet setup
+
+## 🔧 Latest Critical Fixes (January 2025)
+
+### ✅ **Session-Based Rewards System** 
+**Problem**: Prize breaks were triggering incorrectly after page refreshes, causing reward double-ups.
+**Solution**: Changed from lifetime vote counting to session-based counting.
+**Result**: Prize breaks now trigger every 20 votes **per session** (resets on page refresh).
+**Files**: `src/hooks/useBatchedVoting.ts`
+
+### ✅ **First Prize Break Animations**
+**Problem**: XP/Licks/GUGO animations were missing on first prize break when users had to sign session keys.
+**Solution**: Moved animation triggers to happen after session creation completes.
+**Result**: All reward animations now work perfectly on first and subsequent prize breaks.
+**Files**: `src/app/page.tsx` (lines 323-348 removed, animations now in button handlers)
+
+### ✅ **NO Vote Visual Feedback**
+**Problem**: NO votes had no visual feedback and could trigger double animations.
+**Solution**: Added glowing red X overlays (20% opacity) on both cards with animation guards.
+**Result**: Clear visual feedback with smooth transitions and no accidental double votes.
+**Files**: `src/components/MatchupCard.tsx`, `src/app/globals.css`
+
+### ✅ **Enhanced System Stability**
+**Problem**: Occasional 500 errors and database timeouts.
+**Solution**: Implemented comprehensive error handling, retry logic, and circuit breakers.
+**Result**: Robust system with timeout protection and automatic fallbacks.
+**Files**: `src/lib/database-error-handler.ts`, `src/lib/enhanced-matchup-integration.ts`
 
 ## 🏗️ Architecture & Design System
 
@@ -198,10 +225,11 @@ The platform uses an **Enhanced System** for optimal performance:
    - Lazy loading for non-critical images
 
 ### State Management
-- **Voting Sessions**: Managed via `useSessionKey` hook
-- **Prize Breaks**: Triggered every 10 votes, managed by `usePrizeBreak`
+- **Voting Sessions**: Managed via session keys and wallet integration
+- **Prize Breaks**: Triggered every 20 votes per session, managed by `useBatchedVoting`
 - **User State**: Centralized in StatusBar with refresh capabilities
-- **Matchup State**: Preloaded and cached for smooth transitions
+- **Matchup State**: Enhanced preloader with 50+ cached matchups for instant loading
+- **Error Handling**: Circuit breakers and retry logic for database resilience
 
 ## 🎮 User Experience Flow
 
@@ -212,10 +240,11 @@ The platform uses an **Enhanced System** for optimal performance:
 4. **NO Button**: Appears after 3 seconds if user doesn't vote
 
 ### Prize Break System
-- **Frequency**: Every 10 votes
+- **Frequency**: Every 20 votes per session (resets on page refresh)
 - **Types**: XP, GUGO tokens, votes, visual effects
 - **Modal**: Card flip animation with dynamic content
-- **Treasury-scaled odds**: Higher treasury = better rewards
+- **Treasury-scaled odds**: Higher treasury = better rewards (6% base GUGO odds)
+- **Session Keys**: First prize break requires wallet signing, subsequent ones are instant
 
 ### Matchup Selection Logic
 - **Cross-collection** and **same-collection** voting

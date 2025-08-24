@@ -20,15 +20,19 @@ export function useBatchedVoting() {
   const [batchState, setBatchState] = useState<BatchedVotingState>({
     pendingVotes: [],
     lastProcessedBatch: 0,
-    totalVoteCount: 0
+    totalVoteCount: 0 // Session-based counting - resets each session
   });
   
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const processingRef = useRef(false);
   const prizeBreakInProgressRef = useRef(false);
 
+  // Session-based vote counting - starts fresh each session for consistent rewards
+
   // 🚀 Add vote to local batch (instant UI feedback)
   const addVoteToBatch = async (voteData: VoteSubmission, userWallet: string, userXP: number = 0): Promise<VoteResult> => {
+    // Session-based vote counting - resets to 0 each session for consistent 20-vote rewards
+    
     const newVote: BatchedVote = {
       voteData,
       userWallet,
@@ -49,11 +53,11 @@ export function useBatchedVoting() {
 
     console.log(`⚡ Vote ${newVoteCount} added to batch - ${isPrizeBreak ? 'PRIZE BREAK!' : 'batched for processing'}`);
     
-    // Debug: Log prize break calculation details
+    // Debug: Log prize break calculation details (session-based counting)
     if (newVoteCount >= 15) { // Only log when getting close to potential prize breaks
       const threshold = getPrizeBreakThreshold(userXP);
       const remainder = newVoteCount % threshold;
-      console.log(`🔍 Prize break debug: Vote ${newVoteCount}, XP ${userXP}, Threshold ${threshold}, Remainder ${remainder}, isPrizeBreak: ${isPrizeBreak}`);
+      console.log(`🔍 Prize break debug (session): Vote ${newVoteCount}, XP ${userXP}, Threshold ${threshold}, Remainder ${remainder}, isPrizeBreak: ${isPrizeBreak}`);
     }
 
     // Check if this triggers a prize break (XP-based threshold)

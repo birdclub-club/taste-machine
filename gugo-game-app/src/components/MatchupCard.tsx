@@ -48,6 +48,8 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     isFireVote: boolean;
   }>({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
   
+  const [noVoteAnimation, setNoVoteAnimation] = useState(false);
+  
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Detect mobile screen size
@@ -325,6 +327,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           onClick={() => !isVoting && !voteAnimationState.isAnimating && handleVoteWithAnimation(nft.id, false)}
         >
           <img 
+            className="nft-image"
             src={fixedImageUrl} 
             style={{
               width: '100%',
@@ -394,6 +397,35 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               // Image loaded successfully - reduced logging to prevent console spam
             }}
           />
+          
+          {/* Red X Overlay for NO votes */}
+          {noVoteAnimation && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255, 0, 0, 0.2)', // 20% red opacity
+              zIndex: 20,
+              animation: 'redXPulse 1.5s ease-in-out',
+              pointerEvents: 'none'
+            }}>
+              <div style={{
+                fontSize: 'clamp(4rem, 15vw, 8rem)',
+                color: '#ff0000',
+                fontWeight: '900',
+                textShadow: '0 0 20px rgba(255, 0, 0, 0.8), 0 0 40px rgba(255, 0, 0, 0.6)',
+                filter: 'drop-shadow(0 0 10px rgba(255, 0, 0, 0.9))',
+                animation: 'redXGlow 1.5s ease-in-out'
+              }}>
+                ✕
+              </div>
+            </div>
+          )}
           
           {/* Overlay on hover */}
           {hoveredNft === nft.id && !isVoting && (
@@ -750,10 +782,33 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           {!isVoting && onNoVote && (
             <button
               onClick={() => {
+                // Prevent double animation if already animating
+                if (noVoteAnimation) return;
+                
                 // Hide the button immediately
                 setShowNoButton(false);
+                // Trigger NO vote animation
+                setNoVoteAnimation(true);
+                
+                // Clear images immediately to prevent accidental votes on next pair
+                const images = document.querySelectorAll('.nft-image');
+                images.forEach(img => {
+                  (img as HTMLElement).style.opacity = '0.3';
+                  (img as HTMLElement).style.pointerEvents = 'none';
+                });
+                
                 // Call the no vote function
                 onNoVote();
+                
+                // Clear animation after 1.5 seconds
+                setTimeout(() => {
+                  setNoVoteAnimation(false);
+                  // Restore image interactivity when animation ends
+                  images.forEach(img => {
+                    (img as HTMLElement).style.opacity = '1';
+                    (img as HTMLElement).style.pointerEvents = 'auto';
+                  });
+                }, 1500);
                 // Reset button to appear again after 3 seconds
                 setTimeout(() => {
                   setShowNoButton(true);
@@ -850,10 +905,33 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           {!isVoting && onNoVote && (
             <button
               onClick={() => {
+                // Prevent double animation if already animating
+                if (noVoteAnimation) return;
+                
                 // Hide the button immediately
                 setShowNoButton(false);
+                // Trigger NO vote animation
+                setNoVoteAnimation(true);
+                
+                // Clear images immediately to prevent accidental votes on next pair
+                const images = document.querySelectorAll('.nft-image');
+                images.forEach(img => {
+                  (img as HTMLElement).style.opacity = '0.3';
+                  (img as HTMLElement).style.pointerEvents = 'none';
+                });
+                
                 // Call the no vote function
                 onNoVote();
+                
+                // Clear animation after 1.5 seconds
+                setTimeout(() => {
+                  setNoVoteAnimation(false);
+                  // Restore image interactivity when animation ends
+                  images.forEach(img => {
+                    (img as HTMLElement).style.opacity = '1';
+                    (img as HTMLElement).style.pointerEvents = 'auto';
+                  });
+                }, 1500);
                 // Reset button to appear again after 3 seconds
                 setTimeout(() => {
                   setShowNoButton(true);

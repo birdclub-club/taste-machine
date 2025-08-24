@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useFavorites } from '@/hooks/useFavorites';
+import { useFavorites } from '../hooks/useFavorites';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 
 interface FavoritesGalleryProps {
@@ -501,7 +501,7 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         </div>
                       )}
                       
-                      {/* Vote Type Badge */}
+                      {/* Vote Type Badge with Multiplier */}
                       <div style={{
                         position: 'absolute',
                         top: 'var(--space-2)',
@@ -512,9 +512,22 @@ export default function FavoritesGallery({ isOpen, onClose }: FavoritesGalleryPr
                         borderRadius: 'var(--border-radius-sm)',
                         fontSize: 'var(--font-size-xs)',
                         fontWeight: '700',
-                        textTransform: 'uppercase'
+                        textTransform: 'uppercase',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-1)'
                       }}>
-                        {favorite.vote_type === 'fire' ? 'FIRE' : 'MAX'}
+                        {favorite.vote_type === 'fire' ? (
+                          (favorite as any).fire_count > 1 ? (
+                            <>
+                              <span>{(favorite as any).fire_count}×</span>
+                            </>
+                          ) : (
+                            'FIRE'
+                          )
+                        ) : (
+                          'MAX'
+                        )}
                       </div>
                     </div>
 
