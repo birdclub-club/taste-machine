@@ -7,14 +7,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
- * @title GugoVoteManager
+ * @title GugoVoteManager - UPDATED WITH PROPER PRIZE BREAKS
  * @dev Core contract for "Taste Machine" NFT aesthetic voting game
- * Handles voting mechanics, Elo ratings, XP rewards, and payments
+ * Handles voting mechanics, Elo ratings, XP rewards, payments, and PRIZE BREAK LOTTERY
  */
 contract GugoVoteManager is Ownable, ReentrancyGuard, Pausable {
     
     // Game constants
-    uint256 public constant VOTE_PRICE_USD_CENTS = 4; // $0.04 USD per vote
+    uint256 public constant VOTE_PRICE_USD_CENTS = 2; // $0.02 USD per vote (updated from $0.04)
     uint256 public constant MINIMUM_VOTES = 10; // Minimum purchase
     uint256 public constant DAILY_FREE_VOTES = 3; // Free votes per day
     uint256 public constant XP_PER_VOTE = 10; // XP gained per vote

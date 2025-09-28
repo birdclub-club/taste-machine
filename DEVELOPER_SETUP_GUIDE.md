@@ -2,6 +2,11 @@
 
 Complete setup instructions for new developers joining the Taste Machine project.
 
+## 🚀 **LIVE STATUS**: https://taste-machine.vercel.app
+
+**Production Branch**: `development-backup-enhanced-systems`  
+This branch contains all production-ready code with TypeScript fixes, welcome popup, and auto-deployment to Vercel.
+
 ---
 
 ## 📋 Prerequisites
@@ -24,11 +29,14 @@ Complete setup instructions for new developers joining the Taste Machine project
 ### **1. Repository Setup**
 ```bash
 # Clone the repository
-git clone [your-repo-url]
+git clone https://github.com/birdclub-club/taste-machine.git
 cd taste-machine
 
-# Install Node.js dependencies
+# Switch to the production-ready branch
 cd gugo-game-app
+git checkout development-backup-enhanced-systems
+
+# Install Node.js dependencies
 npm install
 
 cd ../contracts
@@ -123,6 +131,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.
 async function check() {
   const { count } = await supabase.from('nfts').select('*', { count: 'exact', head: true });
   console.log('📊 Total NFTs:', count);
+  // Current working database has: 46,615 NFTs
 }
 check();
 "
@@ -215,11 +224,24 @@ npm run dev
 # Check environment variables in .env.local
 ```
 
-#### **Supabase Connection Errors**
+#### **Supabase Connection Errors (UPDATED - August 2025)**
 ```bash
-# Verify credentials in .env.local
-# Check Supabase project status
-# Verify RLS policies are configured
+# ✅ COMMON ISSUE RESOLVED: Expired API keys
+# If you see "Invalid API key" errors, get fresh keys:
+
+# 1. Go to your Supabase dashboard
+# 2. Navigate to Settings → API
+# 3. Copy the fresh 'anon public' key
+# 4. Update .env.local:
+echo 'NEXT_PUBLIC_SUPABASE_ANON_KEY=your_fresh_key_here' >> .env.local
+
+# 5. Restart the server:
+pkill -f "next.*dev"
+npm run dev
+
+# 6. Test connection:
+curl -s "http://localhost:3000/api/check-nft-count"
+# Should return: {"success":true,"nftCount":46615}
 ```
 
 ### **Common Contract Issues**
@@ -314,23 +336,35 @@ node -e "
 ## 🔄 CI/CD & Deployment
 
 ### **Development Workflow**
+
+#### **Option A: Direct Development (Recommended for quick iterations)**
+```bash
+# Work directly on production branch
+git checkout development-backup-enhanced-systems
+
+# Make changes and test locally
+npm run dev
+
+# Commit and auto-deploy
+git add .
+git commit -m "feat: add new feature"
+git push origin development-backup-enhanced-systems
+# → Automatically deploys to https://taste-machine.vercel.app
+```
+
+#### **Option B: Feature Branch Development (For major features)**
 ```bash
 # 1. Create feature branch
 git checkout -b feature/new-feature
 
-# 2. Make changes
-# Edit files...
-
-# 3. Test locally
-npm test
+# 2. Make changes and test
 npm run dev
 
-# 4. Commit changes
-git add .
-git commit -m "feat: add new feature"
-
-# 5. Push and create PR
-git push origin feature/new-feature
+# 3. Merge to production when ready
+git checkout development-backup-enhanced-systems
+git merge feature/new-feature
+git push origin development-backup-enhanced-systems
+# → Automatically deploys to https://taste-machine.vercel.app
 ```
 
 ### **Deployment Checklist**
@@ -413,6 +447,31 @@ contracts/
 - Use React.memo for expensive components
 - Monitor gas costs
 - Profile frontend performance
+
+---
+
+## 🚨 Troubleshooting
+
+### **Development Server Issues**
+If you encounter problems with `npm run dev` (site unreachable, server won't start, compilation issues), check our comprehensive **[Development Troubleshooting Guide](./DEVELOPMENT_TROUBLESHOOTING.md)**.
+
+**Common Quick Fixes:**
+```bash
+# Ensure you're in the right directory
+cd gugo-game-app
+
+# Kill stuck processes
+pkill -f "next.*dev"
+
+# Restart server (simple approach)
+npm run dev
+```
+
+**Key Lessons:**
+- Always check your working directory with `pwd`
+- Use simple commands rather than complex chaining
+- Let the server fully compile (20-30 seconds)
+- Avoid interrupting the server during compilation
 
 ---
 

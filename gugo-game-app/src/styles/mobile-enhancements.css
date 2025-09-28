@@ -1,0 +1,521 @@
+/**
+ * 📱 Mobile Enhancements for Taste Machine
+ * 
+ * Standardized mobile styles with consistent breakpoints,
+ * improved touch interactions, and better responsive behavior.
+ */
+
+/* ================================
+   📏 STANDARDIZED BREAKPOINTS
+   ================================ */
+
+:root {
+  --breakpoint-mobile: 900px;
+  --breakpoint-tablet: 1024px;
+  --breakpoint-desktop: 1200px;
+  --breakpoint-wide: 1440px;
+  
+  /* Mobile-specific spacing */
+  --mobile-padding: 16px;
+  --mobile-gap: 12px;
+  --mobile-border-radius: 12px;
+  
+  /* Touch target sizes */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+  
+  /* Safe area support */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+}
+
+/* ================================
+   🎯 MOBILE-FIRST BASE STYLES
+   ================================ */
+
+/* Enhanced touch interactions */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Improved text rendering on mobile */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Prevent zoom on form inputs (iOS) */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+/* ================================
+   📱 MOBILE LAYOUT (≤900px)
+   ================================ */
+
+@media (max-width: 900px) {
+  
+  /* ================================
+     🏗️ CONTAINER IMPROVEMENTS
+     ================================ */
+  
+  .colossal-text-container {
+    padding-top: calc(var(--safe-area-top) + 60px) !important;
+    padding-left: calc(var(--safe-area-left) + var(--mobile-padding)) !important;
+    padding-right: calc(var(--safe-area-right) + var(--mobile-padding)) !important;
+    padding-bottom: calc(var(--safe-area-bottom) + var(--mobile-padding)) !important;
+  }
+  
+  .main-content-spaced {
+    padding: calc(var(--safe-area-top) + 80px) var(--mobile-padding) 
+             calc(var(--safe-area-bottom) + var(--mobile-padding)) var(--mobile-padding) !important;
+    overflow-x: hidden;
+  }
+  
+  /* ================================
+     🎨 TYPOGRAPHY SCALING
+     ================================ */
+  
+  .text-hero {
+    font-size: clamp(2.5rem, 8vw, 4rem) !important;
+    line-height: 0.9 !important;
+    letter-spacing: -0.02em !important;
+  }
+  
+  .text-title {
+    font-size: clamp(1.8rem, 6vw, 2.5rem) !important;
+    line-height: 1.1 !important;
+  }
+  
+  .text-subtitle {
+    font-size: clamp(1rem, 4vw, 1.25rem) !important;
+    line-height: 1.4 !important;
+  }
+  
+  /* Colossal text responsive sizing */
+  .colossal-text {
+    font-size: clamp(3rem, 12vw, 6rem) !important;
+    line-height: 0.8 !important;
+  }
+  
+  /* ================================
+     🎮 VOTING INTERFACE
+     ================================ */
+  
+  .matchup-container {
+    flex-direction: column !important;
+    gap: 20px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: var(--mobile-padding) !important;
+  }
+  
+  .nft-card {
+    width: clamp(280px, 80vw, 400px) !important;
+    height: clamp(280px, 80vw, 400px) !important;
+    max-width: none !important;
+    border-radius: var(--mobile-border-radius) !important;
+    margin: 0 auto !important;
+    
+    /* Remove desktop-specific styling */
+    background: var(--color-white) !important;
+    border: 2px solid rgba(0,0,0,0.1) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  
+  /* NFT card images */
+  .nft-card img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: calc(var(--mobile-border-radius) - 2px) !important;
+  }
+  
+  /* VS indicator for mobile */
+  .vs-indicator {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 50% !important;
+    background: var(--dynamic-text-color, var(--color-black)) !important;
+    color: var(--dynamic-bg-color, var(--color-white)) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    margin: 10px 0 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  }
+  
+  /* ================================
+     🎯 BUTTON IMPROVEMENTS
+     ================================ */
+  
+  button, .button {
+    min-height: var(--touch-target-comfortable) !important;
+    padding: 12px 20px !important;
+    font-size: 16px !important; /* Prevent iOS zoom */
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  
+  /* Primary buttons */
+  .button-primary, button[style*="background: var(--dynamic-accent-color)"] {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  }
+  
+  /* Fire/Super vote button */
+  .fire-button, .super-vote-button {
+    min-height: 56px !important;
+    padding: 16px 24px !important;
+    font-size: 18px !important;
+    border-radius: 12px !important;
+  }
+  
+  /* No/Skip button */
+  .no-button, .skip-button {
+    background: rgba(0,0,0,0.8) !important;
+    color: white !important;
+    border: 2px solid rgba(255,255,255,0.3) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  
+  /* ================================
+     📊 STATUS BAR MOBILE
+     ================================ */
+  
+  .status-bar {
+    padding: calc(var(--safe-area-top) + 8px) var(--mobile-padding) 8px var(--mobile-padding) !important;
+    height: auto !important;
+    min-height: calc(var(--safe-area-top) + 60px) !important;
+  }
+  
+  .status-bar-mobile {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+  
+  .status-left-mobile {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+  
+  .status-center-mobile {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 1 !important;
+    justify-content: center !important;
+  }
+  
+  .status-right-mobile {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  
+  /* Mobile hamburger menu */
+  .hamburger-menu {
+    width: var(--touch-target-comfortable) !important;
+    height: var(--touch-target-comfortable) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    border-radius: 8px !important;
+    transition: background-color 0.2s ease !important;
+  }
+  
+  .hamburger-menu:hover {
+    background: rgba(0,0,0,0.1) !important;
+  }
+  
+  /* ================================
+     🎨 MODAL IMPROVEMENTS
+     ================================ */
+  
+  .modal, [style*="position: fixed"][style*="transform: translate(-50%, -50%)"] {
+    width: calc(100vw - 32px) !important;
+    max-width: 400px !important;
+    max-height: calc(100vh - 64px) !important;
+    margin: 0 16px !important;
+    border-radius: var(--mobile-border-radius) !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Purchase modals */
+  .purchase-modal {
+    padding: 24px !important;
+  }
+  
+  /* Leaderboard modal */
+  .leaderboard-modal {
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+    height: calc(100vh - 48px) !important;
+    border-radius: 12px 12px 0 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    transform: translateX(-50%) !important;
+  }
+  
+  /* ================================
+     🎵 AUDIO CONTROLS
+     ================================ */
+  
+  .audio-controls {
+    bottom: calc(var(--safe-area-bottom) + 20px) !important;
+    left: calc(var(--safe-area-left) + 20px) !important;
+    right: auto !important;
+    padding: 12px !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(12px) !important;
+  }
+  
+  /* ================================
+     📱 MOBILE MENU SLIDE-OUT
+     ================================ */
+  
+  .mobile-menu {
+    width: min(320px, 85vw) !important;
+    padding-top: var(--safe-area-top) !important;
+    padding-bottom: var(--safe-area-bottom) !important;
+  }
+  
+  .mobile-menu-item {
+    min-height: var(--touch-target-comfortable) !important;
+    padding: 12px 24px !important;
+    font-size: 16px !important;
+    border-radius: 8px !important;
+    margin: 4px 0 !important;
+  }
+  
+  /* ================================
+     🎯 TOUCH INTERACTION IMPROVEMENTS
+     ================================ */
+  
+  /* Improved touch feedback */
+  .touchable {
+    position: relative !important;
+    overflow: hidden !important;
+  }
+  
+  .touchable::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 0 !important;
+    height: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(255,255,255,0.3) !important;
+    transform: translate(-50%, -50%) !important;
+    transition: width 0.3s ease, height 0.3s ease !important;
+    pointer-events: none !important;
+  }
+  
+  .touchable:active::after {
+    width: 200px !important;
+    height: 200px !important;
+  }
+  
+  /* Prevent text selection on interactive elements */
+  .nft-card, .button, button, .touchable {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+  }
+  
+  /* ================================
+     🎨 ANIMATION OPTIMIZATIONS
+     ================================ */
+  
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* GPU acceleration for smooth animations */
+  .nft-card, .modal, .mobile-menu {
+    transform: translateZ(0) !important;
+    will-change: transform !important;
+  }
+  
+  /* ================================
+     🔧 UTILITY CLASSES
+     ================================ */
+  
+  .mobile-only {
+    display: block !important;
+  }
+  
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+  
+  .mobile-center {
+    text-align: center !important;
+    margin: 0 auto !important;
+  }
+  
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  
+  /* ================================
+     🎯 ACCESSIBILITY IMPROVEMENTS
+     ================================ */
+  
+  /* Focus indicators for keyboard navigation */
+  button:focus, .button:focus, .touchable:focus {
+    outline: 3px solid var(--dynamic-accent-color, var(--color-green)) !important;
+    outline-offset: 2px !important;
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .nft-card {
+      border: 3px solid var(--dynamic-text-color) !important;
+    }
+    
+    button, .button {
+      border: 2px solid var(--dynamic-text-color) !important;
+    }
+  }
+}
+
+/* ================================
+   📱 TABLET ADJUSTMENTS (901px-1024px)
+   ================================ */
+
+@media (min-width: 901px) and (max-width: 1024px) {
+  .nft-card {
+    width: clamp(320px, 35vw, 450px) !important;
+    height: clamp(320px, 35vw, 450px) !important;
+  }
+  
+  .matchup-container {
+    gap: 30px !important;
+  }
+  
+  .modal {
+    width: 80vw !important;
+    max-width: 600px !important;
+  }
+}
+
+/* ================================
+   🖥️ DESKTOP OVERRIDES (>1024px)
+   ================================ */
+
+@media (min-width: 1025px) {
+  .mobile-only {
+    display: none !important;
+  }
+  
+  .desktop-only {
+    display: block !important;
+  }
+  
+  .mobile-hidden {
+    display: block !important;
+  }
+  
+  /* Hover effects for desktop */
+  .nft-card:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.2) !important;
+  }
+  
+  button:hover, .button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2) !important;
+  }
+}
+
+/* ================================
+   🎨 DARK MODE ADJUSTMENTS
+   ================================ */
+
+@media (prefers-color-scheme: dark) {
+  .nft-card {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+  }
+  
+  .modal {
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6) !important;
+  }
+  
+  .mobile-menu {
+    box-shadow: 4px 0 20px rgba(0,0,0,0.5) !important;
+  }
+}
+
+/* ================================
+   🔧 PERFORMANCE OPTIMIZATIONS
+   ================================ */
+
+/* Optimize repaints and reflows */
+.nft-card img {
+  content-visibility: auto !important;
+  contain-intrinsic-size: 400px 400px !important;
+}
+
+/* Optimize scrolling */
+.modal, .mobile-menu {
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+
+/* Optimize animations */
+@media (max-width: 900px) {
+  * {
+    animation-fill-mode: both !important;
+    backface-visibility: hidden !important;
+  }
+}
+
+/* ================================
+   🎯 PRINT STYLES
+   ================================ */
+
+@media print {
+  .mobile-menu, .modal, .audio-controls, .status-bar {
+    display: none !important;
+  }
+  
+  .nft-card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}

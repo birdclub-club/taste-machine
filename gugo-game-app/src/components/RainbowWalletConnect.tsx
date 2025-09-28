@@ -121,18 +121,35 @@ export default function RainbowWalletConnect() {
     );
   }
 
-  // Not connected state
+  // Not connected state - Direct RainbowKit connection
   return (
-    <div className="flex flex-col gap-4 p-6 bg-gray-100 dark:bg-gray-800 rounded-lg">
-      <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">Ready to Play?</h3>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">
+    <div style={{ 
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 'var(--space-4)',
+      padding: 'var(--space-6)',
+      background: 'var(--color-white)',
+      borderRadius: 'var(--border-radius-lg)',
+      textAlign: 'center'
+    }}>
+      <div>
+        <h3 style={{ 
+          fontSize: 'var(--font-size-lg)',
+          fontWeight: '600',
+          marginBottom: 'var(--space-2)',
+          color: 'var(--color-black)'
+        }}>Ready to Play?</h3>
+        <p style={{ 
+          color: 'var(--color-grey-600)',
+          marginBottom: 'var(--space-4)',
+          fontSize: 'var(--font-size-base)'
+        }}>
           Connect your wallet to start voting on NFT aesthetics!
         </p>
       </div>
       
-      {/* RainbowKit Connect Button */}
-      <div className="flex justify-center">
+      {/* RainbowKit Connect Button - Direct Integration */}
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
         <ConnectButton 
           label="Connect Wallet"
           showBalance={false}
@@ -144,7 +161,11 @@ export default function RainbowWalletConnect() {
         />
       </div>
       
-      <p className="text-xs text-gray-500 text-center">
+      <p style={{ 
+        fontSize: 'var(--font-size-xs)',
+        color: 'var(--color-grey-500)',
+        textAlign: 'center'
+      }}>
         Support for Abstract Global Wallet, MetaMask & more
       </p>
     </div>

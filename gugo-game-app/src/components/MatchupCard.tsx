@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { fixImageUrl, getNextIPFSGateway, ipfsGatewayManager } from '@lib/ipfs-gateway-manager';
 
 interface NFTData {
@@ -17,6 +17,7 @@ interface MatchupCardProps {
   onNoVote?: () => void; // Callback when user votes "No" (doesn't like either)
   onImageFailure?: () => void; // Callback when all image loading fails
   isVoting?: boolean;
+  lastVoteWinnerId?: string; // For winner animation
 }
 
 // 🔢 Simple hash function for consistent placeholders
@@ -32,25 +33,110 @@ const simpleHash = (str: string): number => {
 
 
 
-function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = false }: MatchupCardProps) {
+function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = false, lastVoteWinnerId }: MatchupCardProps) {
   const [hoveredNft, setHoveredNft] = useState<string | null>(null);
   const [copiedAddresses, setCopiedAddresses] = useState<{[key: string]: string | null}>({});
   const [sliderPosition, setSliderPosition] = useState(50); // 50 = center, 0 = left/top NFT, 100 = right/bottom NFT
   const [isDragging, setIsDragging] = useState(false);
   const [startPosition, setStartPosition] = useState({ x: 0, y: 0 });
   const [showNoButton, setShowNoButton] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [voteAnimationState, setVoteAnimationState] = useState<{
+    winnerId: string | null;
+    isAnimating: boolean;
+    fadeOutGlow: boolean;
+    isFireVote: boolean;
+  }>({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
+  
+  const [noVoteAnimation, setNoVoteAnimation] = useState(false);
+  
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileSize = window.innerWidth <= 900; // Increased breakpoint for tablets/larger phones
+      setIsMobile(isMobileSize);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
 
-  // Show "No" button after 5 seconds - reset timer for each new matchup
+
+  // Show "No" button after 3 seconds - reset timer for each new matchup
   useEffect(() => {
     // Reset button visibility when new matchup loads
     setShowNoButton(false);
     
     const timer = setTimeout(() => {
       setShowNoButton(true);
-    }, 5000);
+    }, 3000);
 
     return () => clearTimeout(timer);
-  }, [nft1.id, nft2.id]); // Reset timer when NFTs change
+  }, [nft1.id, nft2.id]);
+
+  // Memoize fixed image URLs to prevent repeated calls to fixImageUrl
+  const nft1FixedImageUrl = useMemo(() => fixImageUrl(nft1.image), [nft1.image]);
+  const nft2FixedImageUrl = useMemo(() => fixImageUrl(nft2.image), [nft2.image]);
+
+  // Clear glow animation when new NFTs load
+  useEffect(() => {
+    console.log(`🎨 New NFTs loaded: ${nft1.id.substring(0,8)} vs ${nft2.id.substring(0,8)} - clearing animation state`);
+    console.log('🖼️ NFT1 image URL:', nft1.image);
+    console.log('🖼️ NFT2 image URL:', nft2.image);
+    console.log('🔧 NFT1 fixed URL:', nft1FixedImageUrl);
+    console.log('🔧 NFT2 fixed URL:', nft2FixedImageUrl);
+    
+    // Clear any existing timeout
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+    
+    // Reset animation state immediately
+    setVoteAnimationState({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
+  }, [nft1.id, nft2.id, nft1FixedImageUrl, nft2FixedImageUrl]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ⚡ OPTIMIZED: Glow stays until new cards appear (no gap)
+  const handleVoteWithAnimation = async (winnerId: string, superVote: boolean = false) => {
+    if (isVoting || voteAnimationState.isAnimating) return;
+    
+    console.log(`🗳️ Vote animation starting for NFT: ${winnerId.substring(0,8)} (superVote: ${superVote})`);
+    
+    // Clear any existing timeout first
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+    
+    // 1. Instant glow feedback (white for regular, fire for super votes)
+    setVoteAnimationState({ winnerId, isAnimating: true, fadeOutGlow: false, isFireVote: superVote });
+    
+    // 2. Call the vote function immediately (no waiting for UI)
+    onVote(winnerId, superVote);
+    
+    // 3. Reduced safety timeout to clear animation state if useEffect doesn't trigger
+    animationTimeoutRef.current = setTimeout(() => {
+      console.log('⏰ Safety timeout: clearing animation state after 1.5 seconds');
+      setVoteAnimationState({ winnerId: null, isAnimating: false, fadeOutGlow: false, isFireVote: false });
+      animationTimeoutRef.current = null;
+    }, 1500); // Reduced from 3 to 1.5 seconds for faster recovery
+    
+    // 4. Glow stays on until useEffect clears it when new NFTs load - no gap!
+  }; // Reset timer when NFTs change
 
   const handleCopyAddress = async (address: string, type: 'collection' | 'nft', nftId: string) => {
     try {
@@ -177,12 +263,20 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
     };
   }, [isDragging]);
 
-  const NFTCard = ({ nft, position }: { nft: NFTData; position: 'left' | 'right' }) => (
+  const NFTCard = React.memo(({ nft, position, fixedImageUrl }: { nft: NFTData; position: 'left' | 'right'; fixedImageUrl: string }) => {
+    const isWinner = (voteAnimationState.isAnimating || voteAnimationState.fadeOutGlow) && 
+                     voteAnimationState.winnerId === nft.id;
+    const isFadingOut = voteAnimationState.fadeOutGlow && voteAnimationState.winnerId === nft.id;
+    const isFireVote = voteAnimationState.isFireVote && voteAnimationState.winnerId === nft.id;
+    
+    return (
     <div 
       className="nft-card"
       style={{
         flex: 1,
-        maxWidth: '500px',
+        maxWidth: '800px',
+        minWidth: '400px',
+        width: '800px',
         position: 'relative',
         opacity: 1,
         animation: 'none'
@@ -196,18 +290,25 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
         transform: 'translate(-50%, -50%)',
         width: '300%',
         height: '300%',
-        background: 'radial-gradient(circle, rgba(50, 50, 50, 0.6) 0%, rgba(35, 35, 35, 0.4) 40%, rgba(25, 25, 25, 0.3) 70%, transparent 100%)',
+        background: 'transparent', // Removed dark gradient
         zIndex: -1,
         pointerEvents: 'none'
       }} />
       <div style={{
         background: 'var(--color-white)',
-        border: hoveredNft === nft.id ? '3px solid var(--color-black)' : '2px solid var(--color-grey-200)',
+        border: isWinner ? (isFireVote ? '4px solid #ff6b35' : '4px solid white') : 
+                hoveredNft === nft.id && !voteAnimationState.isAnimating ? '3px solid var(--color-black)' : '2px solid var(--color-grey-200)',
         borderRadius: 'var(--border-radius-lg)',
-        overflow: 'hidden',
-        transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out, border 0.2s ease-out',
-        transform: hoveredNft === nft.id ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)',
-        boxShadow: hoveredNft === nft.id ? '0 20px 40px rgba(0,0,0,0.2)' : '0 8px 24px rgba(0,0,0,0.12)',
+        overflow: isMobile ? 'visible' : 'hidden', // Visible on mobile to prevent cropping, hidden on desktop for proper containment
+        transition: 'transform 0.2s ease-out',
+        transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'translateY(-12px) scale(1.02)' : 'translateY(0) scale(1)',
+        boxShadow: isWinner && isFireVote ? 
+                   '0 0 40px rgba(255, 107, 53, 0.9), 0 0 80px rgba(255, 140, 0, 0.6), 0 0 120px rgba(255, 165, 0, 0.4)' :
+                   isWinner && !isFireVote ? 
+                   '0 0 40px rgba(255, 255, 255, 0.9), 0 0 80px rgba(255, 255, 255, 0.6), 0 0 120px rgba(255, 255, 255, 0.4)' :
+                   hoveredNft === nft.id && !voteAnimationState.isAnimating ? 
+                   '0 8px 24px rgba(0,0,0,0.12), 0 20px 40px rgba(0,0,0,0.2)' :
+                   '0 8px 24px rgba(0,0,0,0.12)',
         opacity: isVoting ? 0.7 : 1,
         position: 'relative',
         zIndex: 10
@@ -217,31 +318,32 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           style={{
             aspectRatio: '1',
             position: 'relative',
-            overflow: 'hidden',
+            overflow: isMobile ? 'visible' : 'hidden', // Visible on mobile to prevent cropping, hidden on desktop for proper containment
             background: 'var(--color-grey-100)',
             cursor: isVoting ? 'not-allowed' : 'pointer'
           }}
           onMouseEnter={() => !isVoting && setHoveredNft(nft.id)}
           onMouseLeave={() => setHoveredNft(null)}
-          onClick={() => !isVoting && onVote(nft.id, false)}
+          onClick={() => !isVoting && !voteAnimationState.isAnimating && handleVoteWithAnimation(nft.id, false)}
         >
           <img 
-            src={fixImageUrl(nft.image)} 
+            className="nft-image"
+            src={fixedImageUrl} 
             style={{
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              transition: 'transform var(--transition-slow)',
-              transform: hoveredNft === nft.id ? 'scale(1.05)' : 'scale(1)'
+              transition: 'transform 0.2s ease-out',
+              transform: (hoveredNft === nft.id && !voteAnimationState.isAnimating) || isWinner ? 'scale(1.05)' : 'scale(1)'
             }}
             alt={`NFT ${nft.id}`}
             onLoadStart={(e) => {
               const target = e.target as HTMLImageElement;
-              // Set 5-second timeout for image loading
+              // Set 1-second timeout for ultra-fast gateway switching
               const timeoutId = setTimeout(() => {
-                console.log(`⏰ Image loading timeout for NFT ${nft.id}, trying next gateway...`);
+                console.log(`⏰ Timeout for attempt ${target.dataset.retryCount || '0'}: ${nft.id.substring(0,8)}...`);
                 target.dispatchEvent(new Event('error'));
-              }, 5000);
+              }, 1000);
               target.dataset.loadTimeout = timeoutId.toString();
             }}
             onError={(e) => {
@@ -255,28 +357,29 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               
               const retryCount = parseInt(target.dataset.retryCount || '0');
               
-              // Prevent infinite loops - only try fallbacks 3 times per image
-              if (retryCount >= 3) {
+              // Prevent infinite loops - only try fallbacks 2 times per image (faster failure)
+              if (retryCount >= 2) {
                 console.log(`❌ All gateways failed for NFT ${nft.id} after ${retryCount} attempts, triggering session skip...`);
                 
-                // Call the failure callback to skip to next session
+                // Always skip to next session - NEVER show placeholder images to users
                 if (onImageFailure) {
                   onImageFailure();
                 } else {
-                  console.log(`❌ No failure callback provided, using placeholder for NFT ${nft.id}`);
-                  target.src = `https://picsum.photos/400/400?random=${nft.id}`;
+                  console.log(`❌ No failure callback provided, forcibly skipping session for NFT ${nft.id}`);
+                  // Force skip to next session by triggering a window reload as last resort
+                  window.location.reload();
                 }
                 return;
               }
               
-              console.log(`❌ Image failed to load for NFT ${nft.id} (attempt ${retryCount + 1}):`, target.src);
+              console.log(`❌ Failed attempt ${retryCount + 1} for ${nft.id.substring(0,8)}...`);
               
               // Increment retry count
               target.dataset.retryCount = (retryCount + 1).toString();
               
               // Try next IPFS gateway before giving up
               const nextSrc = getNextIPFSGateway(target.src, nft.image);
-              console.log(`🔄 Trying next gateway:`, nextSrc);
+              console.log(`🔄 Trying gateway ${retryCount + 2}...`);
               target.src = nextSrc;
             }}
             onLoad={(e) => {
@@ -291,36 +394,62 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               const currentGateway = target.src.split('/ipfs/')[0] + '/ipfs/';
               ipfsGatewayManager.recordSuccess(currentGateway);
               
-              console.log(`✅ Image loaded successfully for NFT ${nft.id}:`, nft.image);
+              // Image loaded successfully - reduced logging to prevent console spam
             }}
           />
           
-          {/* Overlay on hover */}
-          {hoveredNft === nft.id && !isVoting && (
+          {/* Red X Overlay for NO votes */}
+          {noVoteAnimation && (
             <div style={{
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              background: 'linear-gradient(135deg, rgba(0, 211, 149, 0.1), rgba(0, 0, 0, 0.1))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              backgroundColor: 'rgba(255, 0, 0, 0.2)', // 20% red opacity
+              zIndex: 20,
+              animation: 'redXPulse 1.5s ease-in-out',
+              pointerEvents: 'none'
+            }}>
+              <div style={{
+                fontSize: 'clamp(4rem, 15vw, 8rem)',
+                color: '#ff0000',
+                fontWeight: '900',
+                textShadow: '0 0 20px rgba(255, 0, 0, 0.8), 0 0 40px rgba(255, 0, 0, 0.6)',
+                filter: 'drop-shadow(0 0 10px rgba(255, 0, 0, 0.9))',
+                animation: 'redXGlow 1.5s ease-in-out'
+              }}>
+                ✕
+              </div>
+            </div>
+          )}
+          
+          {/* Overlay on hover */}
+          {hoveredNft === nft.id && !isVoting && (
+            <div style={{
+              position: 'absolute',
+              top: 'var(--space-4)',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 10,
               opacity: 1,
               transition: 'opacity 0.2s ease-out'
             }}>
               <div style={{
                 background: 'rgba(0, 0, 0, 0.8)',
                 color: 'var(--color-white)',
-                padding: 'var(--space-3) var(--space-6)',
-                borderRadius: 'var(--border-radius)',
+                padding: 'var(--space-2) var(--space-4)',
+                borderRadius: 'var(--border-radius-sm)',
                 fontWeight: '600',
-                fontSize: 'var(--font-size-lg)',
+                fontSize: 'var(--font-size-sm)',
                 transform: 'scale(1)',
-                transition: 'transform 0.2s ease-out'
+                transition: 'transform 0.2s ease-out',
+                whiteSpace: 'nowrap'
               }}>
-                VOTE
+                <img src="/lick-icon.png" alt="Choose" style={{ width: '20px', height: '20px' }} />
               </div>
             </div>
           )}
@@ -336,7 +465,7 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
           justifyContent: 'space-between',
           alignItems: 'flex-end'
         }}>
-          {/* Inline Address Copy - Bottom Left */}
+          {/* Left side content - varies based on position */}
           <div style={{ 
             display: 'flex', 
             alignItems: 'center',
@@ -346,222 +475,354 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             justifyContent: 'flex-start',
             flex: '1'
           }}>
-            {/* Super Vote Fire Button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onVote) {
-                  console.log('🔥 Super vote triggered for NFT:', nft.id);
-                  onVote(nft.id, true); // true = super vote
-                }
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                padding: 'var(--space-1)',
-                borderRadius: 'var(--border-radius-sm)',
-                transition: 'transform 0.2s ease, background 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 'var(--space-2)'
-              }}
-              onMouseEnter={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.transform = 'scale(1.1)';
-                target.style.background = 'rgba(255, 69, 0, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.transform = 'scale(1)';
-                target.style.background = 'none';
-              }}
-              title="Super Vote"
-            >
-              🔥
-            </button>
-            {nft.collection_address ? (
+            {position === 'left' ? (
+              // Left card: Token ID first, then Collection button (if available)
               <>
-                {/* Collection */}
+                {/* Token ID for left card - left-justified */}
+                {nft.token_id && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (nft.token_address) {
+                        handleCopyAddress(nft.token_address, 'nft', nft.id);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.6';
+                      target.style.color = '#d0d0d0';
+                    }}
+                    onMouseLeave={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.3';
+                      target.style.color = '#e5e5e5';
+                    }}
+                    style={{
+                      fontSize: '2.5rem',
+                      fontWeight: '900',
+                      color: '#e5e5e5',
+                      lineHeight: '1',
+                      userSelect: 'none',
+                      opacity: 0.3,
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0',
+                      transition: 'opacity 0.2s ease, color 0.2s ease',
+                      marginRight: nft.collection_address ? 'var(--space-4)' : '0'
+                    }}
+                    title="Copy NFT address"
+                  >
+                    #{nft.token_id}
+                  </button>
+                )}
+                
+                {/* NFT Address Copied Confirmation - Next to Token ID */}
+                {copiedAddresses[`${nft.id}-nft`] && (
+                  <span style={{ 
+                    color: 'var(--color-green)', 
+                    fontSize: 'var(--font-size-xs)',
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                    marginRight: 'var(--space-2)'
+                  }}>
+                    Address copied
+                  </span>
+                )}
+
+
+              </>
+            ) : (
+              // Right card: Fire button first
+              <>
+                {/* Super Vote Fire Button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleCopyAddress(nft.collection_address!, 'collection', nft.id);
+                    if (!isVoting && !voteAnimationState.isAnimating) {
+                      console.log('🔥 Super vote triggered for NFT:', nft.id);
+                      handleVoteWithAnimation(nft.id, true); // true = super vote
+                    }
                   }}
                   style={{
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
-                    color: 'var(--color-grey-600)',
-                    fontSize: 'var(--font-size-xs)',
-                    padding: '0',
+                    fontSize: '1.2rem',
+                    padding: 'var(--space-1)',
+                    borderRadius: 'var(--border-radius-sm)',
+                    transition: 'transform 0.2s ease, background 0.2s ease',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '2px'
+                    justifyContent: 'center',
+                    marginRight: 'var(--space-2)'
                   }}
-                  title="Copy collection address"
+                  onMouseEnter={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.transform = 'scale(1.1)';
+                    target.style.background = 'rgba(255, 69, 0, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.transform = 'scale(1)';
+                    target.style.background = 'none';
+                  }}
+                  title="Super Vote"
                 >
-                  <span>Collection</span>
-                  <span style={{ color: 'var(--color-grey-500)' }}>⧉</span>
+                  🔥
                 </button>
-
-                {/* Confirmation Messages - Only for Collection */}
-                {copiedAddresses[`${nft.id}-collection`] && (
-                  <span style={{ 
-                    color: 'var(--color-green)', 
-                    fontSize: 'var(--font-size-xs)',
-                    fontWeight: '500',
-                    marginLeft: 'var(--space-2)'
-                  }}>
-                    Address copied
-                  </span>
-                )}
+                <div></div> {/* Empty div to maintain flex layout */}
               </>
-            ) : (
-              <div></div> // Empty div to maintain flex layout
             )}
           </div>
           
-          {/* Token ID - Right Side - Clickable */}
-          {nft.token_id && (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: 'var(--space-2)'
-            }}>
-              {/* NFT Address Copied Confirmation - To the left of token ID */}
-              {copiedAddresses[`${nft.id}-nft`] && (
-                <span style={{ 
-                  color: 'var(--color-green)', 
-                  fontSize: 'var(--font-size-xs)',
-                  fontWeight: '500',
-                  whiteSpace: 'nowrap'
-                }}>
-                  Address copied
-                </span>
-              )}
-              
+          {/* Right side content - varies based on position */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            gap: 'var(--space-2)'
+          }}>
+            {position === 'left' ? (
+              // Left card: Fire button only on the right (Token ID moved to left side)
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (nft.token_address) {
-                    handleCopyAddress(nft.token_address, 'nft', nft.id);
+                  if (!isVoting && !voteAnimationState.isAnimating) {
+                    console.log('🔥 Super vote triggered for NFT:', nft.id);
+                    handleVoteWithAnimation(nft.id, true); // true = super vote
                   }
                 }}
-                onMouseEnter={(e) => {
-                  const target = e.target as HTMLElement;
-                  target.style.opacity = '0.6';
-                  target.style.color = '#d0d0d0';
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.target as HTMLElement;
-                  target.style.opacity = '0.3';
-                  target.style.color = '#e5e5e5';
-                }}
                 style={{
-                  fontSize: '2.5rem',
-                  fontWeight: '900',
-                  color: '#e5e5e5',
-                  lineHeight: '1',
-                  userSelect: 'none',
-                  opacity: 0.3,
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  padding: '0',
-                  transition: 'opacity 0.2s ease, color 0.2s ease'
+                  fontSize: '1.2rem',
+                  padding: 'var(--space-1)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  transition: 'transform 0.2s ease, background 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
-                title="Copy NFT address"
+                onMouseEnter={(e) => {
+                  const target = e.target as HTMLElement;
+                  target.style.transform = 'scale(1.1)';
+                  target.style.background = 'rgba(255, 69, 0, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  const target = e.target as HTMLElement;
+                  target.style.transform = 'scale(1)';
+                  target.style.background = 'none';
+                }}
+                title="Super Vote"
               >
-                #{nft.token_id}
+                🔥
               </button>
-            </div>
-          )}
+            ) : (
+              // Right card: Token ID on the right (original layout)
+              nft.token_id && (
+                <>
+                  {/* NFT Address Copied Confirmation - To the left of token ID */}
+                  {copiedAddresses[`${nft.id}-nft`] && (
+                    <span style={{ 
+                      color: 'var(--color-green)', 
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: '500',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      Address copied
+                    </span>
+                  )}
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (nft.token_address) {
+                        handleCopyAddress(nft.token_address, 'nft', nft.id);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.6';
+                      target.style.color = '#d0d0d0';
+                    }}
+                    onMouseLeave={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.opacity = '0.3';
+                      target.style.color = '#e5e5e5';
+                    }}
+                    style={{
+                      fontSize: '2.5rem',
+                      fontWeight: '900',
+                      color: '#e5e5e5',
+                      lineHeight: '1',
+                      userSelect: 'none',
+                      opacity: 0.3,
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0',
+                      transition: 'opacity 0.2s ease, color 0.2s ease'
+                    }}
+                    title="Copy NFT address"
+                  >
+                    #{nft.token_id}
+                  </button>
+                </>
+              )
+            )}
+          </div>
         </div>
       </div>
     </div>
-  );
+    );
+  });
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column',
-      gap: 'var(--space-8)',
-      alignItems: 'center',
-      width: '100%',
-      maxWidth: '1200px',
-      margin: '0 auto',
-      position: 'relative',
-      zIndex: 5,
-      overflow: 'visible'
-    }}>
-      {/* Desktop: Side by Side, Mobile: Stacked */}
-      <div 
-        className="matchup-container"
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: 'var(--space-8)',
-          alignItems: 'center',
-          width: '100%',
-          overflow: 'visible'
-        }}
-      >
-        <NFTCard nft={nft1} position="left" />
-        
-        {/* VS indicator - Swiss minimal style */}
-        <div style={{
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          margin: '0 var(--space-8)',
-          zIndex: 15
+    <div 
+      className="matchup-card"
+      style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        gap: 'var(--space-4)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        maxWidth: '2400px',
+        margin: isMobile ? '0 auto' : 'calc(2vh - 20px) auto',
+        position: 'relative',
+        zIndex: 5,
+        overflow: 'visible',
+        minHeight: isMobile ? 'auto' : 'auto',
+        height: 'auto'
+      }}>
+
+      {/* Powered by GUGO text */}
+      <div style={{
+        fontSize: 'var(--font-size-lg)',
+        color: 'var(--dynamic-text-color)',
+        fontWeight: '400',
+        textAlign: 'center',
+        width: '100%',
+        marginBottom: 'var(--space-4)',
+        letterSpacing: '0.5px'
+      }}>
+        Powered by GUGO
+      </div>
+
+      {/* Main Layout: Matchup + Slider */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0px',
+        alignItems: 'center',
+        width: '100%',
+        overflow: 'visible',
+        transform: isMobile ? 'translate(0px, -40px)' : 'translate(0px, 0px)', // Only apply vertical offset on mobile
+        height: 'fit-content'
+      }}>
+        {/* Desktop: Side by Side, Mobile: Stacked */}
+        <div 
+          className="matchup-container"
+          style={{
+            display: isMobile ? 'flex' : 'grid',
+            flexDirection: isMobile ? 'column' : undefined,
+            gridTemplateColumns: isMobile ? undefined : '1fr 1fr',
+            gap: isMobile ? '0px' : 'calc(var(--space-8) * 2)',
+            alignItems: 'center',
+            justifyContent: isMobile ? 'center' : undefined,
+            overflow: 'visible',
+            width: '100%',
+            position: 'relative'
+          }}
+        >
+
+
+
+        <div style={{ 
+          justifySelf: isMobile ? 'center' : 'start',
+          marginRight: isMobile ? '0' : 'clamp(var(--space-4), 4vw, var(--space-8))'
         }}>
+          <NFTCard nft={nft1} position="left" fixedImageUrl={nft1FixedImageUrl} />
+        </div>
+        
+        {/* VS indicator - Swiss minimal style - Only show on mobile in flex flow */}
+        {isMobile && (
           <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'var(--color-black)',
-            color: 'var(--color-white)',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            margin: '0',
+            zIndex: 15
+          }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            background: '#212529',
+            color: '#fefcf3',
+            border: 'none',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: '900',
-            fontSize: 'var(--font-size-xl)',
+            fontSize: 'var(--font-size-sm)',
             position: 'relative',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            zIndex: 16,
-            letterSpacing: '-0.02em'
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 9999,
+            letterSpacing: '-0.02em',
+            opacity: 1
           }}>
             VS.
           </div>
           
-          {/* "No" Button - Fades in after 5 seconds */}
+          {/* "No" Button - Fades in after 3 seconds */}
           {!isVoting && onNoVote && (
             <button
               onClick={() => {
+                // Prevent double animation if already animating
+                if (noVoteAnimation) return;
+                
                 // Hide the button immediately
                 setShowNoButton(false);
+                // Trigger NO vote animation
+                setNoVoteAnimation(true);
+                
+                // Clear images immediately to prevent accidental votes on next pair
+                const images = document.querySelectorAll('.nft-image');
+                images.forEach(img => {
+                  (img as HTMLElement).style.opacity = '0.3';
+                  (img as HTMLElement).style.pointerEvents = 'none';
+                });
+                
                 // Call the no vote function
                 onNoVote();
-                // Reset button to appear again after 5 seconds
+                
+                // Clear animation after 1.5 seconds
+                setTimeout(() => {
+                  setNoVoteAnimation(false);
+                  // Restore image interactivity when animation ends
+                  images.forEach(img => {
+                    (img as HTMLElement).style.opacity = '1';
+                    (img as HTMLElement).style.pointerEvents = 'auto';
+                  });
+                }, 1500);
+                // Reset button to appear again after 3 seconds
                 setTimeout(() => {
                   setShowNoButton(true);
-                }, 5000);
+                }, 3000);
               }}
               style={{
                 position: 'absolute',
-                top: '100px', // Position below the VS circle
+                top: '68px', // Position below the VS circle
                 left: '50%',
                 transform: 'translateX(-50%)',
-                width: '80px',
-                height: '80px',
-                background: 'var(--color-black)',
-                color: 'var(--color-white)',
+                width: '48px',
+                height: '48px',
+                background: 'var(--dynamic-bg-color)',
+                color: 'var(--dynamic-text-color)',
                 border: 'none',
                 borderRadius: '50%',
                 fontSize: 'var(--font-size-xs)',
@@ -583,57 +844,181 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
               onMouseEnter={(e) => {
                 const target = e.target as HTMLElement;
                 target.style.transform = 'translateX(-50%) scale(1.05)';
-                target.style.background = 'var(--color-grey-800)';
+                target.style.background = 'var(--dynamic-accent-color, var(--color-grey-600))';
               }}
               onMouseLeave={(e) => {
                 const target = e.target as HTMLElement;
                 target.style.transform = 'translateX(-50%) scale(1)';
-                target.style.background = 'var(--color-black)';
+                target.style.background = 'var(--dynamic-text-color, var(--color-white))';
               }}
               title="Don't like either option"
             >
-              <div style={{ fontSize: '1.5rem', marginBottom: '2px' }}>💀</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: '900' }}>NO</div>
+              <div style={{ fontSize: '1.4rem', marginBottom: '2px' }}>💀</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: '900' }}>NO</div>
             </button>
           )}
         </div>
+        )}
         
-        <NFTCard nft={nft2} position="right" />
-      </div>
-      
-      {/* Swipe to Vote Slider */}
-      {!isVoting && (
+        <div style={{ 
+          justifySelf: isMobile ? 'center' : 'end',
+          marginLeft: isMobile ? '0' : 'clamp(var(--space-4), 4vw, var(--space-8))'
+        }}>
+          <NFTCard nft={nft2} position="right" fixedImageUrl={nft2FixedImageUrl} />
+        </div>
+        </div>
+        
+      {/* VS indicator for desktop - positioned absolutely relative to RED container */}
+      {!isMobile && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 15
+          }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            background: '#212529',
+            color: '#fefcf3',
+            border: 'none',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: '900',
+            fontSize: 'var(--font-size-sm)',
+            position: 'relative',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 9999,
+            letterSpacing: '-0.02em',
+            opacity: 1
+          }}>
+            VS.
+          </div>
+          
+          {/* "No" Button - Fades in after 3 seconds */}
+          {!isVoting && onNoVote && (
+            <button
+              onClick={() => {
+                // Prevent double animation if already animating
+                if (noVoteAnimation) return;
+                
+                // Hide the button immediately
+                setShowNoButton(false);
+                // Trigger NO vote animation
+                setNoVoteAnimation(true);
+                
+                // Clear images immediately to prevent accidental votes on next pair
+                const images = document.querySelectorAll('.nft-image');
+                images.forEach(img => {
+                  (img as HTMLElement).style.opacity = '0.3';
+                  (img as HTMLElement).style.pointerEvents = 'none';
+                });
+                
+                // Call the no vote function
+                onNoVote();
+                
+                // Clear animation after 1.5 seconds
+                setTimeout(() => {
+                  setNoVoteAnimation(false);
+                  // Restore image interactivity when animation ends
+                  images.forEach(img => {
+                    (img as HTMLElement).style.opacity = '1';
+                    (img as HTMLElement).style.pointerEvents = 'auto';
+                  });
+                }, 1500);
+                // Reset button to appear again after 3 seconds
+                setTimeout(() => {
+                  setShowNoButton(true);
+                }, 3000);
+              }}
+              style={{
+                position: 'absolute',
+                top: '58px', // Position below the VS circle (48px VS button + 10px gap)
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '48px',
+                height: '48px',
+                background: 'var(--dynamic-bg-color)',
+                color: 'var(--dynamic-text-color)',
+                border: 'none',
+                borderRadius: '50%',
+                display: showNoButton ? 'flex' : 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '700',
+                fontSize: 'var(--font-size-xs)',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                zIndex: 17,
+                opacity: showNoButton ? 1 : 0,
+                transition: 'opacity 0.3s ease-in-out',
+                letterSpacing: '0.5px'
+              }}
+              className="no-button"
+            >
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px'
+              }}>
+                <div style={{ 
+                  fontSize: '1.4rem',
+                  lineHeight: '1'
+                }}>💀</div>
+                <div style={{ 
+                  fontSize: 'var(--font-size-sm)', 
+                  fontWeight: '900',
+                  lineHeight: '1'
+                }}>NO</div>
+              </div>
+            </button>
+          )}
+        </div>
+        )}
+        
+        {/* Vertical Slider on Right Side - Only show on mobile */}
+      {!isVoting && isMobile && (
         <div style={{
-          width: '100%',
-          maxWidth: '400px',
-          margin: 'var(--space-6) auto 0 auto',
-          position: 'relative'
+          width: '80px',
+          height: '400px',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
         }}>
           {/* Instruction Text */}
-          <div style={{
+          <div className="desktop-hide-slider" style={{
             textAlign: 'center',
             fontSize: 'var(--font-size-xs)',
             color: 'var(--color-grey-500)',
             marginBottom: 'var(--space-3)',
-            fontWeight: '500'
+            fontWeight: '500',
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed'
           }}>
-            <span className="desktop-instruction">
-              Slide left or right to vote
-            </span>
             <span className="mobile-instruction" style={{ display: 'none' }}>
-              Swipe up or down to vote
+              Slide how much you like it
             </span>
           </div>
 
-          {/* Slider Track */}
+          {/* Vertical Slider Track */}
           <div
+            className="desktop-hide-slider"
             style={{
-              width: '100%',
-              height: '60px',
-              background: 'linear-gradient(90deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0.05) 100%)',
+              width: '60px',
+              height: '100%',
+              background: 'transparent',
               borderRadius: '30px',
               position: 'relative',
-              border: '2px solid var(--color-grey-200)',
+              border: '2px solid var(--color-grey-500)',
               cursor: isDragging ? 'grabbing' : 'grab',
               overflow: 'hidden'
             }}
@@ -648,46 +1033,46 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             {/* Vote Direction Indicators */}
             <div style={{
               position: 'absolute',
-              left: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
+              top: '16px',
+              left: '50%',
+              transform: 'translateX(-50%)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
-              color: sliderPosition < 40 ? 'var(--color-green)' : 'var(--color-grey-400)',
+              color: sliderPosition < 40 ? 'var(--color-green)' : 'var(--color-grey-500)',
               transition: 'color 0.2s ease-out',
               pointerEvents: 'none'
             }}>
-              ←
+              ↑
             </div>
             
             <div style={{
               position: 'absolute',
-              right: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
+              bottom: '16px',
+              left: '50%',
+              transform: 'translateX(-50%)',
               fontSize: 'var(--font-size-sm)',
               fontWeight: '600',
-              color: sliderPosition > 60 ? 'var(--color-green)' : 'var(--color-grey-400)',
+              color: sliderPosition > 60 ? 'var(--color-green)' : 'var(--color-grey-500)',
               transition: 'color 0.2s ease-out',
               pointerEvents: 'none'
             }}>
-              →
+              ↓
             </div>
 
             {/* Slider Handle */}
             <div
               style={{
                 position: 'absolute',
-                left: `calc(${sliderPosition}% - 28px)`,
-                top: '50%',
-                transform: 'translateY(-50%)',
+                top: `calc(${sliderPosition}% - 24px)`,
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: '56px',
                 height: '48px',
                 background: isDragging ? 'var(--color-green)' : 'var(--color-white)',
                 borderRadius: '24px',
                 border: '2px solid var(--color-grey-300)',
                 boxShadow: isDragging ? '0 4px 12px rgba(0,211,149,0.3)' : '0 2px 8px rgba(0,0,0,0.1)',
-                transition: isDragging ? 'none' : 'left 0.3s ease-out, background 0.2s ease-out, box-shadow 0.2s ease-out',
+                transition: isDragging ? 'none' : 'top 0.3s ease-out, background 0.2s ease-out, box-shadow 0.2s ease-out',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -717,9 +1102,9 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
             {(sliderPosition < 30 || sliderPosition > 70) && (
               <div style={{
                 position: 'absolute',
-                top: '50%',
-                left: sliderPosition < 30 ? '20%' : '80%',
-                transform: 'translateY(-50%)',
+                left: '50%',
+                top: sliderPosition < 30 ? '20%' : '80%',
+                transform: 'translateX(-50%)',
                 fontSize: 'var(--font-size-xs)',
                 fontWeight: '600',
                 color: 'var(--color-green)',
@@ -727,37 +1112,27 @@ function MatchupCard({ nft1, nft2, onVote, onNoVote, onImageFailure, isVoting = 
                 opacity: isDragging ? 1 : 0.7,
                 transition: 'opacity 0.2s ease-out'
               }}>
-                VOTE
+                <img src="/lick-icon.png" alt="Choose" style={{ width: '20px', height: '20px' }} />
               </div>
             )}
           </div>
         </div>
       )}
+      </div>
 
-      {/* Voting Status */}
-      {isVoting && (
-        <div className="slide-up" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--space-2)',
-          padding: 'var(--space-3) var(--space-6)',
-          background: 'var(--color-grey-100)',
-          borderRadius: 'var(--border-radius)',
-          color: 'var(--color-grey-600)',
-          fontSize: 'var(--font-size-sm)',
-          fontWeight: '500'
-        }}>
-          <div style={{
-            width: '16px',
-            height: '16px',
-            border: '2px solid var(--color-green)',
-            borderTop: '2px solid transparent',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }}></div>
-          Processing vote...
-        </div>
-      )}
+      {/* Desktop instruction text - centered below matchup */}
+      <div className="desktop-instruction" style={{
+        fontSize: 'var(--font-size-lg)',
+        color: 'var(--dynamic-text-color)',
+        fontWeight: '500',
+        display: 'none', // Hidden by default, shown on desktop via CSS
+        width: '100%',
+        margin: 'var(--space-4) auto 0 auto',
+        textAlign: 'center'
+      }}>
+        Pick your favorite. 🔥 if it slaps.
+      </div>
+
     </div>
   );
 }

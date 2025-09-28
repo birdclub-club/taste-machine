@@ -15,7 +15,7 @@ class IPFSGatewayManager {
   private static instance: IPFSGatewayManager;
   private gateways: GatewayHealth[] = [];
   private readonly HEALTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
-  private readonly SUCCESS_THRESHOLD = 0.7; // 70% success rate
+  private readonly SUCCESS_THRESHOLD = 0.3; // 30% success rate (more forgiving)
   private readonly RECENT_WINDOW = 10 * 60 * 1000; // 10 minutes
 
   constructor() {
@@ -31,15 +31,16 @@ class IPFSGatewayManager {
   }
 
   private initializeGateways() {
+    // 🔒 SECURE & COMPATIBLE: HTTPS gateways for maximum compatibility
     const gatewayUrls = [
-      'https://ipfs.io/ipfs/',
-      'https://cloudflare-ipfs.com/ipfs/',
-      'https://gateway.pinata.cloud/ipfs/',
-      'https://dweb.link/ipfs/',
-      'https://ipfs.filebase.io/ipfs/',
-      'https://w3s.link/ipfs/',
-      'https://gateway.ipfs.io/ipfs/',
-      'https://hardbin.com/ipfs/'
+      'https://ipfs.io/ipfs/',             // Most reliable and secure
+      'https://dweb.link/ipfs/',           // BEST for Final Bosu/Fugz (v1 hashes)
+      'https://gateway.ipfs.io/ipfs/',     // Fast general purpose
+      'https://4everland.io/ipfs/',        // Reliable alternative
+      'https://w3s.link/ipfs/',            // Web3.Storage gateway
+      'https://nftstorage.link/ipfs/',     // NFT.Storage gateway
+      'https://pinata.cloud/ipfs/',        // Pinata gateway
+      'https://ipfs.eth.aragon.network/ipfs/' // Aragon gateway
     ];
 
     this.gateways = gatewayUrls.map(url => ({
@@ -59,6 +60,7 @@ class IPFSGatewayManager {
     
     if (healthyGateways.length === 0) {
       console.warn('⚠️ No healthy gateways found, using fallback');
+      console.warn('🔍 Gateway status:', this.gateways.map(g => ({ url: g.url, healthy: g.isHealthy, failures: g.failureCount, successes: g.successCount })));
       return this.gateways[0]?.url || 'https://ipfs.io/ipfs/';
     }
 
@@ -145,8 +147,17 @@ class IPFSGatewayManager {
   }
 
   // 🔄 Start background health monitoring
+  private healthCheckInterval?: NodeJS.Timeout;
+  
   private startHealthMonitoring() {
-    setInterval(() => {
+    // Prevent multiple intervals
+    if (this.healthCheckInterval) {
+      console.log('🚫 Health monitoring already started, skipping...');
+      return;
+    }
+    
+    console.log('🏥 Starting gateway health monitoring (5-minute intervals)...');
+    this.healthCheckInterval = setInterval(() => {
       this.performHealthCheck();
     }, this.HEALTH_CHECK_INTERVAL);
   }
@@ -228,12 +239,26 @@ if (typeof window !== 'undefined') {
 
 export const ipfsGatewayManager = IPFSGatewayManager.getInstance();
 
-// 🔧 Enhanced IPFS URL fixer with adaptive gateway selection
+// Track logged hashes to avoid spam - static outside class
+const loggedHashes = new Set<string>();
+
+// 🔧 Enhanced IPFS URL fixer with collection-specific optimization
 export const fixImageUrl = (imageUrl: string): string => {
   if (!imageUrl) return '';
   
   if (imageUrl.startsWith('ipfs://')) {
     const ipfsHash = imageUrl.replace('ipfs://', '');
+    
+    // 🎯 OPTIMIZED: Use secure HTTPS dweb.link for Final Bosu/Fugz (v1 hashes starting with 'bafy')
+    if (ipfsHash.startsWith('bafybeie') || ipfsHash.startsWith('bafybeig')) {
+      // Only log once per hash to avoid spam
+      if (!loggedHashes.has(ipfsHash.substring(0,12))) {
+        console.log(`🎯 Using optimized HTTPS gateway for Final Bosu/Fugz: ${ipfsHash.substring(0,12)}...`);
+        loggedHashes.add(ipfsHash.substring(0,12));
+      }
+      return `https://dweb.link/ipfs/${ipfsHash}`;
+    }
+    
     const bestGateway = ipfsGatewayManager.getBestGateway();
     return `${bestGateway}${ipfsHash}`;
   }
@@ -266,7 +291,7 @@ export const getNextIPFSGateway = (currentSrc: string, originalUrl: string): str
   }
   
   // Extract IPFS hash from current URL
-  let ipfsMatch = currentSrc.match(/\/ipfs\/([^\/\?]+)(?:\/(.+))?/);
+  const ipfsMatch = currentSrc.match(/\/ipfs\/([^\/\?]+)(?:\/(.+))?/);
   
   // Try to detect raw IPFS hashes that might have slipped through
   if (!ipfsMatch) {

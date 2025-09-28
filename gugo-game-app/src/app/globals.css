@@ -19,6 +19,11 @@
   --color-green-medium: #00a878; /* Visible dot green */
   --color-green-light: #4ade80;
   
+  /* Dynamic Theme Colors - Set by landing page */
+  --dynamic-bg-color: #fefcf3; /* Default to cream */
+  --dynamic-text-color: #212529; /* Default to dark grey */
+  --dynamic-accent-color: #00d395; /* Default to green */
+  
   /* Layout */
   --max-width: 1200px;
   --border-radius: 8px;
@@ -26,7 +31,9 @@
   --border-radius-lg: 12px;
   
   /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family: 'kings-caslon', 'Inter', -apple-system, BlinkMacSystemFont, serif; /* King's Caslon Regular as primary */
+  --font-family-primary: 'neue-haas-unica', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; /* Neue Haas Unica for titles */
+  --font-family-secondary: 'kings-caslon', 'Inter', -apple-system, BlinkMacSystemFont, serif; /* King's Caslon Regular for body text */
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -62,6 +69,8 @@
   --transition-slow: 350ms ease;
 }
 
+/* Loading skeleton animation removed - using simple background */
+
 /* Reset and base styles */
 * {
   box-sizing: border-box;
@@ -74,11 +83,11 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-family);
+  font-family: var(--font-family-secondary); /* King's Caslon Regular for body text */
   font-size: var(--font-size-base);
   line-height: 1.6;
-  color: var(--color-grey-800);
-  background: var(--color-cream);
+  color: var(--dynamic-text-color, var(--color-grey-800));
+  background: var(--dynamic-bg-color, var(--color-cream));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -145,20 +154,7 @@ body {
   opacity: 1;
 }
 
-/* Prominent dot grid for background */
-.dot-grid {
-  background-image: 
-    radial-gradient(var(--color-green-medium) 1.5px, transparent 1.5px);
-  background-size: 28px 28px;
-  opacity: 0.6;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 1;
-  pointer-events: none;
-}
+/* Dot grid is now applied directly to body background */
 
 /* Button Styles */
 .btn-primary {
@@ -276,12 +272,148 @@ body {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 8px rgba(0, 211, 149, 0.6);
+  }
+  to {
+    text-shadow: 0 0 16px rgba(0, 211, 149, 1);
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) scale(1.2);
+  }
+}
+
+@keyframes redDotPulse {
+  0% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes dropdownReveal {
+  0% {
+    opacity: 0;
+    transform: scaleY(0) translateY(-10px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scaleY(0.6) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+  }
+}
+
+@keyframes floatUpAndFade {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-40px);
+  }
+}
+
+@keyframes floatDownAndFade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(5px);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(30px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(50px);
+  }
+}
+
+@keyframes walletGlow {
+  0% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+  25% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.05);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 1), 0 0 80px rgba(34, 197, 94, 0.7);
+    transform: scale(1.1);
+  }
+  75% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+}
+
+/* Lick Popup Mobile Responsiveness */
+@media (max-width: 768px) {
+  .lick-popup {
+    right: 20px !important;
+    left: 20px !important;
+    width: calc(100vw - 40px) !important;
+    max-width: none !important;
+  }
+}
+
 /* Mobile Optimizations */
 @media (max-width: 768px) {
   .swiss-grid {
     grid-template-columns: 1fr;
     padding: 0 var(--space-4);
     gap: var(--space-4);
+  }
+  
+  .main-content-spaced {
+    padding: calc(var(--space-2) + 60px) var(--space-2) var(--space-2) var(--space-2) !important; /* Reduced padding to prevent image cropping */
   }
   
   .text-hero {
@@ -300,11 +432,83 @@ body {
   
   .matchup-container {
     flex-direction: column !important;
-    gap: var(--space-6) !important;
+    gap: var(--space-3) !important;
+    max-height: none !important; /* Remove height restriction to prevent cropping */
+    overflow: visible !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   .nft-card {
-    max-width: 90vw !important;
+    max-width: 70vw !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Aggressively remove ALL white card backgrounds */
+  .matchup-card div[style*="background: var(--color-white)"],
+  .matchup-card div[style*="background:var(--color-white)"],
+  .matchup-card div[style*="background: white"],
+  .matchup-card div[style*="background:white"],
+  .matchup-card div[style*="background: #fff"],
+  .matchup-card div[style*="background:#fff"],
+  .matchup-card div[style*="background: #ffffff"],
+  .matchup-card div[style*="background:#ffffff"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target any white backgrounds in NFT cards */
+  .matchup-card > div > div[style*="background"],
+  .matchup-card [style*="background: var(--color-white)"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Nuclear option - remove ALL backgrounds from matchup card children */
+  .matchup-card * {
+    background-color: transparent !important;
+  }
+  
+  /* But keep the NFT image backgrounds */
+  .matchup-card img {
+    background: initial !important;
+  }
+  
+  /* Aggressively reduce all spacing in the matchup area */
+  .matchup-card div[style*="flexShrink"] {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target any div with margin styles */
+  .matchup-card div[style*="margin"] {
+    margin: 0 !important;
+  }
+  
+  /* Force the VS indicator container to have no spacing */
+  .matchup-card div[style*="margin: 0 var(--space-8)"],
+  .matchup-card div[style*="margin:0 var(--space-8)"] {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target the main flex container that holds the NFTs - allow React to control gap */
+  .matchup-card > div[style*="display: flex"] {
+    margin: 0 !important;
+    padding: 0 !important;
   }
   
   /* Mobile slider instructions */
@@ -319,48 +523,7 @@ body {
   /* Mobile bottom tagline adjustments */
   .bottom-tagline {
     font-size: var(--font-size-xs) !important;
-  }
-  
-  /* Mobile bottom tagline container adjustments */
-  .bottom-tagline-container {
-    bottom: var(--space-4) !important;
-  }
-  
-  .bottom-tagline-wrapper {
-    padding-left: var(--space-4) !important;
-    padding-right: var(--space-4) !important;
-    flex-direction: column !important;
-    gap: var(--space-2) !important;
-    align-items: flex-start !important;
-  }
-  
-  .chain-info {
-    text-align: left !important;
-  }
-  
-  /* Hide testnet labels on mobile for cleaner look */
-  .testnet-label {
-    display: none !important;
-  }
-  
-  .dot-grid {
-    background-size: 22px 22px;
-    opacity: 0.4;
-  }
-  
-  .halftone-bg {
-    background-size: 16px 16px;
-  }
-  
-  /* Mobile logo adjustments */
-  .hero-logo {
-    width: 120px !important;
-    height: 120px !important;
-  }
-  
-  .status-logo {
-    width: 36px !important;
-    height: 36px !important;
+    padding: var(--space-2) var(--space-4) !important;
   }
   
   /* Mobile StatusBar adjustments */
@@ -388,6 +551,39 @@ body {
   }
 }
 
+/* Desktop Optimizations - Hide slider on larger screens */
+@media (min-width: 769px) {
+  .desktop-hide-slider {
+    display: none !important;
+  }
+  
+  .desktop-instruction {
+    display: block !important;
+  }
+  
+  .mobile-instruction {
+    display: none !important;
+  }
+  
+  /* Restore horizontal layout for desktop */
+  .matchup-container {
+    flex-direction: row !important;
+    gap: var(--space-8) !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+  }
+  
+  /* Responsive NFT cards on desktop - scale with viewport */
+  .nft-card {
+    width: clamp(300px, 25vw, 500px) !important;
+    max-width: 500px !important;
+    min-width: 300px !important;
+  }
+}
+
 /* Abstract Logo Background */
 .abstract-logo-bg {
   mix-blend-mode: multiply;
@@ -400,3 +596,511 @@ body {
   -moz-user-select: none;
   -ms-user-select: none;
 }
+
+/* 🎨 ENHANCED CSS STABILITY RULES - Prevent styling issues during wallet switching */
+
+/* CRITICAL: Force CSS variables to always be available */
+:root {
+  /* Emergency fallback values - always available */
+  --color-black: #000000 !important;
+  --color-white: #ffffff !important;
+  --color-green: #22c55e !important;
+  --space-4: 1rem !important;
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+}
+
+/* CSS reload recovery with enhanced properties */
+body.css-reload {
+  /* Force repaint during CSS stability check */
+  transform: translateZ(0);
+  /* Ensure critical properties are preserved */
+  --force-recalc: 1;
+  /* Temporary visibility management during recovery */
+  transition: visibility 0.1s ease !important;
+}
+
+/* RainbowKit compatibility class */
+body.wallet-connected {
+  --rainbow-kit-stable: 1;
+}
+
+/* Enhanced wallet state management */
+[data-wallet-connected="true"] {
+  --stability-marker: 'connected';
+}
+
+[data-wallet-connected="false"] {
+  --stability-marker: 'disconnected';
+}
+
+/* RainbowKit modal and component stability */
+[data-rk] {
+  --rk-stability: 1;
+}
+
+/* Enhanced CSS stability hack */
+@media screen and (min-width: 0px) {
+  :root {
+    /* Force re-evaluation of critical custom properties */
+    --css-stability-timestamp: 1;
+  }
+  
+  body {
+    /* Ensure body styles are always calculated */
+    --body-stability: 1;
+  }
+}
+
+/* Development hot reload protection */
+@media (prefers-reduced-motion: no-preference) {
+  body.css-reload {
+    /* Smooth recovery transitions */
+    transition: all 0.15s ease !important;
+  }
+}
+
+/* 🎰 Prize Break Loading Animation */
+@keyframes loading-sweep {
+  0% {
+    transform: translateX(-150px);
+  }
+  50% {
+    transform: translateX(450px);
+  }
+  100% {
+    transform: translateX(-150px);
+  }
+}
+
+/* 💰 Wallet Glow Animation */
+@keyframes walletGlow {
+  0% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+  25% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 1.0), 0 0 80px rgba(34, 197, 94, 0.7);
+    transform: scale(1.03);
+  }
+  75% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+    transform: scale(1);
+  }
+}
+
+
+
+@keyframes reward-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+  50% {
+    transform: scale(1.1) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Wipe transition animations for voting */
+@keyframes wipe-left {
+  0% {
+    left: -100%;
+    right: 100%;
+  }
+  100% {
+    left: 100%;
+    right: -100%;
+  }
+}
+
+@keyframes wipe-right {
+  0% {
+    left: 100%;
+    right: -100%;
+  }
+  100% {
+    left: -100%;
+    right: 100%;
+  }
+}
+
+/* Burning GUGO Notification Animations */
+@keyframes fire-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 30px rgba(255, 107, 53, 0.8)) drop-shadow(0 0 60px rgba(255, 140, 0, 0.6)) drop-shadow(0 0 90px rgba(255, 165, 0, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 40px rgba(255, 107, 53, 1)) drop-shadow(0 0 80px rgba(255, 140, 0, 0.8)) drop-shadow(0 0 120px rgba(255, 165, 0, 0.6));
+    transform: scale(1.02);
+  }
+}
+
+@keyframes text-glow {
+  0%, 100% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(255, 107, 53, 0.6);
+  }
+  50% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 30px rgba(255, 107, 53, 0.9), 0 0 40px rgba(255, 140, 0, 0.4);
+  }
+}
+
+/* Subtler versions for refined notification */
+@keyframes fire-pulse-subtle {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 107, 53, 0.6)) drop-shadow(0 0 40px rgba(255, 140, 0, 0.4)) drop-shadow(0 0 60px rgba(255, 165, 0, 0.2));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(255, 107, 53, 0.7)) drop-shadow(0 0 50px rgba(255, 140, 0, 0.5)) drop-shadow(0 0 75px rgba(255, 165, 0, 0.3));
+    transform: scale(1.01);
+  }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.7)) drop-shadow(0 0 50px rgba(255, 255, 255, 0.5));
+    transform: scale(1.02);
+  }
+}
+
+@keyframes text-glow-subtle {
+  0%, 100% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 107, 53, 0.4);
+  }
+  50% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(255, 107, 53, 0.6), 0 0 25px rgba(255, 140, 0, 0.3);
+  }
+}
+
+/* Art Duck Notification Animations */
+@keyframes white-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.4)) drop-shadow(0 0 60px rgba(255, 255, 255, 0.2));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 50px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 75px rgba(255, 255, 255, 0.4));
+    transform: scale(1.01);
+  }
+}
+
+@keyframes text-glow-white {
+  0%, 100% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 25px rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* 🎨 LANDING PAGE STYLES - Swiss Minimalist Design */
+
+.landing-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  /* Background color set via inline style for dynamic palettes */
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.landing-text {
+  position: absolute;
+  font-family: var(--font-family-primary);
+  font-weight: 300;
+  font-size: clamp(5rem, 15vw, 16rem);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  color: var(--landing-text-color, #E55C26);
+  text-transform: uppercase;
+  user-select: none;
+  pointer-events: none;
+  opacity: 0;
+  animation: fadeInLanding 2s ease-out 0.5s forwards;
+}
+
+.landing-taste {
+  top: 5vh;
+  left: 5vw;
+  animation-delay: 0.8s;
+}
+
+.landing-machine {
+  bottom: 5vh;
+  right: 5vw;
+  text-align: right;
+  animation-delay: 1.2s;
+}
+
+.landing-enter-btn {
+  position: absolute;
+  bottom: 8vh;
+  left: 5vw;
+  background: transparent;
+  border: 1px solid var(--landing-border-color, rgba(229, 92, 38, 0.3));
+  color: var(--landing-text-color, #E55C26);
+  padding: 1rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+  animation: fadeInLanding 1s ease-out 2s forwards;
+  z-index: 10;
+}
+
+.landing-enter-btn:hover {
+  border-color: var(--landing-border-hover, rgba(229, 92, 38, 0.6));
+  background: var(--landing-bg-hover, rgba(229, 92, 38, 0.05));
+  transform: translateX(4px);
+}
+
+.landing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+@keyframes fadeInLanding {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsive Landing */
+@media (max-width: 768px) {
+  .landing-text {
+    font-size: clamp(3rem, 12vw, 7rem);
+  }
+  
+  .landing-taste {
+    top: 8vh;
+    left: 8vw;
+  }
+  
+  .landing-machine {
+    bottom: 8vh;
+    right: 8vw;
+  }
+  
+  .landing-enter-btn {
+    bottom: 12vh;
+    left: 8vw;
+    padding: 0.8rem;
+  }
+}
+
+/* Tablet Responsive Landing */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .landing-text {
+    font-size: clamp(4rem, 12vw, 12rem);
+  }
+}
+
+/* Removed ::before pseudo-element approach */
+
+
+
+
+
+
+/* Mobile Branding Adjustments */
+@media (max-width: 768px) {
+  .proof-of-element {
+    top: calc(5vh + 60px) !important;
+    font-size: clamp(2rem, 12vw, 10rem) !important;
+  }
+  
+  /* Optimize matchup card layout for mobile viewport */
+  .matchup-card {
+    padding: 2vh 0 !important; /* Add padding to prevent cropping */
+    gap: 0 !important;
+    min-height: auto !important;
+    margin-top: 22.5vh !important; /* Split the difference between 15vh and 30vh */
+    max-height: none !important; /* Remove height restriction to prevent cropping */
+    overflow: visible !important;
+    justify-content: center !important;
+    align-items: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Force all children of matchup card to have minimal spacing */
+  .matchup-card > * {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target the container that holds both NFT cards - force extreme closeness */
+  .matchup-card > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  
+  /* Target the flex container holding both NFT cards specifically */
+  .matchup-card > div[style*="flex-direction: column"] {
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Force any div with column layout to have zero gap */
+  .matchup-card div[style*="column"] {
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Make NFT images larger (30% increase) with white outline and compact spacing */
+  .nft-card img {
+    width: 85vw !important;
+    height: 85vw !important;
+    max-height: 30vh !important;
+    max-width: 30vh !important;
+    object-fit: cover !important;
+    border-radius: 12px !important;
+    display: block !important;
+    margin: -8vh 0 -8vh 2vw !important; /* Move images slightly to the left with small left offset */
+    aspect-ratio: 1 / 1 !important;
+    border: 4px solid #ffffff !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+  }
+
+  /* Make NFT cards themselves with compact spacing on mobile */
+  .nft-card {
+    margin: -8vh auto !important; /* More aggressive negative margin to pull cards much closer together */
+    padding: 0 !important;
+  }
+  
+  /* Clean image container */
+  .nft-card .image-container {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 2vh 0 !important; /* Add padding to prevent cropping */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin: -8vh 0 !important; /* Adjust margin to compensate for padding */
+  }
+  
+  /* Compact the voting controls */
+  .matchup-card > div {
+    margin: 0 !important;
+    padding: var(--space-1) 0 !important;
+  }
+  
+  /* Reduce slider height on mobile */
+  .matchup-card .slider-container {
+    height: 200px !important;
+    margin: var(--space-2) 0 !important;
+  }
+  
+  /* Hide NFT card metadata on mobile */
+  .nft-card .card-footer {
+    display: none !important;
+  }
+  
+  /* Hide unnecessary card elements on mobile */
+  .nft-card .card-header {
+    display: none !important;
+  }
+  
+  /* Style collection name and token info */
+  .nft-card .collection-name {
+    font-weight: 600 !important;
+    font-size: var(--font-size-sm) !important;
+    color: var(--dynamic-text-color, #ffffff) !important;
+  }
+  
+  .nft-card .token-info {
+    font-size: var(--font-size-xs) !important;
+    color: var(--dynamic-text-color-secondary, #cccccc) !important;
+  }
+  
+  /* Reduce VS container margin on mobile */
+  .matchup-card div[style*="margin: 0 var(--space-8)"] {
+    margin: 0 !important;
+  }
+  
+  
+  /* Make No button more compact */
+  .matchup-card .no-button {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* Red X Animation for NO votes */
+@keyframes redXPulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes redXGlow {
+  0% {
+    text-shadow: 0 0 20px rgba(255, 0, 0, 0.8), 0 0 40px rgba(255, 0, 0, 0.6);
+    transform: scale(0.8) rotate(-5deg);
+  }
+  25% {
+    text-shadow: 0 0 30px rgba(255, 0, 0, 1), 0 0 60px rgba(255, 0, 0, 0.8), 0 0 90px rgba(255, 0, 0, 0.6);
+    transform: scale(1.2) rotate(5deg);
+  }
+  50% {
+    text-shadow: 0 0 40px rgba(255, 0, 0, 1), 0 0 80px rgba(255, 0, 0, 0.9), 0 0 120px rgba(255, 0, 0, 0.7);
+    transform: scale(1.1) rotate(-2deg);
+  }
+  75% {
+    text-shadow: 0 0 30px rgba(255, 0, 0, 0.9), 0 0 60px rgba(255, 0, 0, 0.7), 0 0 90px rgba(255, 0, 0, 0.5);
+    transform: scale(1) rotate(2deg);
+  }
+  100% {
+    text-shadow: 0 0 20px rgba(255, 0, 0, 0.6), 0 0 40px rgba(255, 0, 0, 0.4);
+    transform: scale(0.9) rotate(0deg);
+  }
+}
+
+
+
